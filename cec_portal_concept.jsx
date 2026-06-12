@@ -152,57 +152,38 @@ function LoginScreen({ onLogin }) {
     }}>
       {/* Panel izquierdo — verde institucional */}
       <div style={{
-        flex: "0 0 42%",
+        flex: "0 0 45%",
         background: COLORS.sidebar,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        padding: 48,
-        position: "relative",
+        padding: "60px 48px",
       }}>
-        {/* Decoración fondo */}
+        {/* Logo de color sobre tarjeta blanca */}
         <div style={{
-          position: "absolute", top: -80, right: -80,
-          width: 320, height: 320,
-          borderRadius: "50%",
-          background: "rgba(201,162,78,0.06)",
-          pointerEvents: "none",
-        }} />
+          background: "#FFFFFF",
+          borderRadius: 20,
+          padding: "40px 48px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
+          width: "100%",
+          maxWidth: 340,
+        }}>
+          <Logo maxWidth={280} onDark={false} />
+        </div>
+
         <div style={{
-          position: "absolute", bottom: -60, left: -60,
-          width: 240, height: 240,
-          borderRadius: "50%",
-          background: "rgba(201,162,78,0.04)",
-          pointerEvents: "none",
-        }} />
-
-        <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
-          {/* Logo en blanco sobre verde */}
-          <div style={{ marginBottom: 32 }}>
-            <Logo maxWidth={220} onDark={true} />
-          </div>
-
-          <InfinityDivider width={80} />
-
-          <div style={{
-            marginTop: 28,
-            fontSize: 11,
-            letterSpacing: "0.35em",
-            color: COLORS.sidebarMuted,
-            textTransform: "uppercase",
-          }}>
-            Portal de Colaboradores
-          </div>
-          <div style={{
-            marginTop: 8,
-            fontSize: 12,
-            letterSpacing: "0.2em",
-            color: COLORS.gold,
-            fontWeight: 600,
-          }}>
-            Desde 1976
-          </div>
+          marginTop: 36,
+          fontSize: 11,
+          letterSpacing: "0.4em",
+          color: "rgba(255,255,255,0.5)",
+          textTransform: "uppercase",
+          textAlign: "center",
+        }}>
+          Portal de Colaboradores
         </div>
       </div>
 
@@ -393,8 +374,17 @@ function Sidebar({ active, setActive, onLogout }) {
       top: 0,
       flexShrink: 0,
     }}>
-      <div style={{ padding: "0 8px 32px" }}>
-        <Logo maxWidth={170} onDark={true} />
+      {/* Logo en tarjeta blanca dentro del sidebar verde */}
+      <div style={{
+        margin: "0 4px 28px",
+        background: "#FFFFFF",
+        borderRadius: 12,
+        padding: "12px 16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <Logo maxWidth={172} onDark={false} />
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
