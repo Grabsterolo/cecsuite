@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, User, LogOut,
-  Home, ChevronRight, Download, Clock, CheckCircle2, Cake,
+  Home, ChevronRight, Download, Clock, CheckCircle2, Cake, Menu, X,
 } from "lucide-react";
 
 const COLORS = {
@@ -21,7 +21,20 @@ const COLORS = {
 
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+* { -webkit-tap-highlight-color: transparent; }
 `;
+
+const SIDEBAR_BG = "linear-gradient(170deg, #24584C 0%, #1F4A40 40%, #152E27 100%)";
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return isMobile;
+}
 
 function Logo({ width = 200 }) {
   const [imgError, setImgError] = useState(false);
@@ -45,14 +58,100 @@ function Logo({ width = 200 }) {
 
 /* ─────────────────────────── LOGIN ─────────────────────────── */
 
+const inputStyle = {
+  width: "100%", background: "#F7F5F0",
+  border: "1.5px solid rgba(31,74,64,0.12)", borderRadius: 8,
+  padding: "11px 14px", color: "#1F4A40", fontSize: 16,
+  outline: "none", boxSizing: "border-box",
+  fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s", display: "block",
+};
+
+function LoginForm({ onLogin }) {
+  return (
+    <>
+      <div style={{ width: 32, height: 3, background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`, borderRadius: 2, marginBottom: 20 }} />
+      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, marginBottom: 6, color: COLORS.green, lineHeight: 1.1 }}>
+        Bienvenido<br />de nuevo
+      </h1>
+      <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 36, lineHeight: 1.6 }}>
+        Ingresa con tu cuenta institucional para continuar.
+      </p>
+      <button onClick={onLogin} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+        background: COLORS.inputBg, border: `1.5px solid ${COLORS.border}`,
+        borderRadius: 10, padding: "12px 16px", color: COLORS.text,
+        fontSize: 14, fontWeight: 600, cursor: "pointer",
+        fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s",
+      }}
+        onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.gold}
+        onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
+      >
+        <svg width="18" height="18" viewBox="0 0 23 23" style={{ flexShrink: 0 }}>
+          <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+          <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+          <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+          <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+        </svg>
+        Continuar con Microsoft
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0", color: COLORS.textMuted, fontSize: 12 }}>
+        <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+        o con tu correo
+        <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+      </div>
+      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>Correo corporativo</label>
+      <input type="email" placeholder="nombre@cec.co.cr" style={{ ...inputStyle, marginBottom: 14 }}
+        onFocus={e => e.target.style.borderColor = COLORS.gold}
+        onBlur={e => e.target.style.borderColor = COLORS.border}
+      />
+      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>Contraseña</label>
+      <input type="password" placeholder="••••••••" style={{ ...inputStyle, marginBottom: 24 }}
+        onFocus={e => e.target.style.borderColor = COLORS.gold}
+        onBlur={e => e.target.style.borderColor = COLORS.border}
+      />
+      <button onClick={onLogin} style={{
+        width: "100%", background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+        border: "none", borderRadius: 8, padding: "13px 16px", color: "#FFF",
+        fontSize: 14, fontWeight: 700, cursor: "pointer",
+        letterSpacing: "0.04em", fontFamily: "'Manrope', sans-serif",
+        boxShadow: "0 4px 16px rgba(201,162,78,0.4)", transition: "box-shadow 0.2s, transform 0.15s",
+      }}
+        onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 22px rgba(201,162,78,0.55)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(201,162,78,0.4)"; e.currentTarget.style.transform = "none"; }}
+      >
+        Iniciar sesión
+      </button>
+    </>
+  );
+}
+
 function LoginScreen({ onLogin }) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Manrope', sans-serif", background: "#FFF" }}>
+        <div style={{ background: SIDEBAR_BG, padding: "48px 32px 36px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <Logo width={240} />
+          <div style={{ width: 60, height: 1.5, background: COLORS.gold, opacity: 0.7 }} />
+          <div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
+            Portal de Colaboradores
+          </div>
+        </div>
+        <div style={{ flex: 1, padding: "32px 28px 48px" }}>
+          <LoginForm onLogin={onLogin} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", fontFamily: "'Manrope', sans-serif" }}>
 
       {/* ── Panel izquierdo ── */}
       <div style={{
         flex: "0 0 45%",
-        background: "linear-gradient(170deg, #24584C 0%, #1F4A40 40%, #152E27 100%)",
+        background: SIDEBAR_BG,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
@@ -78,123 +177,9 @@ function LoginScreen({ onLogin }) {
       </div>
 
       {/* ── Panel derecho — formulario ── */}
-      <div style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "40px 56px",
-        background: "#FFFFFF",
-      }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF" }}>
         <div style={{ width: "100%", maxWidth: 360 }}>
-
-          {/* Acento dorado */}
-          <div style={{ width: 32, height: 3, background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`, borderRadius: 2, marginBottom: 20 }} />
-
-          <h1 style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: 36,
-            fontWeight: 600,
-            marginBottom: 6,
-            color: COLORS.green,
-            lineHeight: 1.1,
-          }}>
-            Bienvenido<br />de nuevo
-          </h1>
-          <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 36, lineHeight: 1.6 }}>
-            Ingresa con tu cuenta institucional para continuar.
-          </p>
-
-          {/* Microsoft */}
-          <button
-            onClick={onLogin}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 10,
-              background: COLORS.inputBg,
-              border: `1.5px solid ${COLORS.border}`,
-              borderRadius: 10,
-              padding: "12px 16px",
-              color: COLORS.text,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "border-color 0.2s, box-shadow 0.2s",
-              fontFamily: "'Manrope', sans-serif",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.gold; e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,162,78,0.15)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.boxShadow = "none"; }}
-          >
-            <svg width="18" height="18" viewBox="0 0 23 23" style={{ flexShrink: 0 }}>
-              <rect x="1" y="1" width="10" height="10" fill="#F25022" />
-              <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
-              <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
-              <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
-            </svg>
-            Continuar con Microsoft
-          </button>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0", color: COLORS.textMuted, fontSize: 12 }}>
-            <div style={{ flex: 1, height: 1, background: COLORS.border }} />
-            o con tu correo
-            <div style={{ flex: 1, height: 1, background: COLORS.border }} />
-          </div>
-
-          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>
-            Correo corporativo
-          </label>
-          <input
-            type="email"
-            placeholder="nombre@cec.co.cr"
-            style={{
-              width: "100%", background: COLORS.inputBg,
-              border: `1.5px solid ${COLORS.border}`, borderRadius: 8,
-              padding: "11px 14px", color: COLORS.text, fontSize: 14,
-              marginBottom: 14, outline: "none", boxSizing: "border-box",
-              fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s",
-            }}
-            onFocus={e => e.target.style.borderColor = COLORS.gold}
-            onBlur={e => e.target.style.borderColor = COLORS.border}
-          />
-
-          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>
-            Contraseña
-          </label>
-          <input
-            type="password"
-            placeholder="••••••••"
-            style={{
-              width: "100%", background: COLORS.inputBg,
-              border: `1.5px solid ${COLORS.border}`, borderRadius: 8,
-              padding: "11px 14px", color: COLORS.text, fontSize: 14,
-              marginBottom: 24, outline: "none", boxSizing: "border-box",
-              fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s",
-            }}
-            onFocus={e => e.target.style.borderColor = COLORS.gold}
-            onBlur={e => e.target.style.borderColor = COLORS.border}
-          />
-
-          <button
-            onClick={onLogin}
-            style={{
-              width: "100%",
-              background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-              border: "none", borderRadius: 8,
-              padding: "13px 16px", color: "#FFFFFF",
-              fontSize: 14, fontWeight: 700, cursor: "pointer",
-              letterSpacing: "0.04em", fontFamily: "'Manrope', sans-serif",
-              boxShadow: "0 4px 16px rgba(201,162,78,0.4)",
-              transition: "box-shadow 0.2s, transform 0.1s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 22px rgba(201,162,78,0.55)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(201,162,78,0.4)"; e.currentTarget.style.transform = "translateY(0)"; }}
-          >
-            Iniciar sesión
-          </button>
-
+          <LoginForm onLogin={onLogin} />
         </div>
       </div>
     </div>
@@ -229,11 +214,79 @@ const BIRTHDAYS = [
   { name: "Marco Vargas", date: "19 jun" },
 ];
 
+/* ── Drawer móvil ── */
+function MobileDrawer({ open, onClose, active, setActive, onLogout }) {
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 90,
+        opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none",
+        transition: "opacity 0.25s ease",
+      }} />
+      <div style={{
+        position: "fixed", top: 0, right: 0, bottom: 0, width: 272,
+        background: SIDEBAR_BG, zIndex: 100,
+        display: "flex", flexDirection: "column", padding: "24px 16px",
+        boxShadow: "-6px 0 32px rgba(0,0,0,0.3)",
+        transform: open ? "translateX(0)" : "translateX(100%)",
+        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <Logo width={130} />
+          <button onClick={onClose} style={{
+            border: "none", background: "rgba(255,255,255,0.1)", color: "#FFF",
+            cursor: "pointer", borderRadius: 8, width: 34, height: 34,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <X size={18} />
+          </button>
+        </div>
+        <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 16 }} />
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = active === item.key;
+            return (
+              <button key={item.key} onClick={() => { setActive(item.key); onClose(); }} style={{
+                display: "flex", alignItems: "center", gap: 14,
+                padding: "12px 14px", borderRadius: 10, border: "none",
+                cursor: "pointer", textAlign: "left", fontSize: 15, fontWeight: 600,
+                fontFamily: "'Manrope', sans-serif",
+                color: isActive ? "#FFF" : COLORS.sidebarMuted,
+                background: isActive ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition: "background 0.15s, color 0.15s",
+              }}>
+                <Icon size={19} />{item.label}
+              </button>
+            );
+          })}
+        </nav>
+        <div style={{ marginTop: "auto" }}>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 4px 14px" }} />
+          <button onClick={() => { onClose(); onLogout(); }} style={{
+            display: "flex", alignItems: "center", gap: 14, padding: "12px 14px",
+            borderRadius: 10, border: "none", background: "transparent",
+            color: COLORS.sidebarMuted, fontSize: 15, fontWeight: 600,
+            fontFamily: "'Manrope', sans-serif", cursor: "pointer", width: "100%",
+          }}>
+            <LogOut size={19} />Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function Sidebar({ active, setActive, onLogout }) {
   return (
     <div style={{
       width: 252,
-      background: "linear-gradient(180deg, #24584C 0%, #1F4A40 50%, #152E27 100%)",
+      background: SIDEBAR_BG,
       display: "flex",
       flexDirection: "column",
       padding: "28px 14px",
@@ -360,9 +413,12 @@ function Tag({ label }) {
   );
 }
 
-function DashboardHome() {
+function DashboardHome({ isMobile }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+    <div style={isMobile
+      ? { display: "flex", flexDirection: "column", gap: 14 }
+      : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }
+    }>
 
       {/* Vacaciones */}
       <Card>
@@ -392,8 +448,8 @@ function DashboardHome() {
         </div>
       </Card>
 
-      {/* Comunicados — 2 columnas */}
-      <Card style={{ gridColumn: "span 2" }}>
+      {/* Comunicados — 2 columnas en desktop */}
+      <Card style={isMobile ? {} : { gridColumn: "span 2" }}>
         <CardHeader
           title="Comunicados recientes"
           action={
@@ -495,35 +551,62 @@ function PlaceholderSection({ title }) {
 
 function Dashboard({ onLogout }) {
   const [active, setActive] = useState("inicio");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", vacaciones: "Vacaciones", perfil: "Mi perfil" }[active];
+
+  if (isMobile) {
+    return (
+      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
+        {/* Header fijo móvil */}
+        <div style={{
+          position: "sticky", top: 0, zIndex: 50,
+          background: SIDEBAR_BG, padding: "12px 16px",
+          display: "flex", alignItems: "center",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{ width: 42, flexShrink: 0 }} />
+          <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+            <Logo width={120} />
+          </div>
+          <button onClick={openDrawer} style={{
+            width: 42, height: 42, border: "none",
+            background: "rgba(255,255,255,0.1)", color: "#FFF",
+            cursor: "pointer", display: "flex", alignItems: "center",
+            justifyContent: "center", borderRadius: 10, flexShrink: 0,
+          }}>
+            <Menu size={22} />
+          </button>
+        </div>
+        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={setActive} onLogout={onLogout} />
+        <div style={{ padding: "24px 16px 48px" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
+            Viernes 12 de junio, 2026
+          </div>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
+            {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
+          </h1>
+          {active === "inicio" ? <DashboardHome isMobile={true} /> : <PlaceholderSection title={sectionTitle} />}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
       <Sidebar active={active} setActive={setActive} onLogout={onLogout} />
-
-      <div style={{ flex: 1, padding: "36px 40px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
-              Viernes 12 de junio, 2026
-            </div>
-            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: 0, color: COLORS.green }}>
-              {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
-            </h1>
+      <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
+            Viernes 12 de junio, 2026
           </div>
-          <div style={{
-            width: 42, height: 42, borderRadius: "50%",
-            background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 700, color: "#FFFFFF",
-            fontFamily: "'Cormorant Garamond', serif", fontSize: 17,
-            boxShadow: "0 2px 8px rgba(201,162,78,0.35)",
-          }}>
-            JP
-          </div>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: 0, color: COLORS.green }}>
+            {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
+          </h1>
         </div>
-
-        {active === "inicio" ? <DashboardHome /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
