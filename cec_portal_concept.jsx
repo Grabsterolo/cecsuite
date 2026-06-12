@@ -148,7 +148,7 @@ function LoginScreen({ onLogin }) {
           </label>
           <input
             type="email"
-            placeholder="nombre@cec.cr"
+            placeholder="nombre@cec.co.cr"
             style={{
               width: "100%", background: COLORS.inputBg,
               border: `1.5px solid ${COLORS.border}`, borderRadius: 8,
