@@ -375,27 +375,31 @@ function CardHeader({ title, action }) {
   );
 }
 
-function VacationDonut({ used = 9, total = 21 }) {
-  const available = total - used;
-  const deg = Math.round((used / total) * 360);
+const VAC_TOTAL = 21;
+
+function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
+  const safeUsed = Math.min(used, total);
+  const safeReq  = Math.min(requested, total - safeUsed);
+  const available = total - safeUsed - safeReq;
+  const usedDeg = Math.round((safeUsed / total) * 360);
+  const reqDeg  = Math.round((safeReq  / total) * 360);
+
+  const gradient = `conic-gradient(
+    ${COLORS.gold}     0deg ${usedDeg}deg,
+    ${COLORS.goldSoft} ${usedDeg}deg ${usedDeg + reqDeg}deg,
+    ${COLORS.panelAlt} ${usedDeg + reqDeg}deg 360deg
+  )`;
+
   return (
-    <div style={{
-      width: 120, height: 120, borderRadius: "50%",
-      background: `conic-gradient(${COLORS.gold} 0deg ${deg}deg, ${COLORS.panelAlt} ${deg}deg 360deg)`,
-      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-    }}>
-      <div style={{
-        width: 88, height: 88, borderRadius: "50%", background: COLORS.panel,
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
-      }}>
-        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 700, color: COLORS.green, lineHeight: 1 }}>
-          {available}
-        </span>
-        <span style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: "0.04em" }}>días</span>
+    <div style={{ width:120, height:120, borderRadius:"50%", background:gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+      <div style={{ width:86, height:86, borderRadius:"50%", background:COLORS.panel, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1 }}>
+        <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:34, fontWeight:700, color:COLORS.green, lineHeight:1 }}>{available}</span>
+        <span style={{ fontSize:9, color:COLORS.textMuted, letterSpacing:"0.04em" }}>disponibles</span>
       </div>
     </div>
   );
 }
+
 
 function Tag({ label }) {
   return (
@@ -684,23 +688,44 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
       : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }
     }>
 
-      {/* Vacaciones */}
-      <Card>
-        <CardHeader title="Vacaciones"
-          action={<button style={verTodosStyle} onClick={() => setModal("new-vac")}>Solicitar <ChevronRight size={14} /></button>}
-        />
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <VacationDonut />
-          <div style={{ flex: 1, fontSize: 13, color: COLORS.textMuted }}>
-            <p style={{ margin: "0 0 6px" }}>
-              <span style={{ color: COLORS.green, fontWeight: 700 }}>9</span> días tomados
-            </p>
-            <p style={{ margin: 0 }}>
-              <span style={{ color: COLORS.green, fontWeight: 700 }}>2</span> pendientes
-            </p>
-          </div>
-        </div>
-      </Card>
+      {/* Vacaciones — dinámico */}
+      {(() => {
+        const usedVac = solicitudes
+          .filter(s => s.tipo==="vacaciones" && s.status==="aprobado")
+          .reduce((acc,s) => acc + calcWorkDays(s.startDate, s.endDate || s.startDate), 0);
+        const reqVac = solicitudes
+          .filter(s => s.tipo==="vacaciones" && s.status==="en_revision")
+          .reduce((acc,s) => acc + calcWorkDays(s.startDate, s.endDate || s.startDate), 0);
+        const availVac = Math.max(0, VAC_TOTAL - usedVac - reqVac);
+        return (
+          <Card>
+            <CardHeader title="Vacaciones"
+              action={<button style={verTodosStyle} onClick={() => setModal("new-vac")}>Solicitar <ChevronRight size={14}/></button>}
+            />
+            <div style={{ display:"flex", alignItems:"center", gap:18 }}>
+              <VacationDonut used={usedVac} requested={reqVac} total={VAC_TOTAL} />
+              <div style={{ flex:1, fontSize:13 }}>
+                <p style={{ margin:"0 0 5px", color:COLORS.textMuted }}>
+                  <span style={{ color:COLORS.green, fontWeight:700 }}>{availVac}</span> días disponibles
+                </p>
+                {usedVac > 0 && (
+                  <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
+                    <span style={{ width:8, height:8, borderRadius:2, background:COLORS.gold, display:"inline-block", flexShrink:0 }}/>
+                    <span style={{ color:COLORS.green, fontWeight:700 }}>{usedVac}</span> tomados
+                  </p>
+                )}
+                {reqVac > 0 && (
+                  <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
+                    <span style={{ width:8, height:8, borderRadius:2, background:COLORS.goldSoft, display:"inline-block", flexShrink:0 }}/>
+                    <span style={{ color:COLORS.gold, fontWeight:700 }}>{reqVac}</span> solicitados
+                  </p>
+                )}
+                <p style={{ margin:"8px 0 0", fontSize:11, color:COLORS.textMuted }}>{VAC_TOTAL} días totales</p>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Comunicados — 2 columnas en desktop */}
       <Card style={isMobile ? {} : { gridColumn: "span 2" }}>
