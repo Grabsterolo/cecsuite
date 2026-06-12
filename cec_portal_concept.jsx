@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Bell, FileText, CalendarDays, User, LogOut,
-  Home, ChevronRight, Download, Clock, CheckCircle2, Cake,
+  Home, ChevronRight, Download, Clock, CheckCircle2, Cake, Menu, X,
 } from "lucide-react";
 
 const COLORS = {
@@ -484,33 +484,101 @@ function PlaceholderSection({ title }) {
 
 function Dashboard({ onLogout }) {
   const [active, setActive] = useState("inicio");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
   const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", vacaciones: "Vacaciones", perfil: "Mi perfil" }[active];
 
   if (isMobile) {
     return (
-      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", paddingBottom: 72 }}>
+      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
 
-        {/* Header fijo */}
+        {/* Header fijo — logo centrado + hamburguesa derecha */}
         <div style={{
           position: "sticky", top: 0, zIndex: 50,
           background: COLORS.sidebarGradient,
-          padding: "14px 20px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "12px 20px",
+          display: "flex", alignItems: "center", justifyContent: "center",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}>
-          <Logo width={110} />
-          <div style={{
-            width: 36, height: 36, borderRadius: "50%",
-            background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 700, color: "#FFFFFF",
-            fontFamily: "'Cormorant Garamond', serif", fontSize: 15,
-          }}>JP</div>
+          {/* Placeholder izquierdo para centrar el logo */}
+          <div style={{ width: 36 }} />
+          <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+            <Logo width={120} />
+          </div>
+          <button onClick={() => setDrawerOpen(true)} style={{
+            width: 36, height: 36, border: "none", background: "transparent",
+            color: "#FFFFFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: 8,
+          }}>
+            <Menu size={24} />
+          </button>
         </div>
 
+        {/* Drawer lateral */}
+        {drawerOpen && (
+          <>
+            {/* Overlay */}
+            <div onClick={() => setDrawerOpen(false)} style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 90,
+            }} />
+            {/* Panel */}
+            <div style={{
+              position: "fixed", top: 0, right: 0, bottom: 0, width: 260,
+              background: COLORS.sidebarGradient,
+              zIndex: 100, display: "flex", flexDirection: "column",
+              padding: "24px 16px",
+              boxShadow: "-4px 0 24px rgba(0,0,0,0.25)",
+            }}>
+              {/* Cerrar */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
+                <button onClick={() => setDrawerOpen(false)} style={{
+                  border: "none", background: "transparent", color: "#FFFFFF",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <X size={22} />
+                </button>
+              </div>
+
+              <div style={{ marginBottom: 24, padding: "0 8px" }}>
+                <Logo width={150} />
+              </div>
+
+              <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = active === item.key;
+                  return (
+                    <button key={item.key} onClick={() => { setActive(item.key); setDrawerOpen(false); }} style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "12px 14px", borderRadius: 8, border: "none",
+                      cursor: "pointer", textAlign: "left", fontSize: 15, fontWeight: 600,
+                      fontFamily: "'Manrope', sans-serif",
+                      color: isActive ? "#FFFFFF" : COLORS.sidebarMuted,
+                      background: isActive ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                    }}>
+                      <Icon size={18} />{item.label}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              <div style={{ marginTop: "auto" }}>
+                <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 8px 14px" }} />
+                <button onClick={() => { setDrawerOpen(false); onLogout(); }} style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                  borderRadius: 8, border: "none", background: "transparent",
+                  color: COLORS.sidebarMuted, fontSize: 15, fontWeight: 600,
+                  fontFamily: "'Manrope', sans-serif", cursor: "pointer", width: "100%",
+                }}>
+                  <LogOut size={18} />Cerrar sesión
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Contenido */}
-        <div style={{ padding: "24px 16px" }}>
+        <div style={{ padding: "24px 16px 40px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             Viernes 12 de junio, 2026
           </div>
@@ -519,9 +587,6 @@ function Dashboard({ onLogout }) {
           </h1>
           {active === "inicio" ? <DashboardHome isMobile={true} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
-
-        {/* Navegación inferior */}
-        <BottomNav active={active} setActive={setActive} onLogout={onLogout} />
       </div>
     );
   }
