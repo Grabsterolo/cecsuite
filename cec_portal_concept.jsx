@@ -13,23 +13,6 @@ import {
   Cake,
 } from "lucide-react";
 
-/*
-  CEC — Portal de Colaboradores
-  Concepto v2 — Fondo blanco, gama del logo oficial
-
-  Tokens
-  - Fondo: #FFFFFF / #FAFAF8
-  - Panel / tarjeta: #FFFFFF con borde sutil
-  - Panel elevado: #F4F1EA
-  - Verde institucional: #1F4A40 (color texto logo)
-  - Verde suave: #2C6356
-  - Dorado: #C9A24E (símbolo del logo)
-  - Dorado suave: #E4C77A
-  - Texto principal: #1F4A40
-  - Texto secundario: #6B8C80
-  - Sidebar: #1F4A40 (verde institucional)
-*/
-
 const COLORS = {
   bg: "#FAFAF8",
   panel: "#FFFFFF",
@@ -41,9 +24,7 @@ const COLORS = {
   text: "#1F4A40",
   textMuted: "#6B8C80",
   border: "rgba(31,74,64,0.12)",
-  borderGold: "rgba(201,162,78,0.3)",
   sidebar: "#1F4A40",
-  sidebarText: "#FFFFFF",
   sidebarMuted: "rgba(255,255,255,0.55)",
 };
 
@@ -51,89 +32,28 @@ const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 `;
 
-function InfinityDivider({ width = 64, dark = false }) {
-  return (
-    <svg width={width} height="14" viewBox="0 0 64 14" style={{ display: "block" }}>
-      <path
-        d="M2 7 C2 2 8 2 11 7 C14 12 20 12 23 7 C20 2 14 2 11 7 M62 7 C62 2 56 2 53 7 C50 12 44 12 41 7 C44 2 50 2 53 7 M23 7 H41"
-        fill="none"
-        stroke={dark ? COLORS.gold : COLORS.gold}
-        strokeWidth="1.2"
-        opacity="0.7"
-      />
-    </svg>
-  );
-}
-
-/*
-  Logo
-  ────
-  Carga desde /public según el contexto:
-    onDark=false → /logo.png        (color, para fondos blancos)
-    onDark=true  → /logo-blanco.png (blanco, para sidebar y panel verde)
-  Si el archivo no existe muestra un SVG de respaldo.
-
-  Para reemplazar: coloca los archivos en la carpeta /public del repositorio.
-*/
-function Logo({ size = 36, onDark = false, maxWidth }) {
+/* Logo blanco (/logo-blanco.png) — directo sobre fondos oscuros */
+function Logo({ width = 200 }) {
   const [imgError, setImgError] = useState(false);
-  const src = onDark ? "/logo-blanco.png" : "/logo.png";
 
   if (!imgError) {
     return (
       <img
-        src={src}
+        src="/logo-blanco.png"
         alt="Centro Europeo de Cirugía"
-        style={{
-          width: maxWidth || size * 4,
-          maxWidth: "100%",
-          height: "auto",
-          objectFit: "contain",
-          display: "block",
-          margin: "0 auto",
-        }}
+        style={{ width, maxWidth: "100%", height: "auto", display: "block", margin: "0 auto" }}
         onError={() => setImgError(true)}
       />
     );
   }
 
-  /* ── Fallback SVG ── */
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <svg width={size} height={size} viewBox="0 0 100 100">
-        <defs>
-          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#E4C77A" />
-            <stop offset="100%" stopColor="#A6802F" />
-          </linearGradient>
-        </defs>
-        <path
-          d="M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70"
-          fill="none"
-          stroke="url(#goldGrad)"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-      </svg>
-      <div style={{ lineHeight: 1.1 }}>
-        <div style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontWeight: 600,
-          fontSize: size * 0.38,
-          color: onDark ? "#FFFFFF" : COLORS.green,
-          letterSpacing: "0.08em",
-        }}>
-          Centro Europeo
-        </div>
-        <div style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontWeight: 700,
-          fontSize: size * 0.46,
-          color: onDark ? COLORS.goldSoft : COLORS.gold,
-          letterSpacing: "0.16em",
-        }}>
-          DE CIRUGÍA
-        </div>
+    <div style={{ textAlign: "center", lineHeight: 1.2 }}>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 18, color: "#FFFFFF", letterSpacing: "0.08em" }}>
+        Centro Europeo
+      </div>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 22, color: COLORS.goldSoft, letterSpacing: "0.16em" }}>
+        DE CIRUGÍA
       </div>
     </div>
   );
@@ -150,7 +70,7 @@ function LoginScreen({ onLogin }) {
       color: COLORS.text,
       fontFamily: "'Manrope', sans-serif",
     }}>
-      {/* Panel izquierdo — verde institucional */}
+      {/* Panel izquierdo */}
       <div style={{
         flex: "0 0 45%",
         background: COLORS.sidebar,
@@ -158,28 +78,15 @@ function LoginScreen({ onLogin }) {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        padding: "60px 48px",
+        padding: "60px 56px",
       }}>
-        {/* Logo de color sobre tarjeta blanca */}
-        <div style={{
-          background: "#FFFFFF",
-          borderRadius: 20,
-          padding: "40px 48px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
-          width: "100%",
-          maxWidth: 340,
-        }}>
-          <Logo maxWidth={280} onDark={false} />
-        </div>
+        <Logo width={320} />
 
         <div style={{
-          marginTop: 36,
+          marginTop: 40,
           fontSize: 11,
           letterSpacing: "0.4em",
-          color: "rgba(255,255,255,0.5)",
+          color: "rgba(255,255,255,0.45)",
           textTransform: "uppercase",
           textAlign: "center",
         }}>
@@ -210,7 +117,6 @@ function LoginScreen({ onLogin }) {
             Ingresa con tu cuenta institucional para continuar.
           </p>
 
-          {/* Microsoft button */}
           <button
             onClick={onLogin}
             style={{
@@ -230,21 +136,9 @@ function LoginScreen({ onLogin }) {
               transition: "border-color 0.2s, box-shadow 0.2s",
               boxShadow: "0 1px 3px rgba(31,74,64,0.06)",
             }}
-            onMouseEnter={e => {
-              e.currentTarget.style.borderColor = COLORS.gold;
-              e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,162,78,0.18)";
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = COLORS.border;
-              e.currentTarget.style.boxShadow = "0 1px 3px rgba(31,74,64,0.06)";
-            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.gold; e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,162,78,0.18)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.boxShadow = "0 1px 3px rgba(31,74,64,0.06)"; }}
           >
-            <svg width="18" height="18" viewBox="0 0 23 23">
-              <rect x="1" y="1" width="10" height="10" fill="#F25022" />
-              <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
-              <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
-              <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
-            </svg>
             Continuar con Microsoft
           </button>
 
@@ -336,11 +230,11 @@ function LoginScreen({ onLogin }) {
 /* ─────────────────────────── DASHBOARD ─────────────────────────── */
 
 const NAV_ITEMS = [
-  { key: "inicio", label: "Inicio", icon: Home },
-  { key: "comunicados", label: "Comunicados", icon: Bell },
-  { key: "documentos", label: "Documentos", icon: FileText },
-  { key: "vacaciones", label: "Vacaciones", icon: CalendarDays },
-  { key: "perfil", label: "Mi perfil", icon: User },
+  { key: "inicio",       label: "Inicio",      icon: Home },
+  { key: "comunicados",  label: "Comunicados", icon: Bell },
+  { key: "documentos",   label: "Documentos",  icon: FileText },
+  { key: "vacaciones",   label: "Vacaciones",  icon: CalendarDays },
+  { key: "perfil",       label: "Mi perfil",   icon: User },
 ];
 
 const ANNOUNCEMENTS = [
@@ -364,27 +258,18 @@ const BIRTHDAYS = [
 function Sidebar({ active, setActive, onLogout }) {
   return (
     <div style={{
-      width: 240,
+      width: 252,
       background: COLORS.sidebar,
       display: "flex",
       flexDirection: "column",
-      padding: "28px 16px",
+      padding: "32px 16px",
       height: "100vh",
       position: "sticky",
       top: 0,
       flexShrink: 0,
     }}>
-      {/* Logo en tarjeta blanca dentro del sidebar verde */}
-      <div style={{
-        margin: "0 4px 28px",
-        background: "#FFFFFF",
-        borderRadius: 12,
-        padding: "12px 16px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
-        <Logo maxWidth={172} onDark={false} />
+      <div style={{ padding: "0 8px 36px" }}>
+        <Logo width={190} />
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -424,9 +309,7 @@ function Sidebar({ active, setActive, onLogout }) {
       </nav>
 
       <div style={{ marginTop: "auto" }}>
-        <div style={{ padding: "0 8px", marginBottom: 16 }}>
-          <InfinityDivider width={80} />
-        </div>
+        <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "0 8px 16px" }} />
         <button
           onClick={onLogout}
           style={{
@@ -474,19 +357,8 @@ function Card({ children, style }) {
 
 function CardHeader({ title, action }) {
   return (
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "baseline",
-      marginBottom: 18,
-    }}>
-      <h3 style={{
-        fontFamily: "'Cormorant Garamond', serif",
-        fontSize: 20,
-        fontWeight: 600,
-        color: COLORS.green,
-        margin: 0,
-      }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 18 }}>
+      <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, fontWeight: 600, color: COLORS.green, margin: 0 }}>
         {title}
       </h3>
       {action}
@@ -494,33 +366,40 @@ function CardHeader({ title, action }) {
   );
 }
 
-function VacationRing({ used = 9, total = 21 }) {
-  const pct = used / total;
-  const r = 54;
-  const c = 2 * Math.PI * r;
+/* Indicador de vacaciones — solo CSS, sin SVG */
+function VacationDonut({ used = 9, total = 21 }) {
+  const available = total - used;
+  const deg = Math.round((used / total) * 360);
   return (
-    <svg width="140" height="140" viewBox="0 0 140 140">
-      <circle cx="70" cy="70" r={r} fill="none" stroke={COLORS.panelAlt} strokeWidth="10" />
-      <circle
-        cx="70" cy="70" r={r}
-        fill="none"
-        stroke={COLORS.gold}
-        strokeWidth="10"
-        strokeLinecap="round"
-        strokeDasharray={`${c * pct} ${c}`}
-        transform="rotate(-90 70 70)"
-      />
-      <text x="70" y="64" textAnchor="middle"
-        fontFamily="'Cormorant Garamond', serif" fontSize="34" fontWeight="700"
-        fill={COLORS.green}>
-        {total - used}
-      </text>
-      <text x="70" y="86" textAnchor="middle"
-        fontFamily="'Manrope', sans-serif" fontSize="11"
-        fill={COLORS.textMuted}>
-        días disponibles
-      </text>
-    </svg>
+    <div style={{
+      width: 128,
+      height: 128,
+      borderRadius: "50%",
+      background: `conic-gradient(${COLORS.gold} 0deg ${deg}deg, ${COLORS.panelAlt} ${deg}deg 360deg)`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    }}>
+      <div style={{
+        width: 96,
+        height: 96,
+        borderRadius: "50%",
+        background: COLORS.panel,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 2,
+      }}>
+        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 700, color: COLORS.green, lineHeight: 1 }}>
+          {available}
+        </span>
+        <span style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: "0.04em" }}>
+          días
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -543,16 +422,13 @@ function Tag({ label }) {
 
 function DashboardHome() {
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-      gap: 20,
-    }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+
       {/* Vacaciones */}
       <Card>
         <CardHeader title="Vacaciones" />
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <VacationRing />
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <VacationDonut />
           <div style={{ flex: 1, fontSize: 13, color: COLORS.textMuted }}>
             <p style={{ margin: "0 0 6px" }}>
               <span style={{ color: COLORS.green, fontWeight: 700 }}>9</span> días tomados este año
@@ -570,10 +446,9 @@ function DashboardHome() {
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: "'Manrope', sans-serif",
-              transition: "background 0.15s",
             }}
-              onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,162,78,0.08)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(201,162,78,0.08)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
               Solicitar vacaciones
             </button>
@@ -586,10 +461,7 @@ function DashboardHome() {
         <CardHeader
           title="Comunicados recientes"
           action={
-            <span style={{
-              display: "flex", alignItems: "center", gap: 4,
-              fontSize: 12, color: COLORS.gold, cursor: "pointer", fontWeight: 600,
-            }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: COLORS.gold, cursor: "pointer", fontWeight: 600 }}>
               Ver todos <ChevronRight size={14} />
             </span>
           }
@@ -597,21 +469,14 @@ function DashboardHome() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {ANNOUNCEMENTS.map((a) => (
             <div key={a.title} style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingBottom: 14,
-              borderBottom: `1px solid ${COLORS.border}`,
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              paddingBottom: 14, borderBottom: `1px solid ${COLORS.border}`,
             }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 500 }}>{a.title}</div>
                 <Tag label={a.tag} />
               </div>
-              <div style={{
-                fontSize: 12, color: COLORS.textMuted,
-                display: "flex", alignItems: "center", gap: 5,
-                whiteSpace: "nowrap", marginLeft: 16,
-              }}>
+              <div style={{ fontSize: 12, color: COLORS.textMuted, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", marginLeft: 16 }}>
                 <Clock size={12} />
                 {a.date}
               </div>
@@ -626,9 +491,8 @@ function DashboardHome() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {DOCUMENTS.map((d) => (
             <div key={d} style={{
-              display: "flex", justifyContent: "space-between",
-              alignItems: "center", fontSize: 13, color: COLORS.text,
-              padding: "8px 0",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              fontSize: 13, color: COLORS.text, padding: "8px 0",
               borderBottom: `1px solid ${COLORS.border}`,
             }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -645,22 +509,14 @@ function DashboardHome() {
       <Card>
         <CardHeader title="Estado de solicitudes" />
         <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "10px 12px", borderRadius: 8,
-            background: "rgba(44,99,86,0.07)",
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(44,99,86,0.07)" }}>
             <CheckCircle2 size={16} color={COLORS.greenSoft} />
             <div>
               <div style={{ color: COLORS.text, fontWeight: 500 }}>Permiso 2 jun</div>
               <div style={{ color: COLORS.greenSoft, fontSize: 11, marginTop: 2 }}>Aprobado</div>
             </div>
           </div>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "10px 12px", borderRadius: 8,
-            background: "rgba(201,162,78,0.07)",
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(201,162,78,0.07)" }}>
             <Clock size={16} color={COLORS.gold} />
             <div>
               <div style={{ color: COLORS.text, fontWeight: 500 }}>Vacaciones 1–5 jul</div>
@@ -682,9 +538,7 @@ function DashboardHome() {
             }}>
               <Cake size={16} color={COLORS.gold} />
               {b.name}
-              <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>
-                {b.date}
-              </span>
+              <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>{b.date}</span>
             </div>
           ))}
         </div>
@@ -708,47 +562,30 @@ function Dashboard({ onLogout }) {
   const [active, setActive] = useState("inicio");
 
   const sectionTitle = {
-    inicio: "Inicio",
-    comunicados: "Comunicados",
-    documentos: "Documentos",
-    vacaciones: "Vacaciones",
-    perfil: "Mi perfil",
+    inicio: "Inicio", comunicados: "Comunicados",
+    documentos: "Documentos", vacaciones: "Vacaciones", perfil: "Mi perfil",
   }[active];
 
   return (
-    <div style={{ display: "flex", background: COLORS.bg, color: COLORS.text, fontFamily: "'Manrope', sans-serif", minHeight: "100vh" }}>
+    <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
       <Sidebar active={active} setActive={setActive} onLogout={onLogout} />
 
       <div style={{ flex: 1, padding: "36px 40px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{
-          display: "flex", justifyContent: "space-between",
-          alignItems: "flex-start", marginBottom: 32,
-        }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
           <div>
-            <div style={{
-              fontSize: 11, letterSpacing: "0.25em",
-              color: COLORS.gold, marginBottom: 6,
-              textTransform: "uppercase", fontWeight: 600,
-            }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
               Viernes 12 de junio, 2026
             </div>
-            <h1 style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: 36, fontWeight: 600,
-              margin: 0, color: COLORS.green,
-            }}>
+            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: 0, color: COLORS.green }}>
               {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
             </h1>
           </div>
-
           <div style={{
-            width: 44, height: 44,
-            borderRadius: "50%",
+            width: 44, height: 44, borderRadius: "50%",
             background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontWeight: 700, color: "#FFFFFF",
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: 18,
+            fontFamily: "'Cormorant Garamond', serif", fontSize: 18,
             boxShadow: "0 2px 8px rgba(201,162,78,0.35)",
           }}>
             JP
@@ -761,19 +598,15 @@ function Dashboard({ onLogout }) {
   );
 }
 
-/* ─────────────────────────── APP ─────────────────────────── */
-
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-
   return (
     <div>
       <style>{FONTS}</style>
-      {loggedIn ? (
-        <Dashboard onLogout={() => setLoggedIn(false)} />
-      ) : (
-        <LoginScreen onLogin={() => setLoggedIn(true)} />
-      )}
+      {loggedIn
+        ? <Dashboard onLogout={() => setLoggedIn(false)} />
+        : <LoginScreen onLogin={() => setLoggedIn(true)} />
+      }
     </div>
   );
 }
