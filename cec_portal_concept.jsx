@@ -41,7 +41,7 @@ function Logo({ width = 200 }) {
       <img
         src="/logo-blanco.png"
         alt="Centro Europeo de Cirugía"
-        style={{ width, maxWidth: "100%", height: "auto", display: "block", margin: "0 auto" }}
+        style={{ width, height: "auto", display: "block", margin: "0 auto" }}
         onError={() => setImgError(true)}
       />
     );
@@ -80,7 +80,7 @@ function LoginScreen({ onLogin }) {
         alignItems: "center",
         padding: "60px 56px",
       }}>
-        <Logo width={420} />
+        <Logo width="100%" />
 
         <div style={{
           marginTop: 40,
