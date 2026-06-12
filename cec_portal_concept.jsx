@@ -192,7 +192,7 @@ const NAV_ITEMS = [
   { key: "inicio",      label: "Inicio",      icon: Home },
   { key: "comunicados", label: "Comunicados", icon: Bell },
   { key: "documentos",  label: "Documentos",  icon: FileText },
-  { key: "vacaciones",  label: "Vacaciones",  icon: CalendarDays },
+  { key: "solicitudes", label: "Solicitudes", icon: CalendarDays },
   { key: "perfil",      label: "Mi perfil",   icon: User },
 ];
 
@@ -555,7 +555,7 @@ function Dashboard({ onLogout }) {
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", vacaciones: "Vacaciones", perfil: "Mi perfil" }[active];
+  const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil" }[active];
 
   if (isMobile) {
     return (
