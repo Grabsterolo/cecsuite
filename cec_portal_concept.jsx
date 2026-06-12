@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "./src/lib/supabase";
 
@@ -436,6 +436,7 @@ function Tag({ label }) {
 const MONTH_NAMES   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DAY_NAMES     = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
 const TIPOS_PERMISO = ["Permiso médico","Permiso personal","Permiso por duelo","Permiso de estudio","Permiso de paternidad/maternidad","Otro"];
+const TIPOS_REPORTE = ["Daño a instalaciones","Daño a equipos","Incidente de seguridad","Situación de riesgo","Conducta inapropiada","Otro"];
 
 /* ── Helpers ── */
 function calcWorkDays(start, end) {
@@ -608,6 +609,49 @@ function PermisoForm({ onClose, onSubmit, editData }) {
   );
 }
 
+/* ── Formulario reporte ── */
+function ReporteForm({ onClose, onSubmit, editData }) {
+  const [tipoReporte, setTipoReporte] = useState(editData?.tipoReporte || "");
+  const [asunto, setAsunto]           = useState(editData?.asunto || "");
+  const [descripcion, setDescripcion] = useState(editData?.descripcion || "");
+  const [ubicacion, setUbicacion]     = useState(editData?.ubicacion || "");
+
+  function submit() {
+    if (!tipoReporte || !asunto) return;
+    onSubmit({ tipo:"reporte", tipoReporte, asunto, descripcion, ubicacion });
+  }
+
+  const inputSm = { ...taStyle, resize:"none", height:40, padding:"10px 14px", fontSize:14 };
+
+  return (
+    <ModalShell onClose={onClose} title={editData ? "Editar reporte" : "Nuevo Reporte"}>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Tipo de reporte</label>
+      <select value={tipoReporte} onChange={e => setTipoReporte(e.target.value)} style={{
+        width:"100%", background:COLORS.inputBg, border:`1.5px solid ${tipoReporte?COLORS.gold:COLORS.border}`,
+        borderRadius:8, padding:"11px 14px", color:tipoReporte?COLORS.text:"#9aaea8",
+        fontSize:14, outline:"none", boxSizing:"border-box", marginBottom:14,
+        fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto", transition:"border-color 0.2s",
+      }}>
+        <option value="" disabled>Selecciona una categoría…</option>
+        {TIPOS_REPORTE.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Asunto</label>
+      <input type="text" value={asunto} onChange={e => setAsunto(e.target.value)} placeholder="Título breve del reporte..." style={{ ...inputSm, marginBottom:14, display:"block" }}
+        onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Descripción</label>
+      <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Describe la situación con el mayor detalle posible..." rows={4} style={{ ...taStyle, marginBottom:14 }}
+        onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Ubicación <span style={{ fontWeight:400 }}>(opcional)</span></label>
+      <input type="text" value={ubicacion} onChange={e => setUbicacion(e.target.value)} placeholder="Ej. Sala de cirugía, recepción..." style={{ ...inputSm, marginBottom:20, display:"block" }}
+        onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+      <div style={{ display:"flex", gap:10 }}>
+        <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
+        <button onClick={submit} style={{ ...btnSubmitStyle, opacity:(tipoReporte&&asunto)?1:0.5 }}>{editData ? "Guardar cambios" : "Enviar reporte"}</button>
+      </div>
+    </ModalShell>
+  );
+}
+
 /* ── Modal selector de tipo + routing ── */
 function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo }) {
   const [tipo, setTipo] = useState(editData?.tipo || initialTipo || null);
@@ -615,15 +659,18 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo }) {
   function handleSubmit(data) { onSubmit(data); onClose(); }
 
   if (!tipo) {
+    const opciones = [
+      { key:"vacaciones", icon:CalendarDays,   label:"Vacaciones", desc:"Días de descanso" },
+      { key:"permiso",    icon:FileText,        label:"Permiso",    desc:"Médico, personal u otro" },
+      { key:"reporte",    icon:AlertTriangle,   label:"Reporte",    desc:"Daños, incidentes, situaciones" },
+    ];
     return (
       <ModalShell onClose={onClose} title="Nueva Solicitud">
         <p style={{ color:COLORS.textMuted, fontSize:13, marginBottom:20 }}>Selecciona el tipo de solicitud:</p>
-        <div style={{ display:"flex", gap:12, marginBottom:16 }}>
-          {[{ key:"vacaciones", icon:CalendarDays, label:"Vacaciones", desc:"Días de descanso" },
-            { key:"permiso",    icon:FileText,     label:"Permiso",    desc:"Médico, personal u otro" }]
-          .map(({ key, icon:Icon, label, desc }) => (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:12, marginBottom:16 }}>
+          {opciones.map(({ key, icon:Icon, label, desc }) => (
             <button key={key} onClick={() => setTipo(key)} style={{
-              flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:10,
+              flex:"1 1 calc(33% - 8px)", minWidth:90, display:"flex", flexDirection:"column", alignItems:"center", gap:10,
               padding:"20px 12px", borderRadius:12, border:`2px solid ${COLORS.border}`,
               background:COLORS.inputBg, cursor:"pointer", textAlign:"center",
               fontFamily:"'Manrope', sans-serif", transition:"all 0.15s",
@@ -633,8 +680,8 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo }) {
             >
               <Icon size={26} color={COLORS.gold}/>
               <div>
-                <div style={{ fontSize:15, fontWeight:700, color:COLORS.green }}>{label}</div>
-                <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{desc}</div>
+                <div style={{ fontSize:14, fontWeight:700, color:COLORS.green }}>{label}</div>
+                <div style={{ fontSize:10, color:COLORS.textMuted, marginTop:2 }}>{desc}</div>
               </div>
             </button>
           ))}
@@ -644,24 +691,38 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo }) {
     );
   }
 
-  return tipo === "vacaciones"
-    ? <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>
-    : <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
+  if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
+  if (tipo === "permiso")    return <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
+  return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
 }
 
 /* ── Item individual de solicitud ── */
 function SolicitudItem({ s, onDelete, onEdit }) {
   const enRevision = s.status === "en_revision";
+  const isReporte = s.tipo === "reporte";
+
   const label = s.tipo === "vacaciones"
     ? `Vacaciones${s.endDate ? ` · ${calcWorkDays(s.startDate,s.endDate)} días hábiles` : ""}`
+    : s.tipo === "reporte"
+    ? (s.asunto || s.tipoReporte || "Reporte")
     : (s.tipoPermiso || "Permiso");
-  const sub = s.startDate
+
+  const sub = isReporte
+    ? (s.tipoReporte || "")
+    : s.startDate
     ? fmtDate(s.startDate) + (s.endDate ? ` — ${fmtDate(s.endDate)}` : "")
     : "";
 
+  const bgColor = isReporte
+    ? (enRevision ? "rgba(201,162,78,0.07)" : "rgba(44,99,86,0.07)")
+    : (enRevision ? "rgba(201,162,78,0.07)" : "rgba(44,99,86,0.07)");
+
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, background: enRevision?"rgba(201,162,78,0.07)":"rgba(44,99,86,0.07)" }}>
-      {enRevision ? <Clock size={16} color={COLORS.gold}/> : <CheckCircle2 size={16} color={COLORS.greenSoft}/>}
+    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, background: bgColor }}>
+      {isReporte
+        ? <AlertTriangle size={16} color={enRevision ? COLORS.gold : COLORS.greenSoft}/>
+        : enRevision ? <Clock size={16} color={COLORS.gold}/> : <CheckCircle2 size={16} color={COLORS.greenSoft}/>
+      }
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ color:COLORS.text, fontWeight:500, fontSize:13 }}>{label}</div>
         {sub && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:1 }}>{sub}</div>}
