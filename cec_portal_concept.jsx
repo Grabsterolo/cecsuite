@@ -75,7 +75,7 @@ function InfinityDivider({ width = 64, dark = false }) {
 
   Para reemplazar: coloca los archivos en la carpeta /public del repositorio.
 */
-function Logo({ size = 36, onDark = false }) {
+function Logo({ size = 36, onDark = false, maxWidth }) {
   const [imgError, setImgError] = useState(false);
   const src = onDark ? "/logo-blanco.png" : "/logo.png";
 
@@ -85,10 +85,12 @@ function Logo({ size = 36, onDark = false }) {
         src={src}
         alt="Centro Europeo de Cirugía"
         style={{
-          height: size * 1.6,
-          maxWidth: 200,
+          width: maxWidth || size * 4,
+          maxWidth: "100%",
+          height: "auto",
           objectFit: "contain",
           display: "block",
+          margin: "0 auto",
         }}
         onError={() => setImgError(true)}
       />
@@ -178,7 +180,7 @@ function LoginScreen({ onLogin }) {
         <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
           {/* Logo en blanco sobre verde */}
           <div style={{ marginBottom: 32 }}>
-            <Logo size={52} onDark={true} />
+            <Logo maxWidth={220} onDark={true} />
           </div>
 
           <InfinityDivider width={80} />
@@ -392,7 +394,7 @@ function Sidebar({ active, setActive, onLogout }) {
       flexShrink: 0,
     }}>
       <div style={{ padding: "0 8px 32px" }}>
-        <Logo size={30} onDark={true} />
+        <Logo maxWidth={170} onDark={true} />
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
