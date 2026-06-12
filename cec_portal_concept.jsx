@@ -80,7 +80,7 @@ function LoginScreen({ onLogin }) {
         alignItems: "center",
         padding: "60px 56px",
       }}>
-        <Logo width={320} />
+        <Logo width={420} />
 
         <div style={{
           marginTop: 40,
@@ -139,6 +139,12 @@ function LoginScreen({ onLogin }) {
             onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.gold; e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,162,78,0.18)"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.boxShadow = "0 1px 3px rgba(31,74,64,0.06)"; }}
           >
+            <svg width="18" height="18" viewBox="0 0 23 23" style={{ flexShrink: 0 }}>
+              <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+              <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+              <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+              <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+            </svg>
             Continuar con Microsoft
           </button>
 
