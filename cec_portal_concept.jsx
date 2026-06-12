@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, User, LogOut,
-  Home, ChevronRight, Download, Clock, CheckCircle2, Cake, Menu, X,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus,
 } from "lucide-react";
 
 const COLORS = {
@@ -409,6 +409,163 @@ function Tag({ label }) {
   );
 }
 
+/* ─────────────────────────── VACATION MODAL ─────────────────────────── */
+
+const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DAY_NAMES   = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
+
+function VacationModal({ onClose }) {
+  const today = new Date();
+  const [calYear,  setCalYear]  = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [startDate, setStartDate] = useState(null);
+  const [endDate,   setEndDate]   = useState(null);
+  const [includeHolidays, setIncludeHolidays] = useState(false);
+  const [coverPerson, setCoverPerson] = useState("");
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const firstDay    = new Date(calYear, calMonth, 1).getDay();
+
+  function handleDayClick(day) {
+    const clicked = new Date(calYear, calMonth, day);
+    if (!startDate || endDate) {
+      setStartDate(clicked); setEndDate(null);
+    } else if (clicked.getTime() === startDate.getTime()) {
+      setStartDate(null);
+    } else if (clicked < startDate) {
+      setStartDate(clicked);
+    } else {
+      setEndDate(clicked);
+    }
+  }
+
+  function dayState(day) {
+    const t = new Date(calYear, calMonth, day).getTime();
+    if (startDate && t === startDate.getTime()) return "start";
+    if (endDate   && t === endDate.getTime())   return "end";
+    if (startDate && endDate && t > startDate.getTime() && t < endDate.getTime()) return "range";
+    return "none";
+  }
+
+  function prevMonth() { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y-1); } else setCalMonth(m => m-1); }
+  function nextMonth() { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y+1); } else setCalMonth(m => m+1); }
+
+  function fmt(d) { return d ? `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` : "—"; }
+
+  function workDays() {
+    if (!startDate || !endDate) return 0;
+    let n = 0; const d = new Date(startDate);
+    while (d <= endDate) { if (d.getDay() !== 0 && d.getDay() !== 6) n++; d.setDate(d.getDate()+1); }
+    return n;
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#FFF", borderRadius:16, padding:"28px 24px", width:"100%", maxWidth:420, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,0.25)", fontFamily:"'Manrope', sans-serif" }}>
+
+        {/* Título */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <h2 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:24, fontWeight:600, color:COLORS.green, margin:0 }}>
+            Solicitud de Vacaciones
+          </h2>
+          <button onClick={onClose} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4 }}><X size={20}/></button>
+        </div>
+
+        {/* Navegación mes/año */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+          <button onClick={prevMonth} style={{ border:"none", background:"rgba(31,74,64,0.07)", cursor:"pointer", color:COLORS.green, display:"flex", padding:"6px 8px", borderRadius:8 }}><ChevronLeft size={16}/></button>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <button onClick={() => setCalYear(y=>y-1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, lineHeight:1, padding:"0 2px" }}>‹</button>
+            <span style={{ fontWeight:700, color:COLORS.green, fontSize:15, minWidth:160, textAlign:"center" }}>{MONTH_NAMES[calMonth]} {calYear}</span>
+            <button onClick={() => setCalYear(y=>y+1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, lineHeight:1, padding:"0 2px" }}>›</button>
+          </div>
+          <button onClick={nextMonth} style={{ border:"none", background:"rgba(31,74,64,0.07)", cursor:"pointer", color:COLORS.green, display:"flex", padding:"6px 8px", borderRadius:8 }}><ChevronRight size={16}/></button>
+        </div>
+
+        {/* Cabeceras días */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:4 }}>
+          {DAY_NAMES.map(d => (
+            <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:COLORS.textMuted, padding:"3px 0" }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Días del mes */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+          {Array(firstDay).fill(null).map((_,i) => <div key={`e${i}`}/>)}
+          {Array(daysInMonth).fill(null).map((_,i) => {
+            const day = i+1;
+            const st  = dayState(day);
+            const endpoint = st==="start" || st==="end";
+            return (
+              <button key={day} onClick={() => handleDayClick(day)} style={{
+                height:36, border:"none", cursor:"pointer",
+                borderRadius: endpoint ? "50%" : st==="range" ? 4 : 6,
+                background: endpoint ? COLORS.gold : st==="range" ? "rgba(201,162,78,0.18)" : "transparent",
+                color: endpoint ? "#FFF" : COLORS.text,
+                fontSize:13, fontWeight: endpoint ? 700 : 400,
+                transition:"background 0.1s",
+              }}>{day}</button>
+            );
+          })}
+        </div>
+
+        {/* Resumen selección */}
+        {startDate && (
+          <div style={{ marginTop:14, padding:"10px 14px", background:COLORS.panelAlt, borderRadius:8, fontSize:12, color:COLORS.textMuted }}>
+            <div><span style={{ fontWeight:600, color:COLORS.green }}>Inicio: </span>{fmt(startDate)}</div>
+            {endDate && <>
+              <div style={{ marginTop:3 }}><span style={{ fontWeight:600, color:COLORS.green }}>Fin: </span>{fmt(endDate)}</div>
+              <div style={{ marginTop:3 }}><span style={{ fontWeight:700, color:COLORS.gold }}>{workDays()} días hábiles</span></div>
+            </>}
+          </div>
+        )}
+
+        {/* Checkbox feriados */}
+        <label style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, cursor:"pointer", fontSize:13, color:COLORS.text, userSelect:"none" }}>
+          <input type="checkbox" checked={includeHolidays} onChange={e => setIncludeHolidays(e.target.checked)}
+            style={{ width:16, height:16, accentColor:COLORS.gold, cursor:"pointer" }}
+          />
+          Incluir feriados en el período
+        </label>
+
+        {/* Quién cubre */}
+        <div style={{ marginTop:16 }}>
+          <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>
+            ¿Quién cubre tu ausencia?
+          </label>
+          <textarea value={coverPerson} onChange={e => setCoverPerson(e.target.value)}
+            placeholder="Nombre del colaborador o indicación de cobertura..."
+            rows={3}
+            style={{ width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"10px 14px", color:COLORS.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"'Manrope', sans-serif", transition:"border-color 0.2s" }}
+            onFocus={e => e.target.style.borderColor = COLORS.gold}
+            onBlur={e  => e.target.style.borderColor = COLORS.border}
+          />
+        </div>
+
+        {/* Botones */}
+        <div style={{ display:"flex", gap:10, marginTop:22 }}>
+          <button onClick={onClose} style={{
+            flex:1, background:"transparent", border:`1.5px solid ${COLORS.border}`,
+            borderRadius:8, padding:"11px 16px", color:COLORS.textMuted,
+            fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'Manrope', sans-serif",
+            transition:"border-color 0.2s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.textMuted}
+            onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
+          >Cancelar</button>
+          <button onClick={onClose} style={{
+            flex:2, background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+            border:"none", borderRadius:8, padding:"11px 16px", color:"#FFF",
+            fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Manrope', sans-serif",
+            boxShadow:"0 4px 14px rgba(201,162,78,0.4)",
+          }}>Solicitar</button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 const verTodosStyle = {
   display: "flex", alignItems: "center", gap: 4,
   fontSize: 12, color: COLORS.gold, cursor: "pointer",
@@ -417,7 +574,10 @@ const verTodosStyle = {
 };
 
 function DashboardHome({ isMobile, setActive }) {
+  const [showVacModal, setShowVacModal] = useState(false);
   return (
+    <>
+    {showVacModal && <VacationModal onClose={() => setShowVacModal(false)} />}
     <div style={isMobile
       ? { display: "flex", flexDirection: "column", gap: 14 }
       : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }
@@ -426,7 +586,7 @@ function DashboardHome({ isMobile, setActive }) {
       {/* Vacaciones */}
       <Card>
         <CardHeader title="Vacaciones"
-          action={<button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Solicitar <ChevronRight size={14} /></button>}
+          action={<button style={verTodosStyle} onClick={() => setShowVacModal(true)}>Solicitar <ChevronRight size={14} /></button>}
         />
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <VacationDonut />
@@ -528,6 +688,7 @@ function DashboardHome({ isMobile, setActive }) {
       </Card>
 
     </div>
+    </>
   );
 }
 
@@ -539,6 +700,48 @@ function PlaceholderSection({ title }) {
         Esta sección se desarrolla en la siguiente fase.
       </p>
     </Card>
+  );
+}
+
+function SolicitudesSection() {
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+        <button style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+          border: "none", borderRadius: 8, padding: "10px 18px",
+          color: "#FFF", fontSize: 14, fontWeight: 700, cursor: "pointer",
+          fontFamily: "'Manrope', sans-serif",
+          boxShadow: "0 4px 14px rgba(201,162,78,0.35)",
+          transition: "box-shadow 0.2s, transform 0.15s",
+        }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(201,162,78,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 14px rgba(201,162,78,0.35)"; e.currentTarget.style.transform = "none"; }}
+        >
+          <Plus size={16} /> Crear Solicitud
+        </button>
+      </div>
+      <Card>
+        <CardHeader title="Mis solicitudes" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(44,99,86,0.07)" }}>
+            <CheckCircle2 size={16} color={COLORS.greenSoft} />
+            <div>
+              <div style={{ color: COLORS.text, fontWeight: 500 }}>Permiso 2 jun</div>
+              <div style={{ color: COLORS.greenSoft, fontSize: 11, marginTop: 2 }}>Aprobado</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(201,162,78,0.07)" }}>
+            <Clock size={16} color={COLORS.gold} />
+            <div>
+              <div style={{ color: COLORS.text, fontWeight: 500 }}>Vacaciones 1–5 jul</div>
+              <div style={{ color: COLORS.gold, fontSize: 11, marginTop: 2 }}>En revisión</div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -581,7 +784,7 @@ function Dashboard({ onLogout }) {
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} /> : active === "solicitudes" ? <SolicitudesSection /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -599,7 +802,7 @@ function Dashboard({ onLogout }) {
             {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} /> : active === "solicitudes" ? <SolicitudesSection /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
