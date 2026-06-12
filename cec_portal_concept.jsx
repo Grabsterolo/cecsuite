@@ -65,22 +65,37 @@ function InfinityDivider({ width = 64, dark = false }) {
   );
 }
 
-/* Logo — usa la imagen oficial si existe en /logo.png, sino SVG aproximado */
+/*
+  Logo
+  ────
+  Carga desde /public según el contexto:
+    onDark=false → /logo.png        (color, para fondos blancos)
+    onDark=true  → /logo-blanco.png (blanco, para sidebar y panel verde)
+  Si el archivo no existe muestra un SVG de respaldo.
+
+  Para reemplazar: coloca los archivos en la carpeta /public del repositorio.
+*/
 function Logo({ size = 36, onDark = false }) {
   const [imgError, setImgError] = useState(false);
+  const src = onDark ? "/logo-blanco.png" : "/logo.png";
 
   if (!imgError) {
     return (
       <img
-        src="/logo.png"
+        src={src}
         alt="Centro Europeo de Cirugía"
-        style={{ height: size * 1.6, maxWidth: 200, objectFit: "contain", filter: onDark ? "brightness(0) invert(1)" : "none" }}
+        style={{
+          height: size * 1.6,
+          maxWidth: 200,
+          objectFit: "contain",
+          display: "block",
+        }}
         onError={() => setImgError(true)}
       />
     );
   }
 
-  /* Fallback SVG */
+  /* ── Fallback SVG ── */
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <svg width={size} height={size} viewBox="0 0 100 100">
