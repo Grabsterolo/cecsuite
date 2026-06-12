@@ -554,19 +554,17 @@ function PermisoForm({ onClose, onSubmit, editData }) {
 
   return (
     <ModalShell onClose={onClose} title={editData ? "Editar solicitud" : "Solicitud de Permiso"}>
-      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:8, fontWeight:600, letterSpacing:"0.02em" }}>Tipo de permiso</label>
-      <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:16 }}>
-        {TIPOS_PERMISO.map(t => (
-          <button key={t} onClick={() => setTipoPermiso(t)} style={{
-            textAlign:"left", padding:"9px 14px", borderRadius:8,
-            border:`1.5px solid ${tipoPermiso===t?COLORS.gold:COLORS.border}`,
-            background: tipoPermiso===t?"rgba(201,162,78,0.08)":COLORS.inputBg,
-            color: tipoPermiso===t?COLORS.gold:COLORS.text,
-            fontSize:13, fontWeight: tipoPermiso===t?600:400,
-            cursor:"pointer", fontFamily:"'Manrope', sans-serif", transition:"all 0.12s",
-          }}>{t}</button>
-        ))}
-      </div>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Tipo de permiso</label>
+      <select value={tipoPermiso} onChange={e => setTipoPermiso(e.target.value)} style={{
+        width:"100%", background:COLORS.inputBg, border:`1.5px solid ${tipoPermiso?COLORS.gold:COLORS.border}`,
+        borderRadius:8, padding:"11px 14px", color: tipoPermiso?COLORS.text:"#9aaea8",
+        fontSize:14, outline:"none", boxSizing:"border-box", marginBottom:16,
+        fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto",
+        transition:"border-color 0.2s",
+      }}>
+        <option value="" disabled>Selecciona un tipo…</option>
+        {TIPOS_PERMISO.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:8, fontWeight:600, letterSpacing:"0.02em" }}>Fechas</label>
       <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} />
       {startDate && (
