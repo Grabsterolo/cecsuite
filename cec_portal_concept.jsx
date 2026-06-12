@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2,
 } from "lucide-react";
 
 const COLORS = {
@@ -409,159 +409,250 @@ function Tag({ label }) {
   );
 }
 
-/* ─────────────────────────── VACATION MODAL ─────────────────────────── */
+/* ─────────────────────────── SOLICITUDES ─────────────────────────── */
 
-const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-const DAY_NAMES   = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
+const MONTH_NAMES   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DAY_NAMES     = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
+const TIPOS_PERMISO = ["Permiso médico","Permiso personal","Permiso por duelo","Permiso de estudio","Permiso de paternidad/maternidad","Otro"];
 
-function VacationModal({ onClose }) {
-  const today = new Date();
-  const [calYear,  setCalYear]  = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth());
-  const [startDate, setStartDate] = useState(null);
-  const [endDate,   setEndDate]   = useState(null);
-  const [includeHolidays, setIncludeHolidays] = useState(false);
-  const [coverPerson, setCoverPerson] = useState("");
+/* ── Helpers ── */
+function calcWorkDays(start, end) {
+  if (!start || !end) return 0;
+  let n = 0; const d = new Date(start);
+  while (d <= end) { if (d.getDay() !== 0 && d.getDay() !== 6) n++; d.setDate(d.getDate()+1); }
+  return n;
+}
+function fmtDate(d) { return d ? `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}` : "—"; }
 
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const firstDay    = new Date(calYear, calMonth, 1).getDay();
+/* ── Calendar widget (shared) ── */
+function CalendarWidget({ startDate, endDate, onChange }) {
+  const now = new Date();
+  const [yr, setYr] = useState(startDate ? startDate.getFullYear() : now.getFullYear());
+  const [mo, setMo] = useState(startDate ? startDate.getMonth() : now.getMonth());
+  const days  = new Date(yr, mo+1, 0).getDate();
+  const first = new Date(yr, mo, 1).getDay();
 
-  function handleDayClick(day) {
-    const clicked = new Date(calYear, calMonth, day);
-    if (!startDate || endDate) {
-      setStartDate(clicked); setEndDate(null);
-    } else if (clicked.getTime() === startDate.getTime()) {
-      setStartDate(null);
-    } else if (clicked < startDate) {
-      setStartDate(clicked);
-    } else {
-      setEndDate(clicked);
-    }
+  function click(day) {
+    const d = new Date(yr, mo, day);
+    if (!startDate || endDate)                     { onChange(d, null); }
+    else if (d.getTime() === startDate.getTime())  { onChange(null, null); }
+    else if (d < startDate)                        { onChange(d, null); }
+    else                                           { onChange(startDate, d); }
   }
-
-  function dayState(day) {
-    const t = new Date(calYear, calMonth, day).getTime();
-    if (startDate && t === startDate.getTime()) return "start";
-    if (endDate   && t === endDate.getTime())   return "end";
-    if (startDate && endDate && t > startDate.getTime() && t < endDate.getTime()) return "range";
-    return "none";
+  function st(day) {
+    const t = new Date(yr, mo, day).getTime();
+    if (startDate && t === startDate.getTime()) return "s";
+    if (endDate   && t === endDate.getTime())   return "e";
+    if (startDate && endDate && t > startDate.getTime() && t < endDate.getTime()) return "r";
+    return "";
   }
+  const navBtn = { border:"none", background:"rgba(31,74,64,0.07)", cursor:"pointer", color:COLORS.green, display:"flex", padding:"6px 8px", borderRadius:8 };
 
-  function prevMonth() { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y-1); } else setCalMonth(m => m-1); }
-  function nextMonth() { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y+1); } else setCalMonth(m => m+1); }
+  return (
+    <>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <button style={navBtn} onClick={() => mo===0?(setMo(11),setYr(y=>y-1)):setMo(m=>m-1)}><ChevronLeft size={16}/></button>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <button onClick={() => setYr(y=>y-1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, padding:"0 2px" }}>‹</button>
+          <span style={{ fontWeight:700, color:COLORS.green, fontSize:15, minWidth:154, textAlign:"center" }}>{MONTH_NAMES[mo]} {yr}</span>
+          <button onClick={() => setYr(y=>y+1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, padding:"0 2px" }}>›</button>
+        </div>
+        <button style={navBtn} onClick={() => mo===11?(setMo(0),setYr(y=>y+1)):setMo(m=>m+1)}><ChevronRight size={16}/></button>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:4 }}>
+        {DAY_NAMES.map(d => <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:COLORS.textMuted, padding:"3px 0" }}>{d}</div>)}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+        {Array(first).fill(null).map((_,i) => <div key={`e${i}`}/>)}
+        {Array(days).fill(null).map((_,i) => {
+          const day=i+1, s=st(day), ep=s==="s"||s==="e";
+          return (
+            <button key={day} onClick={() => click(day)} style={{
+              height:36, border:"none", cursor:"pointer", borderRadius:6, fontSize:13,
+              background: ep?COLORS.gold:s==="r"?"rgba(201,162,78,0.18)":"transparent",
+              color: ep?"#FFF":COLORS.text, fontWeight: ep?700:400, transition:"background 0.1s",
+            }}>{day}</button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
 
-  function fmt(d) { return d ? `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` : "—"; }
-
-  function workDays() {
-    if (!startDate || !endDate) return 0;
-    let n = 0; const d = new Date(startDate);
-    while (d <= endDate) { if (d.getDay() !== 0 && d.getDay() !== 6) n++; d.setDate(d.getDate()+1); }
-    return n;
-  }
-
+/* ── Modal shell ── */
+function ModalShell({ onClose, title, children }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:"#FFF", borderRadius:16, padding:"28px 24px", width:"100%", maxWidth:420, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,0.25)", fontFamily:"'Manrope', sans-serif" }}>
-
-        {/* Título */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-          <h2 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:24, fontWeight:600, color:COLORS.green, margin:0 }}>
-            Solicitud de Vacaciones
-          </h2>
+          <h2 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:24, fontWeight:600, color:COLORS.green, margin:0 }}>{title}</h2>
           <button onClick={onClose} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4 }}><X size={20}/></button>
         </div>
+        {children}
+      </div>
+    </div>
+  );
+}
 
-        {/* Navegación mes/año */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-          <button onClick={prevMonth} style={{ border:"none", background:"rgba(31,74,64,0.07)", cursor:"pointer", color:COLORS.green, display:"flex", padding:"6px 8px", borderRadius:8 }}><ChevronLeft size={16}/></button>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <button onClick={() => setCalYear(y=>y-1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, lineHeight:1, padding:"0 2px" }}>‹</button>
-            <span style={{ fontWeight:700, color:COLORS.green, fontSize:15, minWidth:160, textAlign:"center" }}>{MONTH_NAMES[calMonth]} {calYear}</span>
-            <button onClick={() => setCalYear(y=>y+1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, lineHeight:1, padding:"0 2px" }}>›</button>
-          </div>
-          <button onClick={nextMonth} style={{ border:"none", background:"rgba(31,74,64,0.07)", cursor:"pointer", color:COLORS.green, display:"flex", padding:"6px 8px", borderRadius:8 }}><ChevronRight size={16}/></button>
+const taStyle = { width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"10px 14px", color:COLORS.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"'Manrope', sans-serif", transition:"border-color 0.2s" };
+const btnCancelStyle = { flex:1, background:"transparent", border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"11px 16px", color:COLORS.textMuted, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'Manrope', sans-serif" };
+const btnSubmitStyle = { flex:2, background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`, border:"none", borderRadius:8, padding:"11px 16px", color:"#FFF", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.4)" };
+
+/* ── Formulario vacaciones ── */
+function VacationForm({ onClose, onSubmit, editData }) {
+  const [startDate, setStartDate] = useState(editData?.startDate || null);
+  const [endDate,   setEndDate]   = useState(editData?.endDate   || null);
+  const [includeHolidays, setIncludeHolidays] = useState(editData?.includeHolidays || false);
+  const [coverPerson, setCoverPerson] = useState(editData?.coverPerson || "");
+  const wd = calcWorkDays(startDate, endDate);
+
+  function submit() {
+    if (!startDate) return;
+    onSubmit({ tipo:"vacaciones", startDate, endDate, includeHolidays, coverPerson });
+  }
+
+  return (
+    <ModalShell onClose={onClose} title={editData ? "Editar solicitud" : "Solicitud de Vacaciones"}>
+      <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} />
+      {startDate && (
+        <div style={{ marginTop:12, padding:"10px 14px", background:COLORS.panelAlt, borderRadius:8, fontSize:12, color:COLORS.textMuted }}>
+          <div><span style={{ fontWeight:600, color:COLORS.green }}>Inicio: </span>{fmtDate(startDate)}</div>
+          {endDate && <>
+            <div style={{ marginTop:2 }}><span style={{ fontWeight:600, color:COLORS.green }}>Fin: </span>{fmtDate(endDate)}</div>
+            <div style={{ marginTop:2 }}><span style={{ fontWeight:700, color:COLORS.gold }}>{wd} días hábiles</span></div>
+          </>}
         </div>
+      )}
+      <label style={{ display:"flex", alignItems:"center", gap:10, marginTop:14, cursor:"pointer", fontSize:13, color:COLORS.text, userSelect:"none" }}>
+        <input type="checkbox" checked={includeHolidays} onChange={e => setIncludeHolidays(e.target.checked)} style={{ width:16, height:16, accentColor:COLORS.gold, cursor:"pointer" }} />
+        Incluir feriados en el período
+      </label>
+      <div style={{ marginTop:14 }}>
+        <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>¿Quién cubre tu ausencia?</label>
+        <textarea value={coverPerson} onChange={e => setCoverPerson(e.target.value)} placeholder="Nombre del colaborador o indicación..." rows={2} style={taStyle}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+      </div>
+      <div style={{ display:"flex", gap:10, marginTop:20 }}>
+        <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
+        <button onClick={submit} style={{ ...btnSubmitStyle, opacity: startDate?1:0.5 }}>{editData ? "Guardar cambios" : "Solicitar"}</button>
+      </div>
+    </ModalShell>
+  );
+}
 
-        {/* Cabeceras días */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:4 }}>
-          {DAY_NAMES.map(d => (
-            <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:COLORS.textMuted, padding:"3px 0" }}>{d}</div>
+/* ── Formulario permiso ── */
+function PermisoForm({ onClose, onSubmit, editData }) {
+  const [tipoPermiso, setTipoPermiso] = useState(editData?.tipoPermiso || "");
+  const [startDate, setStartDate] = useState(editData?.startDate || null);
+  const [endDate,   setEndDate]   = useState(editData?.endDate   || null);
+  const [notes, setNotes] = useState(editData?.notes || "");
+
+  function submit() {
+    if (!tipoPermiso || !startDate) return;
+    onSubmit({ tipo:"permiso", tipoPermiso, startDate, endDate, notes });
+  }
+
+  return (
+    <ModalShell onClose={onClose} title={editData ? "Editar solicitud" : "Solicitud de Permiso"}>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:8, fontWeight:600, letterSpacing:"0.02em" }}>Tipo de permiso</label>
+      <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:16 }}>
+        {TIPOS_PERMISO.map(t => (
+          <button key={t} onClick={() => setTipoPermiso(t)} style={{
+            textAlign:"left", padding:"9px 14px", borderRadius:8,
+            border:`1.5px solid ${tipoPermiso===t?COLORS.gold:COLORS.border}`,
+            background: tipoPermiso===t?"rgba(201,162,78,0.08)":COLORS.inputBg,
+            color: tipoPermiso===t?COLORS.gold:COLORS.text,
+            fontSize:13, fontWeight: tipoPermiso===t?600:400,
+            cursor:"pointer", fontFamily:"'Manrope', sans-serif", transition:"all 0.12s",
+          }}>{t}</button>
+        ))}
+      </div>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:8, fontWeight:600, letterSpacing:"0.02em" }}>Fechas</label>
+      <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} />
+      {startDate && (
+        <div style={{ marginTop:10, padding:"10px 14px", background:COLORS.panelAlt, borderRadius:8, fontSize:12, color:COLORS.textMuted }}>
+          <div><span style={{ fontWeight:600, color:COLORS.green }}>Inicio: </span>{fmtDate(startDate)}</div>
+          {endDate && <div style={{ marginTop:2 }}><span style={{ fontWeight:600, color:COLORS.green }}>Fin: </span>{fmtDate(endDate)}</div>}
+        </div>
+      )}
+      <div style={{ marginTop:14 }}>
+        <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Notas adicionales</label>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Información adicional o justificación..." rows={2} style={taStyle}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+      </div>
+      <div style={{ display:"flex", gap:10, marginTop:20 }}>
+        <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
+        <button onClick={submit} style={{ ...btnSubmitStyle, opacity:(tipoPermiso&&startDate)?1:0.5 }}>{editData ? "Guardar cambios" : "Solicitar"}</button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ── Modal selector de tipo + routing ── */
+function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo }) {
+  const [tipo, setTipo] = useState(editData?.tipo || initialTipo || null);
+
+  function handleSubmit(data) { onSubmit(data); onClose(); }
+
+  if (!tipo) {
+    return (
+      <ModalShell onClose={onClose} title="Nueva Solicitud">
+        <p style={{ color:COLORS.textMuted, fontSize:13, marginBottom:20 }}>Selecciona el tipo de solicitud:</p>
+        <div style={{ display:"flex", gap:12, marginBottom:16 }}>
+          {[{ key:"vacaciones", icon:CalendarDays, label:"Vacaciones", desc:"Días de descanso" },
+            { key:"permiso",    icon:FileText,     label:"Permiso",    desc:"Médico, personal u otro" }]
+          .map(({ key, icon:Icon, label, desc }) => (
+            <button key={key} onClick={() => setTipo(key)} style={{
+              flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:10,
+              padding:"20px 12px", borderRadius:12, border:`2px solid ${COLORS.border}`,
+              background:COLORS.inputBg, cursor:"pointer", textAlign:"center",
+              fontFamily:"'Manrope', sans-serif", transition:"all 0.15s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor=COLORS.gold; e.currentTarget.style.background="rgba(201,162,78,0.06)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor=COLORS.border; e.currentTarget.style.background=COLORS.inputBg; }}
+            >
+              <Icon size={26} color={COLORS.gold}/>
+              <div>
+                <div style={{ fontSize:15, fontWeight:700, color:COLORS.green }}>{label}</div>
+                <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{desc}</div>
+              </div>
+            </button>
           ))}
         </div>
+        <button onClick={onClose} style={{ ...btnCancelStyle, width:"100%" }}>Cancelar</button>
+      </ModalShell>
+    );
+  }
 
-        {/* Días del mes */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
-          {Array(firstDay).fill(null).map((_,i) => <div key={`e${i}`}/>)}
-          {Array(daysInMonth).fill(null).map((_,i) => {
-            const day = i+1;
-            const st  = dayState(day);
-            const endpoint = st==="start" || st==="end";
-            return (
-              <button key={day} onClick={() => handleDayClick(day)} style={{
-                height:36, border:"none", cursor:"pointer",
-                borderRadius: 6,
-                background: endpoint ? COLORS.gold : st==="range" ? "rgba(201,162,78,0.18)" : "transparent",
-                color: endpoint ? "#FFF" : COLORS.text,
-                fontSize:13, fontWeight: endpoint ? 700 : 400,
-                transition:"background 0.1s",
-              }}>{day}</button>
-            );
-          })}
-        </div>
+  return tipo === "vacaciones"
+    ? <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>
+    : <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
+}
 
-        {/* Resumen selección */}
-        {startDate && (
-          <div style={{ marginTop:14, padding:"10px 14px", background:COLORS.panelAlt, borderRadius:8, fontSize:12, color:COLORS.textMuted }}>
-            <div><span style={{ fontWeight:600, color:COLORS.green }}>Inicio: </span>{fmt(startDate)}</div>
-            {endDate && <>
-              <div style={{ marginTop:3 }}><span style={{ fontWeight:600, color:COLORS.green }}>Fin: </span>{fmt(endDate)}</div>
-              <div style={{ marginTop:3 }}><span style={{ fontWeight:700, color:COLORS.gold }}>{workDays()} días hábiles</span></div>
-            </>}
-          </div>
-        )}
+/* ── Item individual de solicitud ── */
+function SolicitudItem({ s, onDelete, onEdit }) {
+  const enRevision = s.status === "en_revision";
+  const label = s.tipo === "vacaciones"
+    ? `Vacaciones${s.endDate ? ` · ${calcWorkDays(s.startDate,s.endDate)} días hábiles` : ""}`
+    : (s.tipoPermiso || "Permiso");
+  const sub = s.startDate
+    ? fmtDate(s.startDate) + (s.endDate ? ` — ${fmtDate(s.endDate)}` : "")
+    : "";
 
-        {/* Checkbox feriados */}
-        <label style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, cursor:"pointer", fontSize:13, color:COLORS.text, userSelect:"none" }}>
-          <input type="checkbox" checked={includeHolidays} onChange={e => setIncludeHolidays(e.target.checked)}
-            style={{ width:16, height:16, accentColor:COLORS.gold, cursor:"pointer" }}
-          />
-          Incluir feriados en el período
-        </label>
-
-        {/* Quién cubre */}
-        <div style={{ marginTop:16 }}>
-          <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>
-            ¿Quién cubre tu ausencia?
-          </label>
-          <textarea value={coverPerson} onChange={e => setCoverPerson(e.target.value)}
-            placeholder="Nombre del colaborador o indicación de cobertura..."
-            rows={3}
-            style={{ width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"10px 14px", color:COLORS.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"'Manrope', sans-serif", transition:"border-color 0.2s" }}
-            onFocus={e => e.target.style.borderColor = COLORS.gold}
-            onBlur={e  => e.target.style.borderColor = COLORS.border}
-          />
-        </div>
-
-        {/* Botones */}
-        <div style={{ display:"flex", gap:10, marginTop:22 }}>
-          <button onClick={onClose} style={{
-            flex:1, background:"transparent", border:`1.5px solid ${COLORS.border}`,
-            borderRadius:8, padding:"11px 16px", color:COLORS.textMuted,
-            fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'Manrope', sans-serif",
-            transition:"border-color 0.2s",
-          }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.textMuted}
-            onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
-          >Cancelar</button>
-          <button onClick={onClose} style={{
-            flex:2, background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-            border:"none", borderRadius:8, padding:"11px 16px", color:"#FFF",
-            fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Manrope', sans-serif",
-            boxShadow:"0 4px 14px rgba(201,162,78,0.4)",
-          }}>Solicitar</button>
-        </div>
-
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, background: enRevision?"rgba(201,162,78,0.07)":"rgba(44,99,86,0.07)" }}>
+      {enRevision ? <Clock size={16} color={COLORS.gold}/> : <CheckCircle2 size={16} color={COLORS.greenSoft}/>}
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ color:COLORS.text, fontWeight:500, fontSize:13 }}>{label}</div>
+        {sub && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:1 }}>{sub}</div>}
+        <div style={{ color:enRevision?COLORS.gold:COLORS.greenSoft, fontSize:11, marginTop:1 }}>{enRevision?"En revisión":"Aprobado"}</div>
       </div>
+      {enRevision && (
+        <div style={{ display:"flex", gap:5, flexShrink:0 }}>
+          <button onClick={() => onEdit(s)} title="Editar" style={{ border:"none", background:"rgba(31,74,64,0.08)", color:COLORS.green, cursor:"pointer", borderRadius:6, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}><Edit2 size={13}/></button>
+          <button onClick={() => onDelete(s.id)} title="Eliminar" style={{ border:"none", background:"rgba(200,50,50,0.08)", color:"#c0392b", cursor:"pointer", borderRadius:6, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}><Trash2 size={13}/></button>
+        </div>
+      )}
     </div>
   );
 }
@@ -573,11 +664,23 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive }) {
-  const [showVacModal, setShowVacModal] = useState(false);
+function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate }) {
+  const [modal, setModal] = useState(null); // null | "new-vac" | solicitud-object(edit)
+
+  function handleSubmit(data) {
+    if (modal && typeof modal === "object") onUpdate(modal.id, data);
+    else onAdd(data);
+    setModal(null);
+  }
+
   return (
     <>
-    {showVacModal && <VacationModal onClose={() => setShowVacModal(false)} />}
+      {modal === "new-vac" && (
+        <VacationForm onClose={() => setModal(null)} onSubmit={handleSubmit} editData={null} />
+      )}
+      {modal && typeof modal === "object" && (
+        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={handleSubmit} editData={modal} />
+      )}
     <div style={isMobile
       ? { display: "flex", flexDirection: "column", gap: 14 }
       : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }
@@ -586,7 +689,7 @@ function DashboardHome({ isMobile, setActive }) {
       {/* Vacaciones */}
       <Card>
         <CardHeader title="Vacaciones"
-          action={<button style={verTodosStyle} onClick={() => setShowVacModal(true)}>Solicitar <ChevronRight size={14} /></button>}
+          action={<button style={verTodosStyle} onClick={() => setModal("new-vac")}>Solicitar <ChevronRight size={14} /></button>}
         />
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <VacationDonut />
@@ -646,27 +749,20 @@ function DashboardHome({ isMobile, setActive }) {
         </div>
       </Card>
 
-      {/* Estado de solicitudes */}
+      {/* Solicitudes — muestra las 2 más recientes */}
       <Card>
         <CardHeader title="Solicitudes"
-          action={<button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Ver todos <ChevronRight size={14} /></button>}
+          action={<button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Ver todas <ChevronRight size={14} /></button>}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(44,99,86,0.07)" }}>
-            <CheckCircle2 size={16} color={COLORS.greenSoft} />
-            <div>
-              <div style={{ color: COLORS.text, fontWeight: 500 }}>Permiso 2 jun</div>
-              <div style={{ color: COLORS.greenSoft, fontSize: 11, marginTop: 2 }}>Aprobado</div>
-            </div>
+        {solicitudes.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>Sin solicitudes activas.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {solicitudes.slice(0,2).map(s => (
+              <SolicitudItem key={s.id} s={s} onDelete={onDelete} onEdit={sol => setModal(sol)} />
+            ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(201,162,78,0.07)" }}>
-            <Clock size={16} color={COLORS.gold} />
-            <div>
-              <div style={{ color: COLORS.text, fontWeight: 500 }}>Vacaciones 1–5 jul</div>
-              <div style={{ color: COLORS.gold, fontSize: 11, marginTop: 2 }}>En revisión</div>
-            </div>
-          </div>
-        </div>
+        )}
       </Card>
 
       {/* Cumpleaños */}
@@ -703,43 +799,43 @@ function PlaceholderSection({ title }) {
   );
 }
 
-function SolicitudesSection() {
+function SolicitudesSection({ solicitudes, onAdd, onDelete, onUpdate }) {
+  const [modal, setModal] = useState(false);
+  const [editData, setEditData] = useState(null);
+
+  function openEdit(s) { setEditData(s); setModal(true); }
+  function openNew()   { setEditData(null); setModal(true); }
+  function handleSubmit(data) {
+    if (editData) onUpdate(editData.id, data); else onAdd(data);
+    setModal(false); setEditData(null);
+  }
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
-        <button style={{
-          display: "flex", alignItems: "center", gap: 8,
-          background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-          border: "none", borderRadius: 8, padding: "10px 18px",
-          color: "#FFF", fontSize: 14, fontWeight: 700, cursor: "pointer",
-          fontFamily: "'Manrope', sans-serif",
-          boxShadow: "0 4px 14px rgba(201,162,78,0.35)",
-          transition: "box-shadow 0.2s, transform 0.15s",
+      {modal && <CrearSolicitudModal onClose={() => { setModal(false); setEditData(null); }} onSubmit={handleSubmit} editData={editData} />}
+      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:20 }}>
+        <button onClick={openNew} style={{
+          display:"flex", alignItems:"center", gap:8,
+          background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+          border:"none", borderRadius:8, padding:"10px 18px",
+          color:"#FFF", fontSize:14, fontWeight:700, cursor:"pointer",
+          fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.35)", transition:"box-shadow 0.2s, transform 0.15s",
         }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(201,162,78,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 14px rgba(201,162,78,0.35)"; e.currentTarget.style.transform = "none"; }}
-        >
-          <Plus size={16} /> Crear Solicitud
-        </button>
+          onMouseEnter={e => { e.currentTarget.style.boxShadow="0 6px 20px rgba(201,162,78,0.5)"; e.currentTarget.style.transform="translateY(-1px)"; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow="0 4px 14px rgba(201,162,78,0.35)"; e.currentTarget.style.transform="none"; }}
+        ><Plus size={16}/> Crear Solicitud</button>
       </div>
       <Card>
         <CardHeader title="Mis solicitudes" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(44,99,86,0.07)" }}>
-            <CheckCircle2 size={16} color={COLORS.greenSoft} />
-            <div>
-              <div style={{ color: COLORS.text, fontWeight: 500 }}>Permiso 2 jun</div>
-              <div style={{ color: COLORS.greenSoft, fontSize: 11, marginTop: 2 }}>Aprobado</div>
-            </div>
+        {solicitudes.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No tienes solicitudes activas. Crea una con el botón de arriba.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {solicitudes.map(s => (
+              <SolicitudItem key={s.id} s={s} onDelete={onDelete} onEdit={openEdit} />
+            ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(201,162,78,0.07)" }}>
-            <Clock size={16} color={COLORS.gold} />
-            <div>
-              <div style={{ color: COLORS.text, fontWeight: 500 }}>Vacaciones 1–5 jul</div>
-              <div style={{ color: COLORS.gold, fontSize: 11, marginTop: 2 }}>En revisión</div>
-            </div>
-          </div>
-        </div>
+        )}
       </Card>
     </div>
   );
@@ -748,10 +844,17 @@ function SolicitudesSection() {
 function Dashboard({ onLogout }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [solicitudes, setSolicitudes] = useState([]);
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil" }[active];
+
+  const addSolicitud    = useCallback(data => setSolicitudes(prev => [{ ...data, id: Date.now(), status:"en_revision", createdAt: new Date() }, ...prev]), []);
+  const deleteSolicitud = useCallback(id   => setSolicitudes(prev => prev.filter(s => s.id !== id)), []);
+  const updateSolicitud = useCallback((id, data) => setSolicitudes(prev => prev.map(s => s.id === id ? { ...s, ...data } : s)), []);
+
+  const solProps = { solicitudes, onAdd: addSolicitud, onDelete: deleteSolicitud, onUpdate: updateSolicitud };
 
   if (isMobile) {
     return (
@@ -784,7 +887,7 @@ function Dashboard({ onLogout }) {
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} /> : active === "solicitudes" ? <SolicitudesSection /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -802,7 +905,7 @@ function Dashboard({ onLogout }) {
             {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} /> : active === "solicitudes" ? <SolicitudesSection /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
