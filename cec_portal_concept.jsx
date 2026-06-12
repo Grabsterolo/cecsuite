@@ -499,7 +499,7 @@ function VacationModal({ onClose }) {
             return (
               <button key={day} onClick={() => handleDayClick(day)} style={{
                 height:36, border:"none", cursor:"pointer",
-                borderRadius: endpoint ? "50%" : st==="range" ? 4 : 6,
+                borderRadius: 6,
                 background: endpoint ? COLORS.gold : st==="range" ? "rgba(201,162,78,0.18)" : "transparent",
                 color: endpoint ? "#FFF" : COLORS.text,
                 fontSize:13, fontWeight: endpoint ? 700 : 400,
