@@ -15,96 +15,106 @@ import {
 
 /*
   CEC — Portal de Colaboradores
-  Concepto v1
+  Concepto v2 — Fondo blanco, gama del logo oficial
 
   Tokens
-  - Fondo principal: #0B0E0D (casi negro, como el logo)
-  - Panel / tarjeta: #121A18
-  - Panel elevado: #1B2624
-  - Acento dorado: #C9A24E / gradiente #E4C77A -> #A6802F
-  - Acento verde institucional: #1F4A40 / #2C6356
-  - Texto principal: #F3F1EA
-  - Texto secundario: #8FA29B
-
-  Tipografía
-  - Display: "Cormorant Garamond" (serif, eco del logotipo)
-  - Cuerpo / UI: "Manrope"
-
-  Elemento de firma
-  - El lazo del infinito del logo reinterpretado como una línea
-    fina dorada que conecta secciones (separadores curvos),
-    y como el indicador de "progreso" del saldo de vacaciones.
+  - Fondo: #FFFFFF / #FAFAF8
+  - Panel / tarjeta: #FFFFFF con borde sutil
+  - Panel elevado: #F4F1EA
+  - Verde institucional: #1F4A40 (color texto logo)
+  - Verde suave: #2C6356
+  - Dorado: #C9A24E (símbolo del logo)
+  - Dorado suave: #E4C77A
+  - Texto principal: #1F4A40
+  - Texto secundario: #6B8C80
+  - Sidebar: #1F4A40 (verde institucional)
 */
 
 const COLORS = {
-  bg: "#0B0E0D",
-  panel: "#121A18",
-  panelAlt: "#1B2624",
+  bg: "#FAFAF8",
+  panel: "#FFFFFF",
+  panelAlt: "#F4F1EA",
   gold: "#C9A24E",
   goldSoft: "#E4C77A",
   green: "#1F4A40",
   greenSoft: "#2C6356",
-  text: "#F3F1EA",
-  textMuted: "#8FA29B",
-  border: "rgba(201,162,78,0.18)",
+  text: "#1F4A40",
+  textMuted: "#6B8C80",
+  border: "rgba(31,74,64,0.12)",
+  borderGold: "rgba(201,162,78,0.3)",
+  sidebar: "#1F4A40",
+  sidebarText: "#FFFFFF",
+  sidebarMuted: "rgba(255,255,255,0.55)",
 };
 
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 `;
 
-function InfinityDivider({ width = 64 }) {
+function InfinityDivider({ width = 64, dark = false }) {
   return (
-    <svg
-      width={width}
-      height="14"
-      viewBox="0 0 64 14"
-      style={{ display: "block" }}
-    >
+    <svg width={width} height="14" viewBox="0 0 64 14" style={{ display: "block" }}>
       <path
         d="M2 7 C2 2 8 2 11 7 C14 12 20 12 23 7 C20 2 14 2 11 7 M62 7 C62 2 56 2 53 7 C50 12 44 12 41 7 C44 2 50 2 53 7 M23 7 H41"
         fill="none"
-        stroke={COLORS.gold}
+        stroke={dark ? COLORS.gold : COLORS.gold}
         strokeWidth="1.2"
-        opacity="0.6"
+        opacity="0.7"
       />
     </svg>
   );
 }
 
-function Logo({ size = 34 }) {
+/* Logo — usa la imagen oficial si existe en /logo.png, sino SVG aproximado */
+function Logo({ size = 36, onDark = false }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (!imgError) {
+    return (
+      <img
+        src="/logo.png"
+        alt="Centro Europeo de Cirugía"
+        style={{ height: size * 1.6, maxWidth: 200, objectFit: "contain", filter: onDark ? "brightness(0) invert(1)" : "none" }}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  /* Fallback SVG */
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <svg width={size} height={size} viewBox="0 0 100 100">
+        <defs>
+          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#E4C77A" />
+            <stop offset="100%" stopColor="#A6802F" />
+          </linearGradient>
+        </defs>
         <path
           d="M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70"
           fill="none"
-          stroke={COLORS.gold}
+          stroke="url(#goldGrad)"
           strokeWidth="6"
           strokeLinecap="round"
         />
       </svg>
-      <div style={{ lineHeight: 1.05 }}>
-        <div
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontWeight: 600,
-            fontSize: size * 0.42,
-            color: COLORS.text,
-            letterSpacing: "0.04em",
-          }}
-        >
+      <div style={{ lineHeight: 1.1 }}>
+        <div style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontWeight: 600,
+          fontSize: size * 0.38,
+          color: onDark ? "#FFFFFF" : COLORS.green,
+          letterSpacing: "0.08em",
+        }}>
           Centro Europeo
         </div>
-        <div
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontWeight: 700,
-            fontSize: size * 0.5,
-            color: COLORS.goldSoft,
-            letterSpacing: "0.14em",
-          }}
-        >
+        <div style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontWeight: 700,
+          fontSize: size * 0.46,
+          color: onDark ? COLORS.goldSoft : COLORS.gold,
+          letterSpacing: "0.16em",
+        }}>
           DE CIRUGÍA
         </div>
       </div>
@@ -112,115 +122,97 @@ function Logo({ size = 34 }) {
   );
 }
 
-/* ---------------------------- LOGIN ---------------------------- */
+/* ─────────────────────────── LOGIN ─────────────────────────── */
 
 function LoginScreen({ onLogin }) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      background: COLORS.bg,
+      color: COLORS.text,
+      fontFamily: "'Manrope', sans-serif",
+    }}>
+      {/* Panel izquierdo — verde institucional */}
+      <div style={{
+        flex: "0 0 42%",
+        background: COLORS.sidebar,
         display: "flex",
-        background: COLORS.bg,
-        color: COLORS.text,
-        fontFamily: "'Manrope', sans-serif",
-      }}
-    >
-      {/* left brand panel */}
-      <div
-        style={{
-          flex: "1 1 45%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 48,
-          position: "relative",
-          borderRight: `1px solid ${COLORS.border}`,
-        }}
-        className="hidden md:flex"
-      >
-        <div style={{ textAlign: "center" }}>
-          <svg width="160" height="160" viewBox="0 0 100 100" style={{ margin: "0 auto" }}>
-            <path
-              d="M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70"
-              fill="none"
-              stroke={COLORS.gold}
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-          </svg>
-          <div
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontWeight: 600,
-              fontSize: 30,
-              marginTop: 24,
-              letterSpacing: "0.06em",
-            }}
-          >
-            Centro Europeo
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 48,
+        position: "relative",
+      }}>
+        {/* Decoración fondo */}
+        <div style={{
+          position: "absolute", top: -80, right: -80,
+          width: 320, height: 320,
+          borderRadius: "50%",
+          background: "rgba(201,162,78,0.06)",
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", bottom: -60, left: -60,
+          width: 240, height: 240,
+          borderRadius: "50%",
+          background: "rgba(201,162,78,0.04)",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
+          {/* Logo en blanco sobre verde */}
+          <div style={{ marginBottom: 32 }}>
+            <Logo size={52} onDark={true} />
           </div>
-          <div
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontWeight: 700,
-              fontSize: 38,
-              color: COLORS.goldSoft,
-              letterSpacing: "0.18em",
-              marginTop: 4,
-            }}
-          >
-            DE CIRUGÍA
+
+          <InfinityDivider width={80} />
+
+          <div style={{
+            marginTop: 28,
+            fontSize: 11,
+            letterSpacing: "0.35em",
+            color: COLORS.sidebarMuted,
+            textTransform: "uppercase",
+          }}>
+            Portal de Colaboradores
           </div>
-          <div
-            style={{
-              marginTop: 28,
-              fontSize: 13,
-              letterSpacing: "0.3em",
-              color: COLORS.textMuted,
-            }}
-          >
-            PORTAL DE COLABORADORES
-          </div>
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 12,
-              letterSpacing: "0.2em",
-              color: COLORS.gold,
-              fontWeight: 600,
-            }}
-          >
-            DESDE 1976
+          <div style={{
+            marginTop: 8,
+            fontSize: 12,
+            letterSpacing: "0.2em",
+            color: COLORS.gold,
+            fontWeight: 600,
+          }}>
+            Desde 1976
           </div>
         </div>
       </div>
 
-      {/* right form panel */}
-      <div
-        style={{
-          flex: "1 1 55%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-        }}
-      >
+      {/* Panel derecho — formulario */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 40,
+        background: "#FFFFFF",
+      }}>
         <div style={{ width: "100%", maxWidth: 380 }}>
-          <h1
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: 32,
-              fontWeight: 600,
-              marginBottom: 8,
-            }}
-          >
+          <h1 style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 34,
+            fontWeight: 600,
+            marginBottom: 8,
+            color: COLORS.green,
+          }}>
             Bienvenido de nuevo
           </h1>
-          <p style={{ color: COLORS.textMuted, fontSize: 14, marginBottom: 32 }}>
+          <p style={{ color: COLORS.textMuted, fontSize: 14, marginBottom: 36 }}>
             Ingresa con tu cuenta institucional para continuar.
           </p>
 
+          {/* Microsoft button */}
           <button
             onClick={onLogin}
             style={{
@@ -229,18 +221,25 @@ function LoginScreen({ onLogin }) {
               alignItems: "center",
               justifyContent: "center",
               gap: 10,
-              background: "#1f1f1f",
-              border: `1px solid ${COLORS.border}`,
+              background: "#FFFFFF",
+              border: `1.5px solid ${COLORS.border}`,
               borderRadius: 10,
               padding: "13px 16px",
               color: COLORS.text,
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
-              transition: "border-color 0.2s",
+              transition: "border-color 0.2s, box-shadow 0.2s",
+              boxShadow: "0 1px 3px rgba(31,74,64,0.06)",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.gold)}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = COLORS.gold;
+              e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,162,78,0.18)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = COLORS.border;
+              e.currentTarget.style.boxShadow = "0 1px 3px rgba(31,74,64,0.06)";
+            }}
           >
             <svg width="18" height="18" viewBox="0 0 23 23">
               <rect x="1" y="1" width="10" height="10" fill="#F25022" />
@@ -251,22 +250,17 @@ function LoginScreen({ onLogin }) {
             Continuar con Microsoft
           </button>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              margin: "28px 0",
-              color: COLORS.textMuted,
-              fontSize: 12,
-            }}
-          >
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            margin: "28px 0",
+            color: COLORS.textMuted, fontSize: 12,
+          }}>
             <div style={{ flex: 1, height: 1, background: COLORS.border }} />
             o con tu correo
             <div style={{ flex: 1, height: 1, background: COLORS.border }} />
           </div>
 
-          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 500 }}>
             Correo corporativo
           </label>
           <input
@@ -274,8 +268,8 @@ function LoginScreen({ onLogin }) {
             placeholder="nombre@cec.cr"
             style={{
               width: "100%",
-              background: COLORS.panel,
-              border: `1px solid ${COLORS.border}`,
+              background: "#FFFFFF",
+              border: `1.5px solid ${COLORS.border}`,
               borderRadius: 8,
               padding: "11px 14px",
               color: COLORS.text,
@@ -283,9 +277,13 @@ function LoginScreen({ onLogin }) {
               marginBottom: 16,
               outline: "none",
               boxSizing: "border-box",
+              fontFamily: "'Manrope', sans-serif",
+              transition: "border-color 0.2s",
             }}
+            onFocus={e => e.target.style.borderColor = COLORS.gold}
+            onBlur={e => e.target.style.borderColor = COLORS.border}
           />
-          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 500 }}>
             Contraseña
           </label>
           <input
@@ -293,16 +291,20 @@ function LoginScreen({ onLogin }) {
             placeholder="••••••••"
             style={{
               width: "100%",
-              background: COLORS.panel,
-              border: `1px solid ${COLORS.border}`,
+              background: "#FFFFFF",
+              border: `1.5px solid ${COLORS.border}`,
               borderRadius: 8,
               padding: "11px 14px",
               color: COLORS.text,
               fontSize: 14,
-              marginBottom: 24,
+              marginBottom: 28,
               outline: "none",
               boxSizing: "border-box",
+              fontFamily: "'Manrope', sans-serif",
+              transition: "border-color 0.2s",
             }}
+            onFocus={e => e.target.style.borderColor = COLORS.gold}
+            onBlur={e => e.target.style.borderColor = COLORS.border}
           />
 
           <button
@@ -313,12 +315,17 @@ function LoginScreen({ onLogin }) {
               border: "none",
               borderRadius: 8,
               padding: "13px 16px",
-              color: "#1a1300",
+              color: "#FFFFFF",
               fontSize: 14,
               fontWeight: 700,
               cursor: "pointer",
               letterSpacing: "0.02em",
+              fontFamily: "'Manrope', sans-serif",
+              boxShadow: "0 4px 14px rgba(201,162,78,0.35)",
+              transition: "box-shadow 0.2s",
             }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 6px 20px rgba(201,162,78,0.5)"}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = "0 4px 14px rgba(201,162,78,0.35)"}
           >
             Iniciar sesión
           </button>
@@ -328,7 +335,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-/* --------------------------- DASHBOARD --------------------------- */
+/* ─────────────────────────── DASHBOARD ─────────────────────────── */
 
 const NAV_ITEMS = [
   { key: "inicio", label: "Inicio", icon: Home },
@@ -339,21 +346,9 @@ const NAV_ITEMS = [
 ];
 
 const ANNOUNCEMENTS = [
-  {
-    title: "Nuevo protocolo de bioseguridad en quirófano",
-    date: "10 jun 2026",
-    tag: "Operaciones",
-  },
-  {
-    title: "Horario especial — semana del 23 al 27 de junio",
-    date: "8 jun 2026",
-    tag: "Administración",
-  },
-  {
-    title: "Capacitación: manejo de historia clínica digital",
-    date: "5 jun 2026",
-    tag: "Capacitación",
-  },
+  { title: "Nuevo protocolo de bioseguridad en quirófano", date: "10 jun 2026", tag: "Operaciones" },
+  { title: "Horario especial — semana del 23 al 27 de junio", date: "8 jun 2026", tag: "Administración" },
+  { title: "Capacitación: manejo de historia clínica digital", date: "5 jun 2026", tag: "Capacitación" },
 ];
 
 const DOCUMENTS = [
@@ -370,26 +365,22 @@ const BIRTHDAYS = [
 
 function Sidebar({ active, setActive, onLogout }) {
   return (
-    <div
-      style={{
-        width: 240,
-        background: COLORS.panel,
-        borderRight: `1px solid ${COLORS.border}`,
-        display: "flex",
-        flexDirection: "column",
-        padding: "24px 16px",
-        height: "100vh",
-        position: "sticky",
-        top: 0,
-        flexShrink: 0,
-      }}
-      className="hidden md:flex"
-    >
-      <div style={{ padding: "0 8px 28px" }}>
-        <Logo size={30} />
+    <div style={{
+      width: 240,
+      background: COLORS.sidebar,
+      display: "flex",
+      flexDirection: "column",
+      padding: "28px 16px",
+      height: "100vh",
+      position: "sticky",
+      top: 0,
+      flexShrink: 0,
+    }}>
+      <div style={{ padding: "0 8px 32px" }}>
+        <Logo size={30} onDark={true} />
       </div>
 
-      <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.key;
@@ -401,7 +392,7 @@ function Sidebar({ active, setActive, onLogout }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                padding: "10px 12px",
+                padding: "10px 14px",
                 borderRadius: 8,
                 border: "none",
                 cursor: "pointer",
@@ -409,14 +400,16 @@ function Sidebar({ active, setActive, onLogout }) {
                 fontSize: 14,
                 fontWeight: 600,
                 fontFamily: "'Manrope', sans-serif",
-                color: isActive ? COLORS.bg : COLORS.text,
+                color: isActive ? "#FFFFFF" : COLORS.sidebarMuted,
                 background: isActive
                   ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`
                   : "transparent",
-                transition: "background 0.15s",
+                transition: "background 0.15s, color 0.15s",
               }}
+              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#FFFFFF"; } }}
+              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = COLORS.sidebarMuted; } }}
             >
-              <Icon size={17} />
+              <Icon size={16} />
               {item.label}
             </button>
           );
@@ -424,7 +417,7 @@ function Sidebar({ active, setActive, onLogout }) {
       </nav>
 
       <div style={{ marginTop: "auto" }}>
-        <div style={{ padding: "0 8px", marginBottom: 12 }}>
+        <div style={{ padding: "0 8px", marginBottom: 16 }}>
           <InfinityDivider width={80} />
         </div>
         <button
@@ -433,20 +426,23 @@ function Sidebar({ active, setActive, onLogout }) {
             display: "flex",
             alignItems: "center",
             gap: 12,
-            padding: "10px 12px",
+            padding: "10px 14px",
             borderRadius: 8,
             border: "none",
             background: "transparent",
-            color: COLORS.textMuted,
+            color: COLORS.sidebarMuted,
             fontSize: 14,
             fontWeight: 600,
             fontFamily: "'Manrope', sans-serif",
             cursor: "pointer",
             width: "100%",
             textAlign: "left",
+            transition: "color 0.15s",
           }}
+          onMouseEnter={e => e.currentTarget.style.color = "#FFFFFF"}
+          onMouseLeave={e => e.currentTarget.style.color = COLORS.sidebarMuted}
         >
-          <LogOut size={17} />
+          <LogOut size={16} />
           Cerrar sesión
         </button>
       </div>
@@ -456,15 +452,14 @@ function Sidebar({ active, setActive, onLogout }) {
 
 function Card({ children, style }) {
   return (
-    <div
-      style={{
-        background: COLORS.panel,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 14,
-        padding: 24,
-        ...style,
-      }}
-    >
+    <div style={{
+      background: COLORS.panel,
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: 14,
+      padding: 24,
+      boxShadow: "0 1px 4px rgba(31,74,64,0.06)",
+      ...style,
+    }}>
       {children}
     </div>
   );
@@ -472,23 +467,19 @@ function Card({ children, style }) {
 
 function CardHeader({ title, action }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "baseline",
-        marginBottom: 16,
-      }}
-    >
-      <h3
-        style={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: 20,
-          fontWeight: 600,
-          color: COLORS.text,
-          margin: 0,
-        }}
-      >
+    <div style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+      marginBottom: 18,
+    }}>
+      <h3 style={{
+        fontFamily: "'Cormorant Garamond', serif",
+        fontSize: 20,
+        fontWeight: 600,
+        color: COLORS.green,
+        margin: 0,
+      }}>
         {title}
       </h3>
       {action}
@@ -504,9 +495,7 @@ function VacationRing({ used = 9, total = 21 }) {
     <svg width="140" height="140" viewBox="0 0 140 140">
       <circle cx="70" cy="70" r={r} fill="none" stroke={COLORS.panelAlt} strokeWidth="10" />
       <circle
-        cx="70"
-        cy="70"
-        r={r}
+        cx="70" cy="70" r={r}
         fill="none"
         stroke={COLORS.gold}
         strokeWidth="10"
@@ -514,65 +503,70 @@ function VacationRing({ used = 9, total = 21 }) {
         strokeDasharray={`${c * pct} ${c}`}
         transform="rotate(-90 70 70)"
       />
-      <text
-        x="70"
-        y="64"
-        textAnchor="middle"
-        fontFamily="'Cormorant Garamond', serif"
-        fontSize="34"
-        fontWeight="700"
-        fill={COLORS.text}
-      >
+      <text x="70" y="64" textAnchor="middle"
+        fontFamily="'Cormorant Garamond', serif" fontSize="34" fontWeight="700"
+        fill={COLORS.green}>
         {total - used}
       </text>
-      <text
-        x="70"
-        y="86"
-        textAnchor="middle"
-        fontFamily="'Manrope', sans-serif"
-        fontSize="11"
-        fill={COLORS.textMuted}
-      >
+      <text x="70" y="86" textAnchor="middle"
+        fontFamily="'Manrope', sans-serif" fontSize="11"
+        fill={COLORS.textMuted}>
         días disponibles
       </text>
     </svg>
   );
 }
 
+function Tag({ label }) {
+  return (
+    <span style={{
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: COLORS.gold,
+      background: "rgba(201,162,78,0.1)",
+      borderRadius: 4,
+      padding: "2px 7px",
+    }}>
+      {label}
+    </span>
+  );
+}
+
 function DashboardHome() {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-        gap: 20,
-      }}
-    >
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+      gap: 20,
+    }}>
       {/* Vacaciones */}
-      <Card style={{ gridColumn: "span 1" }}>
+      <Card>
         <CardHeader title="Vacaciones" />
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <VacationRing />
           <div style={{ flex: 1, fontSize: 13, color: COLORS.textMuted }}>
             <p style={{ margin: "0 0 6px" }}>
-              <span style={{ color: COLORS.text, fontWeight: 700 }}>9</span> días tomados este año
+              <span style={{ color: COLORS.green, fontWeight: 700 }}>9</span> días tomados este año
             </p>
-            <p style={{ margin: "0 0 16px" }}>
-              <span style={{ color: COLORS.text, fontWeight: 700 }}>2</span> solicitudes pendientes
-              de aprobación
+            <p style={{ margin: "0 0 18px" }}>
+              <span style={{ color: COLORS.green, fontWeight: 700 }}>2</span> solicitudes pendientes
             </p>
-            <button
-              style={{
-                background: "transparent",
-                border: `1px solid ${COLORS.gold}`,
-                color: COLORS.goldSoft,
-                borderRadius: 8,
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "'Manrope', sans-serif",
-              }}
+            <button style={{
+              background: "transparent",
+              border: `1.5px solid ${COLORS.gold}`,
+              color: COLORS.gold,
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'Manrope', sans-serif",
+              transition: "background 0.15s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,162,78,0.08)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
             >
               Solicitar vacaciones
             </button>
@@ -585,58 +579,32 @@ function DashboardHome() {
         <CardHeader
           title="Comunicados recientes"
           action={
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 12,
-                color: COLORS.gold,
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
+            <span style={{
+              display: "flex", alignItems: "center", gap: 4,
+              fontSize: 12, color: COLORS.gold, cursor: "pointer", fontWeight: 600,
+            }}>
               Ver todos <ChevronRight size={14} />
             </span>
           }
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {ANNOUNCEMENTS.map((a) => (
-            <div
-              key={a.title}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                paddingBottom: 12,
-                borderBottom: `1px solid ${COLORS.border}`,
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 14, color: COLORS.text, marginBottom: 4 }}>
-                  {a.title}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: COLORS.gold,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  {a.tag}
-                </div>
+            <div key={a.title} style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingBottom: 14,
+              borderBottom: `1px solid ${COLORS.border}`,
+            }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 500 }}>{a.title}</div>
+                <Tag label={a.tag} />
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: COLORS.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div style={{
+                fontSize: 12, color: COLORS.textMuted,
+                display: "flex", alignItems: "center", gap: 5,
+                whiteSpace: "nowrap", marginLeft: 16,
+              }}>
                 <Clock size={12} />
                 {a.date}
               </div>
@@ -648,39 +616,49 @@ function DashboardHome() {
       {/* Documentos */}
       <Card>
         <CardHeader title="Documentos" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {DOCUMENTS.map((d) => (
-            <div
-              key={d}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                fontSize: 13,
-                color: COLORS.text,
-              }}
-            >
+            <div key={d} style={{
+              display: "flex", justifyContent: "space-between",
+              alignItems: "center", fontSize: 13, color: COLORS.text,
+              padding: "8px 0",
+              borderBottom: `1px solid ${COLORS.border}`,
+            }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <FileText size={14} color={COLORS.textMuted} />
                 {d}
               </span>
-              <Download size={14} color={COLORS.gold} style={{ cursor: "pointer" }} />
+              <Download size={14} color={COLORS.gold} style={{ cursor: "pointer", flexShrink: 0 }} />
             </div>
           ))}
         </div>
       </Card>
 
-      {/* Solicitudes / estado */}
+      {/* Estado de solicitudes */}
       <Card>
         <CardHeader title="Estado de solicitudes" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 12px", borderRadius: 8,
+            background: "rgba(44,99,86,0.07)",
+          }}>
             <CheckCircle2 size={16} color={COLORS.greenSoft} />
-            <span style={{ color: COLORS.text }}>Permiso 2 jun — Aprobado</span>
+            <div>
+              <div style={{ color: COLORS.text, fontWeight: 500 }}>Permiso 2 jun</div>
+              <div style={{ color: COLORS.greenSoft, fontSize: 11, marginTop: 2 }}>Aprobado</div>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 12px", borderRadius: 8,
+            background: "rgba(201,162,78,0.07)",
+          }}>
             <Clock size={16} color={COLORS.gold} />
-            <span style={{ color: COLORS.text }}>Vacaciones 1–5 jul — En revisión</span>
+            <div>
+              <div style={{ color: COLORS.text, fontWeight: 500 }}>Vacaciones 1–5 jul</div>
+              <div style={{ color: COLORS.gold, fontSize: 11, marginTop: 2 }}>En revisión</div>
+            </div>
           </div>
         </div>
       </Card>
@@ -690,11 +668,12 @@ function DashboardHome() {
         <CardHeader title="Próximos cumpleaños" />
         <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
           {BIRTHDAYS.map((b) => (
-            <div
-              key={b.name}
-              style={{ display: "flex", alignItems: "center", gap: 10, color: COLORS.text }}
-            >
-              <Cake size={16} color={COLORS.goldSoft} />
+            <div key={b.name} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              color: COLORS.text, padding: "8px 0",
+              borderBottom: `1px solid ${COLORS.border}`,
+            }}>
+              <Cake size={16} color={COLORS.gold} />
               {b.name}
               <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>
                 {b.date}
@@ -730,41 +709,41 @@ function Dashboard({ onLogout }) {
   }[active];
 
   return (
-    <div style={{ display: "flex", background: COLORS.bg, color: COLORS.text, fontFamily: "'Manrope', sans-serif" }}>
+    <div style={{ display: "flex", background: COLORS.bg, color: COLORS.text, fontFamily: "'Manrope', sans-serif", minHeight: "100vh" }}>
       <Sidebar active={active} setActive={setActive} onLogout={onLogout} />
 
-      <div style={{ flex: 1, padding: "32px 36px", maxWidth: 1180, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      <div style={{ flex: 1, padding: "36px 40px", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{
+          display: "flex", justifyContent: "space-between",
+          alignItems: "flex-start", marginBottom: 32,
+        }}>
           <div>
-            <div style={{ fontSize: 12, letterSpacing: "0.2em", color: COLORS.gold, marginBottom: 6 }}>
-              VIERNES 12 DE JUNIO, 2026
+            <div style={{
+              fontSize: 11, letterSpacing: "0.25em",
+              color: COLORS.gold, marginBottom: 6,
+              textTransform: "uppercase", fontWeight: 600,
+            }}>
+              Viernes 12 de junio, 2026
             </div>
-            <h1
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: 34,
-                fontWeight: 600,
-                margin: 0,
-              }}
-            >
+            <h1 style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: 36, fontWeight: 600,
+              margin: 0, color: COLORS.green,
+            }}>
               {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
             </h1>
           </div>
-          <div
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: "50%",
-              background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              color: COLORS.bg,
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: 18,
-            }}
-          >
+
+          <div style={{
+            width: 44, height: 44,
+            borderRadius: "50%",
+            background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, color: "#FFFFFF",
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 18,
+            boxShadow: "0 2px 8px rgba(201,162,78,0.35)",
+          }}>
             JP
           </div>
         </div>
@@ -775,7 +754,7 @@ function Dashboard({ onLogout }) {
   );
 }
 
-/* ------------------------------ APP ------------------------------ */
+/* ─────────────────────────── APP ─────────────────────────── */
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
