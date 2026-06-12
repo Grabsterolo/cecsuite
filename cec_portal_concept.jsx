@@ -58,12 +58,12 @@ function LoginScreen({ onLogin }) {
         justifyContent: "center",
         alignItems: "center",
         padding: "60px 56px",
-        gap: 16,
+        gap: 10,
       }}>
         <Logo width={380} />
 
         {/* Separador dorado */}
-        <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7, marginTop: 8 }} />
+        <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7 }} />
 
         <div style={{
           fontSize: 14,
