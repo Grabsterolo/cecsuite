@@ -939,9 +939,14 @@ function Dashboard({ onLogout, profile }) {
     return (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
   }
   const initials = getInitials(profile?.full_name);
+
+  const hour = new Date().getHours();
+  const timeGreeting = hour >= 5 && hour < 12 ? "Buenos días"
+    : hour >= 12 && hour < 19 ? "Buenas tardes"
+    : "Buenas noches";
   const greeting = profile?.full_name
-    ? `Buenos días, ${profile.full_name.split(" ")[0]}`
-    : "Buenos días";
+    ? `${timeGreeting}, ${profile.full_name.split(" ")[0]}`
+    : timeGreeting;
 
   const addSolicitud    = useCallback(data => setSolicitudes(prev => [{ ...data, id: Date.now(), status:"en_revision", createdAt: new Date() }, ...prev]), []);
   const deleteSolicitud = useCallback(id   => setSolicitudes(prev => prev.filter(s => s.id !== id)), []);
