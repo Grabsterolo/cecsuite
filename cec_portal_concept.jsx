@@ -409,7 +409,14 @@ function Tag({ label }) {
   );
 }
 
-function DashboardHome({ isMobile }) {
+const verTodosStyle = {
+  display: "flex", alignItems: "center", gap: 4,
+  fontSize: 12, color: COLORS.gold, cursor: "pointer",
+  fontWeight: 600, background: "none", border: "none",
+  fontFamily: "'Manrope', sans-serif", padding: 0,
+};
+
+function DashboardHome({ isMobile, setActive }) {
   return (
     <div style={isMobile
       ? { display: "flex", flexDirection: "column", gap: 14 }
@@ -418,28 +425,18 @@ function DashboardHome({ isMobile }) {
 
       {/* Vacaciones */}
       <Card>
-        <CardHeader title="Vacaciones" />
+        <CardHeader title="Vacaciones"
+          action={<button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Solicitar <ChevronRight size={14} /></button>}
+        />
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <VacationDonut />
           <div style={{ flex: 1, fontSize: 13, color: COLORS.textMuted }}>
             <p style={{ margin: "0 0 6px" }}>
               <span style={{ color: COLORS.green, fontWeight: 700 }}>9</span> días tomados
             </p>
-            <p style={{ margin: "0 0 16px" }}>
+            <p style={{ margin: 0 }}>
               <span style={{ color: COLORS.green, fontWeight: 700 }}>2</span> pendientes
             </p>
-            <button
-              style={{
-                background: "transparent", border: `1.5px solid ${COLORS.gold}`,
-                color: COLORS.gold, borderRadius: 7, padding: "7px 12px",
-                fontSize: 12, fontWeight: 600, cursor: "pointer",
-                fontFamily: "'Manrope', sans-serif", transition: "background 0.15s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(201,162,78,0.08)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              Solicitar
-            </button>
           </div>
         </div>
       </Card>
@@ -448,11 +445,7 @@ function DashboardHome({ isMobile }) {
       <Card style={isMobile ? {} : { gridColumn: "span 2" }}>
         <CardHeader
           title="Comunicados recientes"
-          action={
-            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: COLORS.gold, cursor: "pointer", fontWeight: 600 }}>
-              Ver todos <ChevronRight size={14} />
-            </span>
-          }
+          action={<button style={verTodosStyle} onClick={() => setActive("comunicados")}>Ver todos <ChevronRight size={14} /></button>}
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {ANNOUNCEMENTS.map((a) => (
@@ -474,7 +467,9 @@ function DashboardHome({ isMobile }) {
 
       {/* Documentos */}
       <Card>
-        <CardHeader title="Documentos" />
+        <CardHeader title="Documentos"
+          action={<button style={verTodosStyle} onClick={() => setActive("documentos")}>Ver todos <ChevronRight size={14} /></button>}
+        />
         <div style={{ display: "flex", flexDirection: "column" }}>
           {DOCUMENTS.map((d) => (
             <div key={d} style={{
@@ -493,7 +488,9 @@ function DashboardHome({ isMobile }) {
 
       {/* Estado de solicitudes */}
       <Card>
-        <CardHeader title="Solicitudes" />
+        <CardHeader title="Solicitudes"
+          action={<button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Ver todos <ChevronRight size={14} /></button>}
+        />
         <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(44,99,86,0.07)" }}>
             <CheckCircle2 size={16} color={COLORS.greenSoft} />
@@ -584,7 +581,7 @@ function Dashboard({ onLogout }) {
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -602,7 +599,7 @@ function Dashboard({ onLogout }) {
             {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
