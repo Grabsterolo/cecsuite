@@ -80,7 +80,7 @@ function LoginScreen({ onLogin }) {
         alignItems: "center",
         padding: "60px 56px",
       }}>
-        <Logo width="100%" />
+        <Logo width={300} />
 
         <div style={{
           marginTop: 10,
@@ -275,7 +275,7 @@ function Sidebar({ active, setActive, onLogout }) {
       flexShrink: 0,
     }}>
       <div style={{ padding: "0 8px 36px" }}>
-        <Logo width={190} />
+        <Logo width={160} />
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
