@@ -197,21 +197,17 @@ const NAV_ITEMS = [
 ];
 
 const ANNOUNCEMENTS = [
-  { title: "Nuevo protocolo de bioseguridad en quirófano", date: "10 jun 2026", tag: "Operaciones" },
-  { title: "Horario especial — semana del 23 al 27 de junio", date: "8 jun 2026", tag: "Administración" },
-  { title: "Capacitación: manejo de historia clínica digital", date: "5 jun 2026", tag: "Capacitación" },
+  { title: "Dr. Chacón fuera del país entre el 1 y el 22 de junio", date: "1 jun 2026", tag: "Avisos" },
+  { title: "Capacitación Merz", date: "8 jun 2026", tag: "Capacitación" },
 ];
 
 const DOCUMENTS = [
-  "Reglamento interno de trabajo",
-  "Política de vacaciones y permisos",
-  "Manual de bioseguridad",
-  "Recibo de pago — mayo 2026",
+  "Protocolo de Consulta",
+  "Manual de facturación en EMA",
 ];
 
 const BIRTHDAYS = [
-  { name: "Andrea Solís", date: "14 jun" },
-  { name: "Marco Vargas", date: "19 jun" },
+  { name: "Maggie Araya", date: "3 ago" },
 ];
 
 /* ── Drawer móvil ── */
