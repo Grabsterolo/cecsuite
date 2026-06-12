@@ -1,22 +1,14 @@
 import React, { useState } from "react";
 import {
-  Bell,
-  FileText,
-  CalendarDays,
-  User,
-  LogOut,
-  Home,
-  ChevronRight,
-  Download,
-  Clock,
-  CheckCircle2,
-  Cake,
+  Bell, FileText, CalendarDays, User, LogOut,
+  Home, ChevronRight, Download, Clock, CheckCircle2, Cake,
 } from "lucide-react";
 
 const COLORS = {
   bg: "#FAFAF8",
   panel: "#FFFFFF",
   panelAlt: "#F4F1EA",
+  inputBg: "#F7F5F0",
   gold: "#C9A24E",
   goldSoft: "#E4C77A",
   green: "#1F4A40",
@@ -24,7 +16,6 @@ const COLORS = {
   text: "#1F4A40",
   textMuted: "#6B8C80",
   border: "rgba(31,74,64,0.12)",
-  sidebar: "#1F4A40",
   sidebarMuted: "rgba(255,255,255,0.55)",
 };
 
@@ -32,10 +23,8 @@ const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 `;
 
-/* Logo blanco (/logo-blanco.png) — directo sobre fondos oscuros */
 function Logo({ width = 200 }) {
   const [imgError, setImgError] = useState(false);
-
   if (!imgError) {
     return (
       <img
@@ -46,15 +35,10 @@ function Logo({ width = 200 }) {
       />
     );
   }
-
   return (
     <div style={{ textAlign: "center", lineHeight: 1.2 }}>
-      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 18, color: "#FFFFFF", letterSpacing: "0.08em" }}>
-        Centro Europeo
-      </div>
-      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 22, color: COLORS.goldSoft, letterSpacing: "0.16em" }}>
-        DE CIRUGÍA
-      </div>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 18, color: "#FFFFFF", letterSpacing: "0.08em" }}>Centro Europeo</div>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 22, color: COLORS.goldSoft, letterSpacing: "0.16em" }}>DE CIRUGÍA</div>
     </div>
   );
 }
@@ -63,30 +47,28 @@ function Logo({ width = 200 }) {
 
 function LoginScreen({ onLogin }) {
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      background: COLORS.bg,
-      color: COLORS.text,
-      fontFamily: "'Manrope', sans-serif",
-    }}>
-      {/* Panel izquierdo */}
+    <div style={{ minHeight: "100vh", display: "flex", fontFamily: "'Manrope', sans-serif" }}>
+
+      {/* ── Panel izquierdo ── */}
       <div style={{
         flex: "0 0 45%",
-        background: COLORS.sidebar,
+        background: "linear-gradient(170deg, #24584C 0%, #1F4A40 40%, #152E27 100%)",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
         padding: "60px 56px",
+        gap: 16,
       }}>
-        <Logo width={300} />
+        <Logo width={380} />
+
+        {/* Separador dorado */}
+        <div style={{ width: 40, height: 1.5, background: COLORS.gold, opacity: 0.6, marginTop: 4 }} />
 
         <div style={{
-          marginTop: 10,
-          fontSize: 11,
-          letterSpacing: "0.4em",
-          color: "rgba(255,255,255,0.45)",
+          fontSize: 10,
+          letterSpacing: "0.45em",
+          color: "rgba(255,255,255,0.4)",
           textTransform: "uppercase",
           textAlign: "center",
         }}>
@@ -94,29 +76,35 @@ function LoginScreen({ onLogin }) {
         </div>
       </div>
 
-      {/* Panel derecho — formulario */}
+      {/* ── Panel derecho — formulario ── */}
       <div style={{
         flex: 1,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 40,
+        padding: "40px 56px",
         background: "#FFFFFF",
       }}>
-        <div style={{ width: "100%", maxWidth: 380 }}>
+        <div style={{ width: "100%", maxWidth: 360 }}>
+
+          {/* Acento dorado */}
+          <div style={{ width: 32, height: 3, background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`, borderRadius: 2, marginBottom: 20 }} />
+
           <h1 style={{
             fontFamily: "'Cormorant Garamond', serif",
-            fontSize: 34,
+            fontSize: 36,
             fontWeight: 600,
-            marginBottom: 8,
+            marginBottom: 6,
             color: COLORS.green,
+            lineHeight: 1.1,
           }}>
-            Bienvenido de nuevo
+            Bienvenido<br />de nuevo
           </h1>
-          <p style={{ color: COLORS.textMuted, fontSize: 14, marginBottom: 36 }}>
+          <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 36, lineHeight: 1.6 }}>
             Ingresa con tu cuenta institucional para continuar.
           </p>
 
+          {/* Microsoft */}
           <button
             onClick={onLogin}
             style={{
@@ -125,19 +113,19 @@ function LoginScreen({ onLogin }) {
               alignItems: "center",
               justifyContent: "center",
               gap: 10,
-              background: "#FFFFFF",
+              background: COLORS.inputBg,
               border: `1.5px solid ${COLORS.border}`,
               borderRadius: 10,
-              padding: "13px 16px",
+              padding: "12px 16px",
               color: COLORS.text,
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
               transition: "border-color 0.2s, box-shadow 0.2s",
-              boxShadow: "0 1px 3px rgba(31,74,64,0.06)",
+              fontFamily: "'Manrope', sans-serif",
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.gold; e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,162,78,0.18)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.boxShadow = "0 1px 3px rgba(31,74,64,0.06)"; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.gold; e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,162,78,0.15)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.boxShadow = "none"; }}
           >
             <svg width="18" height="18" viewBox="0 0 23 23" style={{ flexShrink: 0 }}>
               <rect x="1" y="1" width="10" height="10" fill="#F25022" />
@@ -148,58 +136,41 @@ function LoginScreen({ onLogin }) {
             Continuar con Microsoft
           </button>
 
-          <div style={{
-            display: "flex", alignItems: "center", gap: 12,
-            margin: "28px 0",
-            color: COLORS.textMuted, fontSize: 12,
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0", color: COLORS.textMuted, fontSize: 12 }}>
             <div style={{ flex: 1, height: 1, background: COLORS.border }} />
             o con tu correo
             <div style={{ flex: 1, height: 1, background: COLORS.border }} />
           </div>
 
-          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 500 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>
             Correo corporativo
           </label>
           <input
             type="email"
             placeholder="nombre@cec.cr"
             style={{
-              width: "100%",
-              background: "#FFFFFF",
-              border: `1.5px solid ${COLORS.border}`,
-              borderRadius: 8,
-              padding: "11px 14px",
-              color: COLORS.text,
-              fontSize: 14,
-              marginBottom: 16,
-              outline: "none",
-              boxSizing: "border-box",
-              fontFamily: "'Manrope', sans-serif",
-              transition: "border-color 0.2s",
+              width: "100%", background: COLORS.inputBg,
+              border: `1.5px solid ${COLORS.border}`, borderRadius: 8,
+              padding: "11px 14px", color: COLORS.text, fontSize: 14,
+              marginBottom: 14, outline: "none", boxSizing: "border-box",
+              fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s",
             }}
             onFocus={e => e.target.style.borderColor = COLORS.gold}
             onBlur={e => e.target.style.borderColor = COLORS.border}
           />
-          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 500 }}>
+
+          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>
             Contraseña
           </label>
           <input
             type="password"
             placeholder="••••••••"
             style={{
-              width: "100%",
-              background: "#FFFFFF",
-              border: `1.5px solid ${COLORS.border}`,
-              borderRadius: 8,
-              padding: "11px 14px",
-              color: COLORS.text,
-              fontSize: 14,
-              marginBottom: 28,
-              outline: "none",
-              boxSizing: "border-box",
-              fontFamily: "'Manrope', sans-serif",
-              transition: "border-color 0.2s",
+              width: "100%", background: COLORS.inputBg,
+              border: `1.5px solid ${COLORS.border}`, borderRadius: 8,
+              padding: "11px 14px", color: COLORS.text, fontSize: 14,
+              marginBottom: 24, outline: "none", boxSizing: "border-box",
+              fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s",
             }}
             onFocus={e => e.target.style.borderColor = COLORS.gold}
             onBlur={e => e.target.style.borderColor = COLORS.border}
@@ -210,23 +181,19 @@ function LoginScreen({ onLogin }) {
             style={{
               width: "100%",
               background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-              border: "none",
-              borderRadius: 8,
-              padding: "13px 16px",
-              color: "#FFFFFF",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              letterSpacing: "0.02em",
-              fontFamily: "'Manrope', sans-serif",
-              boxShadow: "0 4px 14px rgba(201,162,78,0.35)",
-              transition: "box-shadow 0.2s",
+              border: "none", borderRadius: 8,
+              padding: "13px 16px", color: "#FFFFFF",
+              fontSize: 14, fontWeight: 700, cursor: "pointer",
+              letterSpacing: "0.04em", fontFamily: "'Manrope', sans-serif",
+              boxShadow: "0 4px 16px rgba(201,162,78,0.4)",
+              transition: "box-shadow 0.2s, transform 0.1s",
             }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 6px 20px rgba(201,162,78,0.5)"}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = "0 4px 14px rgba(201,162,78,0.35)"}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 22px rgba(201,162,78,0.55)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(201,162,78,0.4)"; e.currentTarget.style.transform = "translateY(0)"; }}
           >
             Iniciar sesión
           </button>
+
         </div>
       </div>
     </div>
@@ -236,11 +203,11 @@ function LoginScreen({ onLogin }) {
 /* ─────────────────────────── DASHBOARD ─────────────────────────── */
 
 const NAV_ITEMS = [
-  { key: "inicio",       label: "Inicio",      icon: Home },
-  { key: "comunicados",  label: "Comunicados", icon: Bell },
-  { key: "documentos",   label: "Documentos",  icon: FileText },
-  { key: "vacaciones",   label: "Vacaciones",  icon: CalendarDays },
-  { key: "perfil",       label: "Mi perfil",   icon: User },
+  { key: "inicio",      label: "Inicio",      icon: Home },
+  { key: "comunicados", label: "Comunicados", icon: Bell },
+  { key: "documentos",  label: "Documentos",  icon: FileText },
+  { key: "vacaciones",  label: "Vacaciones",  icon: CalendarDays },
+  { key: "perfil",      label: "Mi perfil",   icon: User },
 ];
 
 const ANNOUNCEMENTS = [
@@ -265,16 +232,16 @@ function Sidebar({ active, setActive, onLogout }) {
   return (
     <div style={{
       width: 252,
-      background: COLORS.sidebar,
+      background: "linear-gradient(180deg, #24584C 0%, #1F4A40 50%, #152E27 100%)",
       display: "flex",
       flexDirection: "column",
-      padding: "32px 16px",
+      padding: "28px 14px",
       height: "100vh",
       position: "sticky",
       top: 0,
       flexShrink: 0,
     }}>
-      <div style={{ padding: "0 8px 36px" }}>
+      <div style={{ padding: "0 8px 28px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }}>
         <Logo width={160} />
       </div>
 
@@ -287,16 +254,10 @@ function Sidebar({ active, setActive, onLogout }) {
               key={item.key}
               onClick={() => setActive(item.key)}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
-                fontSize: 14,
-                fontWeight: 600,
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 14px", borderRadius: 8, border: "none",
+                cursor: "pointer", textAlign: "left",
+                fontSize: 14, fontWeight: 600,
                 fontFamily: "'Manrope', sans-serif",
                 color: isActive ? "#FFFFFF" : COLORS.sidebarMuted,
                 background: isActive
@@ -315,24 +276,16 @@ function Sidebar({ active, setActive, onLogout }) {
       </nav>
 
       <div style={{ marginTop: "auto" }}>
-        <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "0 8px 16px" }} />
+        <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 8px 14px" }} />
         <button
           onClick={onLogout}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "none",
-            background: "transparent",
-            color: COLORS.sidebarMuted,
-            fontSize: 14,
-            fontWeight: 600,
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "10px 14px", borderRadius: 8, border: "none",
+            background: "transparent", color: COLORS.sidebarMuted,
+            fontSize: 14, fontWeight: 600,
             fontFamily: "'Manrope', sans-serif",
-            cursor: "pointer",
-            width: "100%",
-            textAlign: "left",
+            cursor: "pointer", width: "100%", textAlign: "left",
             transition: "color 0.15s",
           }}
           onMouseEnter={e => e.currentTarget.style.color = "#FFFFFF"}
@@ -353,7 +306,7 @@ function Card({ children, style }) {
       border: `1px solid ${COLORS.border}`,
       borderRadius: 14,
       padding: 24,
-      boxShadow: "0 1px 4px rgba(31,74,64,0.06)",
+      boxShadow: "0 1px 6px rgba(31,74,64,0.06)",
       ...style,
     }}>
       {children}
@@ -372,38 +325,23 @@ function CardHeader({ title, action }) {
   );
 }
 
-/* Indicador de vacaciones — solo CSS, sin SVG */
 function VacationDonut({ used = 9, total = 21 }) {
   const available = total - used;
   const deg = Math.round((used / total) * 360);
   return (
     <div style={{
-      width: 128,
-      height: 128,
-      borderRadius: "50%",
+      width: 120, height: 120, borderRadius: "50%",
       background: `conic-gradient(${COLORS.gold} 0deg ${deg}deg, ${COLORS.panelAlt} ${deg}deg 360deg)`,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
     }}>
       <div style={{
-        width: 96,
-        height: 96,
-        borderRadius: "50%",
-        background: COLORS.panel,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 2,
+        width: 88, height: 88, borderRadius: "50%", background: COLORS.panel,
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
       }}>
-        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 700, color: COLORS.green, lineHeight: 1 }}>
+        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 700, color: COLORS.green, lineHeight: 1 }}>
           {available}
         </span>
-        <span style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: "0.04em" }}>
-          días
-        </span>
+        <span style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: "0.04em" }}>días</span>
       </div>
     </div>
   );
@@ -412,14 +350,9 @@ function VacationDonut({ used = 9, total = 21 }) {
 function Tag({ label }) {
   return (
     <span style={{
-      fontSize: 10,
-      fontWeight: 700,
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: COLORS.gold,
-      background: "rgba(201,162,78,0.1)",
-      borderRadius: 4,
-      padding: "2px 7px",
+      fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+      textTransform: "uppercase", color: COLORS.gold,
+      background: "rgba(201,162,78,0.1)", borderRadius: 4, padding: "2px 7px",
     }}>
       {label}
     </span>
@@ -428,41 +361,37 @@ function Tag({ label }) {
 
 function DashboardHome() {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
 
       {/* Vacaciones */}
       <Card>
         <CardHeader title="Vacaciones" />
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <VacationDonut />
           <div style={{ flex: 1, fontSize: 13, color: COLORS.textMuted }}>
             <p style={{ margin: "0 0 6px" }}>
-              <span style={{ color: COLORS.green, fontWeight: 700 }}>9</span> días tomados este año
+              <span style={{ color: COLORS.green, fontWeight: 700 }}>9</span> días tomados
             </p>
-            <p style={{ margin: "0 0 18px" }}>
-              <span style={{ color: COLORS.green, fontWeight: 700 }}>2</span> solicitudes pendientes
+            <p style={{ margin: "0 0 16px" }}>
+              <span style={{ color: COLORS.green, fontWeight: 700 }}>2</span> pendientes
             </p>
-            <button style={{
-              background: "transparent",
-              border: `1.5px solid ${COLORS.gold}`,
-              color: COLORS.gold,
-              borderRadius: 8,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "'Manrope', sans-serif",
-            }}
+            <button
+              style={{
+                background: "transparent", border: `1.5px solid ${COLORS.gold}`,
+                color: COLORS.gold, borderRadius: 7, padding: "7px 12px",
+                fontSize: 12, fontWeight: 600, cursor: "pointer",
+                fontFamily: "'Manrope', sans-serif", transition: "background 0.15s",
+              }}
               onMouseEnter={e => e.currentTarget.style.background = "rgba(201,162,78,0.08)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
-              Solicitar vacaciones
+              Solicitar
             </button>
           </div>
         </div>
       </Card>
 
-      {/* Comunicados */}
+      {/* Comunicados — 2 columnas */}
       <Card style={{ gridColumn: "span 2" }}>
         <CardHeader
           title="Comunicados recientes"
@@ -478,13 +407,12 @@ function DashboardHome() {
               display: "flex", justifyContent: "space-between", alignItems: "center",
               paddingBottom: 14, borderBottom: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                 <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 500 }}>{a.title}</div>
                 <Tag label={a.tag} />
               </div>
               <div style={{ fontSize: 12, color: COLORS.textMuted, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", marginLeft: 16 }}>
-                <Clock size={12} />
-                {a.date}
+                <Clock size={12} />{a.date}
               </div>
             </div>
           ))}
@@ -494,16 +422,15 @@ function DashboardHome() {
       {/* Documentos */}
       <Card>
         <CardHeader title="Documentos" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           {DOCUMENTS.map((d) => (
             <div key={d} style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
-              fontSize: 13, color: COLORS.text, padding: "8px 0",
+              fontSize: 13, color: COLORS.text, padding: "9px 0",
               borderBottom: `1px solid ${COLORS.border}`,
             }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <FileText size={14} color={COLORS.textMuted} />
-                {d}
+                <FileText size={14} color={COLORS.textMuted} />{d}
               </span>
               <Download size={14} color={COLORS.gold} style={{ cursor: "pointer", flexShrink: 0 }} />
             </div>
@@ -513,8 +440,8 @@ function DashboardHome() {
 
       {/* Estado de solicitudes */}
       <Card>
-        <CardHeader title="Estado de solicitudes" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
+        <CardHeader title="Solicitudes" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(44,99,86,0.07)" }}>
             <CheckCircle2 size={16} color={COLORS.greenSoft} />
             <div>
@@ -535,11 +462,11 @@ function DashboardHome() {
       {/* Cumpleaños */}
       <Card>
         <CardHeader title="Próximos cumpleaños" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
+        <div style={{ display: "flex", flexDirection: "column", fontSize: 13 }}>
           {BIRTHDAYS.map((b) => (
             <div key={b.name} style={{
               display: "flex", alignItems: "center", gap: 10,
-              color: COLORS.text, padding: "8px 0",
+              color: COLORS.text, padding: "9px 0",
               borderBottom: `1px solid ${COLORS.border}`,
             }}>
               <Cake size={16} color={COLORS.gold} />
@@ -549,6 +476,7 @@ function DashboardHome() {
           ))}
         </div>
       </Card>
+
     </div>
   );
 }
@@ -558,7 +486,7 @@ function PlaceholderSection({ title }) {
     <Card>
       <CardHeader title={title} />
       <p style={{ color: COLORS.textMuted, fontSize: 14, margin: 0 }}>
-        Esta sección se desarrolla en la siguiente fase del concepto.
+        Esta sección se desarrolla en la siguiente fase.
       </p>
     </Card>
   );
@@ -566,17 +494,13 @@ function PlaceholderSection({ title }) {
 
 function Dashboard({ onLogout }) {
   const [active, setActive] = useState("inicio");
-
-  const sectionTitle = {
-    inicio: "Inicio", comunicados: "Comunicados",
-    documentos: "Documentos", vacaciones: "Vacaciones", perfil: "Mi perfil",
-  }[active];
+  const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", vacaciones: "Vacaciones", perfil: "Mi perfil" }[active];
 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
       <Sidebar active={active} setActive={setActive} onLogout={onLogout} />
 
-      <div style={{ flex: 1, padding: "36px 40px", maxWidth: 1200, margin: "0 auto" }}>
+      <div style={{ flex: 1, padding: "36px 40px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
           <div>
             <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
@@ -587,11 +511,11 @@ function Dashboard({ onLogout }) {
             </h1>
           </div>
           <div style={{
-            width: 44, height: 44, borderRadius: "50%",
+            width: 42, height: 42, borderRadius: "50%",
             background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontWeight: 700, color: "#FFFFFF",
-            fontFamily: "'Cormorant Garamond', serif", fontSize: 18,
+            fontFamily: "'Cormorant Garamond', serif", fontSize: 17,
             boxShadow: "0 2px 8px rgba(201,162,78,0.35)",
           }}>
             JP
