@@ -746,7 +746,7 @@ const verTodosStyle = {
 };
 
 function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate }) {
-  const [modal, setModal] = useState(null); // null | "new-vac" | solicitud-object(edit)
+  const [modal, setModal] = useState(null); // null | "new-vac" | "new-sol" | solicitud-object(edit)
 
   function handleSubmit(data) {
     if (modal && typeof modal === "object") onUpdate(modal.id, data);
@@ -758,6 +758,9 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
     <>
       {modal === "new-vac" && (
         <VacationForm onClose={() => setModal(null)} onSubmit={handleSubmit} editData={null} />
+      )}
+      {modal === "new-sol" && (
+        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={data => { onAdd(data); setModal(null); }} editData={null} />
       )}
       {modal && typeof modal === "object" && (
         <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={handleSubmit} editData={modal} />
@@ -854,10 +857,24 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
       {/* Solicitudes — muestra las 2 más recientes */}
       <Card>
         <CardHeader title="Solicitudes"
-          action={<button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Ver todas <ChevronRight size={14} /></button>}
+          action={
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Ver todas <ChevronRight size={14} /></button>
+              <button onClick={() => setModal("new-sol")} title="Nueva solicitud" style={{
+                width:26, height:26, borderRadius:6, border:"none",
+                background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                color:"#FFF", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                boxShadow:"0 2px 8px rgba(201,162,78,0.35)", flexShrink:0,
+              }}>
+                <Plus size={13}/>
+              </button>
+            </div>
+          }
         />
         {solicitudes.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>Sin solicitudes activas.</p>
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>Sin solicitudes activas.{" "}
+            <button onClick={() => setModal("new-sol")} style={{ background:"none", border:"none", color:COLORS.gold, fontWeight:600, fontSize:13, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}>Crear una</button>
+          </p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {solicitudes.slice(0,2).map(s => (
