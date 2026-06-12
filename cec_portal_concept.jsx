@@ -3,6 +3,7 @@ import {
   Bell, FileText, CalendarDays, User, LogOut,
   Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2,
 } from "lucide-react";
+import { supabase } from "./src/lib/supabase";
 
 const COLORS = {
   bg: "#FAFAF8",
@@ -67,6 +68,22 @@ const inputStyle = {
 };
 
 function LoginForm({ onLogin }) {
+  const [emailValue, setEmailValue] = useState("");
+  const [passwordValue, setPasswordValue] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleLogin() {
+    setError(null);
+    setLoading(true);
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: emailValue,
+      password: passwordValue,
+    });
+    setLoading(false);
+    if (authError) setError(authError.message);
+  }
+
   return (
     <>
       <div style={{ width: 32, height: 3, background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`, borderRadius: 2, marginBottom: 20 }} />
@@ -76,50 +93,51 @@ function LoginForm({ onLogin }) {
       <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 36, lineHeight: 1.6 }}>
         Ingresa con tu cuenta institucional para continuar.
       </p>
-      <button onClick={onLogin} style={{
-        width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-        background: COLORS.inputBg, border: `1.5px solid ${COLORS.border}`,
-        borderRadius: 10, padding: "12px 16px", color: COLORS.text,
-        fontSize: 14, fontWeight: 600, cursor: "pointer",
-        fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s",
-      }}
-        onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.gold}
-        onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
-      >
-        <svg width="18" height="18" viewBox="0 0 23 23" style={{ flexShrink: 0 }}>
-          <rect x="1" y="1" width="10" height="10" fill="#F25022" />
-          <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
-          <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
-          <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
-        </svg>
-        Continuar con Microsoft
-      </button>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0", color: COLORS.textMuted, fontSize: 12 }}>
-        <div style={{ flex: 1, height: 1, background: COLORS.border }} />
-        o con tu correo
-        <div style={{ flex: 1, height: 1, background: COLORS.border }} />
-      </div>
+      {/* Continuar con Microsoft — pendiente de configurar */}
+      {/* <button ...>Continuar con Microsoft</button> */}
+      {/* <div style={{ ...divisor }}>o con tu correo</div> */}
       <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>Correo corporativo</label>
-      <input type="email" placeholder="nombre@cec.co.cr" style={{ ...inputStyle, marginBottom: 14 }}
+      <input
+        type="email"
+        placeholder="nombre@cec.co.cr"
+        value={emailValue}
+        onChange={e => setEmailValue(e.target.value)}
+        style={{ ...inputStyle, marginBottom: 14 }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
         onBlur={e => e.target.style.borderColor = COLORS.border}
       />
       <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>Contraseña</label>
-      <input type="password" placeholder="••••••••" style={{ ...inputStyle, marginBottom: 24 }}
+      <input
+        type="password"
+        placeholder="••••••••"
+        value={passwordValue}
+        onChange={e => setPasswordValue(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && !loading && handleLogin()}
+        style={{ ...inputStyle, marginBottom: 24 }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
         onBlur={e => e.target.style.borderColor = COLORS.border}
       />
-      <button onClick={onLogin} style={{
-        width: "100%", background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-        border: "none", borderRadius: 8, padding: "13px 16px", color: "#FFF",
-        fontSize: 14, fontWeight: 700, cursor: "pointer",
-        letterSpacing: "0.04em", fontFamily: "'Manrope', sans-serif",
-        boxShadow: "0 4px 16px rgba(201,162,78,0.4)", transition: "box-shadow 0.2s, transform 0.15s",
-      }}
-        onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 22px rgba(201,162,78,0.55)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+      {error && (
+        <p style={{ fontSize: 12, color: "#e07070", marginBottom: 14, marginTop: -10, lineHeight: 1.5 }}>
+          {error}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={handleLogin}
+        disabled={loading}
+        style={{
+          width: "100%", background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+          border: "none", borderRadius: 8, padding: "13px 16px", color: "#FFF",
+          fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
+          letterSpacing: "0.04em", fontFamily: "'Manrope', sans-serif",
+          boxShadow: "0 4px 16px rgba(201,162,78,0.4)", transition: "box-shadow 0.2s, transform 0.15s",
+          opacity: loading ? 0.75 : 1,
+        }}
+        onMouseEnter={e => { if (!loading) { e.currentTarget.style.boxShadow = "0 6px 22px rgba(201,162,78,0.55)"; e.currentTarget.style.transform = "translateY(-1px)"; } }}
         onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(201,162,78,0.4)"; e.currentTarget.style.transform = "none"; }}
       >
-        Iniciar sesión
+        {loading ? "Ingresando..." : "Iniciar sesión"}
       </button>
     </>
   );
@@ -935,13 +953,28 @@ function Dashboard({ onLogout }) {
 }
 
 export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => setSession(s ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (session === undefined) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.bg, fontFamily: "'Manrope', sans-serif", color: COLORS.textMuted, fontSize: 14 }}>
+        Cargando...
+      </div>
+    );
+  }
+
   return (
     <div>
       <style>{FONTS}</style>
-      {loggedIn
-        ? <Dashboard onLogout={() => setLoggedIn(false)} />
-        : <LoginScreen onLogin={() => setLoggedIn(true)} />
+      {session
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} />
+        : <LoginScreen onLogin={() => {}} />
       }
     </div>
   );
