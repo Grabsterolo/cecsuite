@@ -375,7 +375,7 @@ function CardHeader({ title, action }) {
   );
 }
 
-const VAC_TOTAL = 21;
+const VAC_TOTAL = 12;
 
 function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
   const safeUsed = Math.min(used, total);
