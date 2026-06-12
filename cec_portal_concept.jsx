@@ -840,6 +840,48 @@ function PlaceholderSection({ title }) {
   );
 }
 
+function ProfileSection({ profile }) {
+  if (!profile) {
+    return (
+      <Card>
+        <p style={{ color: COLORS.textMuted, fontSize: 14, margin: 0 }}>Cargando perfil...</p>
+      </Card>
+    );
+  }
+
+  function fmtHireDate(str) {
+    if (!str) return "—";
+    const [y, m, d] = str.split("-").map(Number);
+    const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    return `${d} de ${months[m - 1]} de ${y}`;
+  }
+
+  const showRole = profile.role === "admin" || profile.role === "rrhh";
+  const row = (label, value) => value ? (
+    <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+      <span style={{ fontSize:13, color:COLORS.textMuted, fontWeight:600 }}>{label}</span>
+      <span style={{ fontSize:13, color:COLORS.text }}>{value}</span>
+    </div>
+  ) : null;
+
+  return (
+    <Card>
+      <CardHeader title="Mi perfil" />
+      {row("Nombre completo", profile.full_name)}
+      {row("Puesto", profile.position)}
+      {row("Departamento", profile.department)}
+      {row("Fecha de ingreso", fmtHireDate(profile.hire_date))}
+      {showRole && (
+        <div style={{ marginTop:14 }}>
+          <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:6, padding:"4px 10px" }}>
+            {profile.role === "admin" ? "Administrador" : "RRHH"}
+          </span>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function SolicitudesSection({ solicitudes, onAdd, onDelete, onUpdate }) {
   const [modal, setModal] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -882,7 +924,7 @@ function SolicitudesSection({ solicitudes, onAdd, onDelete, onUpdate }) {
   );
 }
 
-function Dashboard({ onLogout }) {
+function Dashboard({ onLogout, profile }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -890,6 +932,16 @@ function Dashboard({ onLogout }) {
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil" }[active];
+
+  function getInitials(name) {
+    if (!name) return "";
+    const parts = name.trim().split(/\s+/);
+    return (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
+  }
+  const initials = getInitials(profile?.full_name);
+  const greeting = profile?.full_name
+    ? `Buenos días, ${profile.full_name.split(" ")[0]}`
+    : "Buenos días";
 
   const addSolicitud    = useCallback(data => setSolicitudes(prev => [{ ...data, id: Date.now(), status:"en_revision", createdAt: new Date() }, ...prev]), []);
   const deleteSolicitud = useCallback(id   => setSolicitudes(prev => prev.filter(s => s.id !== id)), []);
@@ -926,9 +978,9 @@ function Dashboard({ onLogout }) {
             Viernes 12 de junio, 2026
           </div>
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
-            {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
+            {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -943,10 +995,10 @@ function Dashboard({ onLogout }) {
             Viernes 12 de junio, 2026
           </div>
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: 0, color: COLORS.green }}>
-            {active === "inicio" ? "Buenos días, Juan Pablo" : sectionTitle}
+            {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -954,12 +1006,26 @@ function Dashboard({ onLogout }) {
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => setSession(s ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s ?? null);
+      if (!s) setProfile(null);
+    });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .single()
+      .then(({ data }) => { if (data) setProfile(data); });
+  }, [session]);
 
   if (session === undefined) {
     return (
@@ -973,7 +1039,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
