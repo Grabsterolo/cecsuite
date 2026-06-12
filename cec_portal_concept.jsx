@@ -83,7 +83,7 @@ function LoginScreen({ onLogin }) {
         <Logo width="100%" />
 
         <div style={{
-          marginTop: 40,
+          marginTop: 10,
           fontSize: 11,
           letterSpacing: "0.4em",
           color: "rgba(255,255,255,0.45)",
