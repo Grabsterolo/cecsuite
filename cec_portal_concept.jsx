@@ -63,14 +63,15 @@ function LoginScreen({ onLogin }) {
         <Logo width={380} />
 
         {/* Separador dorado */}
-        <div style={{ width: 40, height: 1.5, background: COLORS.gold, opacity: 0.6, marginTop: 4 }} />
+        <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7, marginTop: 8 }} />
 
         <div style={{
-          fontSize: 10,
-          letterSpacing: "0.45em",
-          color: "rgba(255,255,255,0.4)",
+          fontSize: 14,
+          letterSpacing: "0.35em",
+          color: "rgba(255,255,255,0.55)",
           textTransform: "uppercase",
           textAlign: "center",
+          fontWeight: 500,
         }}>
           Portal de Colaboradores
         </div>
