@@ -24,7 +24,7 @@ const FONTS = `
 * { -webkit-tap-highlight-color: transparent; }
 `;
 
-const SIDEBAR_BG = "linear-gradient(170deg, #24584C 0%, #1F4A40 40%, #152E27 100%)";
+const SIDEBAR_BG = "linear-gradient(168deg, #24584C 0%, #1F4A40 40%, #152E27 100%)";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
@@ -820,3 +820,4 @@ export default function App() {
     </div>
   );
 }
+
