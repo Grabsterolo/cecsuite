@@ -1245,6 +1245,29 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
+/* ── Signed-URL download button for private documents bucket ── */
+function DocDownloadBtn({ fileUrl, label, iconOnly = false }) {
+  const [loading, setLoading] = useState(false);
+  async function open() {
+    if (!fileUrl) return;
+    setLoading(true);
+    const { data, error } = await supabase.storage.from("documents").createSignedUrl(fileUrl, 60);
+    setLoading(false);
+    if (error || !data?.signedUrl) { alert("No se pudo abrir el documento. Intenta de nuevo."); return; }
+    window.open(data.signedUrl, "_blank", "noreferrer");
+  }
+  if (iconOnly) return (
+    <button onClick={open} disabled={loading} title={loading ? "Abriendo..." : "Descargar"} style={{ background:"none", border:"none", cursor:loading?"wait":"pointer", padding:0, lineHeight:0 }}>
+      <Download size={14} color={loading ? COLORS.textMuted : COLORS.gold} />
+    </button>
+  );
+  return (
+    <button onClick={open} disabled={loading} style={{ display:"flex", alignItems:"center", gap:5, color:loading?COLORS.textMuted:COLORS.gold, fontSize:12, fontWeight:600, background:"none", border:"none", cursor:loading?"wait":"pointer", fontFamily:"'Manrope', sans-serif", padding:0, flexShrink:0, marginLeft:12 }}>
+      <Download size={14} />{loading ? "Abriendo..." : (label ?? "Descargar")}
+    </button>
+  );
+}
+
 function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [] }) {
   const [modal, setModal] = useState(null); // null | "new-sol"
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
@@ -1333,11 +1356,7 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
                 <span style={{ display:"flex", alignItems:"center", gap:8 }}>
                   <FileText size={14} color={COLORS.textMuted} />{doc.title}
                 </span>
-                {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noreferrer">
-                    <Download size={14} color={COLORS.gold} style={{ cursor:"pointer", flexShrink:0 }} />
-                  </a>
-                )}
+                {doc.file_url && <DocDownloadBtn fileUrl={doc.file_url} iconOnly />}
               </div>
             ))}
           </div>
@@ -1507,9 +1526,7 @@ function DocumentsSection({ documents }) {
         <FileText size={14} color={COLORS.textMuted} />{doc.title}
       </span>
       {doc.file_url && (
-        <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:5, color:COLORS.gold, fontSize:12, fontWeight:600, textDecoration:"none", fontFamily:"'Manrope', sans-serif", flexShrink:0, marginLeft:12 }}>
-          <Download size={14} />Descargar
-        </a>
+        <DocDownloadBtn fileUrl={doc.file_url} />
       )}
     </div>
   );
@@ -2177,11 +2194,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
     setDeleting(prev => ({ ...prev, [doc.id]: true }));
     // Best-effort: remove file from storage using path extracted from URL
     if (doc.file_url) {
-      try {
-        const url = new URL(doc.file_url);
-        const parts = url.pathname.split("/documents/");
-        if (parts[1]) await supabase.storage.from("documents").remove([decodeURIComponent(parts[1])]);
-      } catch (_) {}
+      try { await supabase.storage.from("documents").remove([doc.file_url]); } catch (_) {}
     }
     const { error: delError } = await supabase.from("documents").delete().eq("id", doc.id);
     setDeleting(prev => ({ ...prev, [doc.id]: false }));
@@ -2205,13 +2218,12 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
     const fileName = `${Date.now()}-${file.name}`;
     const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
     if (uploadError) { setError(translateError(uploadError.message)); setStatus(null); return; }
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
     setStatus("saving");
     const { data, error: insertError } = await supabase.from("documents").insert({
       title: title.trim(),
       category: category.trim(),
       departments: deptTodos ? [] : selectedDepts,
-      file_url: urlData.publicUrl,
+      file_url: fileName,
       uploaded_by: user.id,
     }).select().single();
     setStatus(null);
@@ -2314,11 +2326,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-                      {doc.file_url && (
-                        <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:5, color:COLORS.gold, fontSize:12, fontWeight:600, textDecoration:"none", fontFamily:"'Manrope', sans-serif" }}>
-                          <Download size={14} />Descargar
-                        </a>
-                      )}
+                      {doc.file_url && <DocDownloadBtn fileUrl={doc.file_url} />}
                       <button onClick={() => setConfirmDel(isConfirming ? null : doc.id)} disabled={isDeleting} title="Eliminar" style={{
                         border:"none", background:"rgba(192,57,43,0.08)", color:"#c0392b",
                         cursor:"pointer", borderRadius:6, width:30, height:30,
