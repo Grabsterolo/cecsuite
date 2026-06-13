@@ -746,7 +746,7 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [] }) {
+function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [] }) {
   const [modal, setModal] = useState(null); // null | "new-vac" | "new-sol" | solicitud-object(edit)
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
 
@@ -837,20 +837,24 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
         <CardHeader title="Documentos"
           action={<button style={verTodosStyle} onClick={() => setActive("documentos")}>Ver todos <ChevronRight size={14} /></button>}
         />
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {DOCUMENTS.map((d) => (
-            <div key={d} style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              fontSize: 13, color: COLORS.text, padding: "9px 0",
-              borderBottom: `1px solid ${COLORS.border}`,
-            }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <FileText size={14} color={COLORS.textMuted} />{d}
-              </span>
-              <Download size={14} color={COLORS.gold} style={{ cursor: "pointer", flexShrink: 0 }} />
-            </div>
-          ))}
-        </div>
+        {documents.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No hay documentos disponibles.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {documents.slice(0, 4).map((doc, i) => (
+              <div key={doc.id ?? i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13, color:COLORS.text, padding:"9px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                <span style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <FileText size={14} color={COLORS.textMuted} />{doc.title}
+                </span>
+                {doc.file_url && (
+                  <a href={doc.file_url} target="_blank" rel="noreferrer">
+                    <Download size={14} color={COLORS.gold} style={{ cursor:"pointer", flexShrink:0 }} />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Solicitudes — muestra las 2 más recientes */}
@@ -997,6 +1001,63 @@ function SolicitudesSection({ solicitudes, onAdd, onDelete, onUpdate }) {
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function DocumentsSection({ documents }) {
+  if (documents.length === 0) {
+    return <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay documentos disponibles.</p></Card>;
+  }
+
+  const categories = [...new Set(documents.map(d => d.category).filter(Boolean))];
+  const multiCat = categories.length > 1;
+
+  const DocRow = ({ doc }) => (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+      <span style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:COLORS.text, fontWeight:500 }}>
+        <FileText size={14} color={COLORS.textMuted} />{doc.title}
+      </span>
+      {doc.file_url && (
+        <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:5, color:COLORS.gold, fontSize:12, fontWeight:600, textDecoration:"none", fontFamily:"'Manrope', sans-serif", flexShrink:0, marginLeft:12 }}>
+          <Download size={14} />Descargar
+        </a>
+      )}
+    </div>
+  );
+
+  if (!multiCat) {
+    return (
+      <Card>
+        <CardHeader title="Documentos" />
+        <div style={{ display:"flex", flexDirection:"column" }}>
+          {documents.map((doc, i) => <DocRow key={doc.id ?? i} doc={doc} />)}
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      {categories.map(cat => {
+        const catDocs = documents.filter(d => d.category === cat);
+        return (
+          <Card key={cat}>
+            <CardHeader title={cat} />
+            <div style={{ display:"flex", flexDirection:"column" }}>
+              {catDocs.map((doc, i) => <DocRow key={doc.id ?? i} doc={doc} />)}
+            </div>
+          </Card>
+        );
+      })}
+      {documents.filter(d => !d.category).length > 0 && (
+        <Card>
+          <CardHeader title="General" />
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {documents.filter(d => !d.category).map((doc, i) => <DocRow key={doc.id ?? i} doc={doc} />)}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -1170,7 +1231,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
-function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, announcements = [] }) {
+function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, announcements = [], documents = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -1237,7 +1298,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1255,7 +1316,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1266,12 +1327,13 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [vacationRequests, setVacationRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [documents, setDocuments] = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setVacationRequests([]); setAnnouncements([]); }
+      if (!s) { setProfile(null); setVacationRequests([]); setAnnouncements([]); setDocuments([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1302,6 +1364,12 @@ export default function App() {
       .or(`audience.eq.todos,audience.eq.${profile.department}`)
       .order("publish_at", { ascending: false })
       .then(({ data }) => { if (data) setAnnouncements(data); });
+    supabase
+      .from("documents")
+      .select("*")
+      .or(`department.is.null,department.eq.${profile.department}`)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setDocuments(data); });
   }, [profile]);
 
   if (session === undefined) {
@@ -1316,7 +1384,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} onNewVacationRequest={r => setVacationRequests(prev => [r, ...prev])} announcements={announcements} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} onNewVacationRequest={r => setVacationRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
