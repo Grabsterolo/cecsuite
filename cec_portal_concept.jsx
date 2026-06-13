@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Bell, FileText, CalendarDays, User, LogOut,
+  Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
   Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "./src/lib/supabase";
@@ -208,6 +208,7 @@ function LoginScreen({ onLogin }) {
 
 const NAV_ITEMS = [
   { key: "inicio",      label: "Inicio",      icon: Home },
+  { key: "vacaciones",  label: "Vacaciones",  icon: CalendarCheck },
   { key: "comunicados", label: "Comunicados", icon: Bell },
   { key: "documentos",  label: "Documentos",  icon: FileText },
   { key: "solicitudes", label: "Solicitudes", icon: CalendarDays },
@@ -745,8 +746,9 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate }) {
+function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {} }) {
   const [modal, setModal] = useState(null); // null | "new-vac" | "new-sol" | solicitud-object(edit)
+  const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
 
   function handleSubmit(data) {
     if (modal && typeof modal === "object") onUpdate(modal.id, data);
@@ -770,44 +772,33 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
       : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }
     }>
 
-      {/* Vacaciones — dinámico */}
-      {(() => {
-        const usedVac = solicitudes
-          .filter(s => s.tipo==="vacaciones" && s.status==="aprobado")
-          .reduce((acc,s) => acc + calcWorkDays(s.startDate, s.endDate || s.startDate), 0);
-        const reqVac = solicitudes
-          .filter(s => s.tipo==="vacaciones" && s.status==="en_revision")
-          .reduce((acc,s) => acc + calcWorkDays(s.startDate, s.endDate || s.startDate), 0);
-        const availVac = Math.max(0, VAC_TOTAL - usedVac - reqVac);
-        return (
-          <Card>
-            <CardHeader title="Vacaciones"
-              action={<button style={verTodosStyle} onClick={() => setModal("new-vac")}>Solicitar <ChevronRight size={14}/></button>}
-            />
-            <div style={{ display:"flex", alignItems:"center", gap:18 }}>
-              <VacationDonut used={usedVac} requested={reqVac} total={VAC_TOTAL} />
-              <div style={{ flex:1, fontSize:13 }}>
-                <p style={{ margin:"0 0 5px", color:COLORS.textMuted }}>
-                  <span style={{ color:COLORS.green, fontWeight:700 }}>{availVac}</span> días disponibles
-                </p>
-                {usedVac > 0 && (
-                  <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
-                    <span style={{ width:8, height:8, borderRadius:2, background:COLORS.gold, display:"inline-block", flexShrink:0 }}/>
-                    <span style={{ color:COLORS.green, fontWeight:700 }}>{usedVac}</span> tomados
-                  </p>
-                )}
-                {reqVac > 0 && (
-                  <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
-                    <span style={{ width:8, height:8, borderRadius:2, background:COLORS.goldSoft, display:"inline-block", flexShrink:0 }}/>
-                    <span style={{ color:COLORS.gold, fontWeight:700 }}>{reqVac}</span> solicitados
-                  </p>
-                )}
-                <p style={{ margin:"8px 0 0", fontSize:11, color:COLORS.textMuted }}>{VAC_TOTAL} días totales</p>
-              </div>
-            </div>
-          </Card>
-        );
-      })()}
+      {/* Vacaciones — datos reales de Supabase */}
+      <Card>
+        <CardHeader title="Vacaciones"
+          action={<button style={verTodosStyle} onClick={() => setActive("vacaciones")}>Ver detalle <ChevronRight size={14}/></button>}
+        />
+        <div style={{ display:"flex", alignItems:"center", gap:18 }}>
+          <VacationDonut used={approvedDays} requested={pendingDays} total={vacationBalance} />
+          <div style={{ flex:1, fontSize:13 }}>
+            <p style={{ margin:"0 0 5px", color:COLORS.textMuted }}>
+              <span style={{ color:COLORS.green, fontWeight:700 }}>{availableDays}</span> días disponibles
+            </p>
+            {approvedDays > 0 && (
+              <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
+                <span style={{ width:8, height:8, borderRadius:2, background:COLORS.gold, display:"inline-block", flexShrink:0 }}/>
+                <span style={{ color:COLORS.green, fontWeight:700 }}>{approvedDays}</span> tomados
+              </p>
+            )}
+            {pendingDays > 0 && (
+              <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
+                <span style={{ width:8, height:8, borderRadius:2, background:COLORS.goldSoft, display:"inline-block", flexShrink:0 }}/>
+                <span style={{ color:COLORS.gold, fontWeight:700 }}>{pendingDays}</span> en solicitud
+              </p>
+            )}
+            <p style={{ margin:"8px 0 0", fontSize:11, color:COLORS.textMuted }}>{vacationBalance} días totales</p>
+          </div>
+        </div>
+      </Card>
 
       {/* Comunicados — 2 columnas en desktop */}
       <Card style={isMobile ? {} : { gridColumn: "span 2" }}>
@@ -1002,14 +993,93 @@ function SolicitudesSection({ solicitudes, onAdd, onDelete, onUpdate }) {
   );
 }
 
-function Dashboard({ onLogout, profile }) {
+function VacationSection({ profile, vacationRequests }) {
+  const vacationBalance = profile?.vacation_balance ?? 0;
+  const approvedDays = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const pendingDays  = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const availableDays = Math.max(0, vacationBalance - approvedDays);
+
+  const statBox = (label, value, color) => (
+    <div style={{ flex:1, textAlign:"center", padding:"16px 8px" }}>
+      <div style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:42, fontWeight:700, color, lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:4, fontWeight:600, letterSpacing:"0.03em" }}>{label}</div>
+    </div>
+  );
+
+  const statusStyle = (status) => ({
+    aprobado:  { color:"#2C6356", background:"rgba(44,99,86,0.1)"  },
+    pendiente: { color:COLORS.gold, background:"rgba(201,162,78,0.1)" },
+    rechazado: { color:"#c0392b", background:"rgba(192,57,43,0.1)"  },
+  }[status] ?? { color:COLORS.textMuted, background:COLORS.panelAlt });
+
+  function fmtSupaDate(str) {
+    if (!str) return "—";
+    const d = new Date(str + "T12:00:00");
+    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      <Card>
+        <CardHeader title="Saldo de vacaciones" />
+        <div style={{ display:"flex", borderTop:`1px solid ${COLORS.border}`, marginTop:4 }}>
+          {statBox("Disponibles", availableDays, COLORS.green)}
+          <div style={{ width:1, background:COLORS.border, margin:"12px 0" }}/>
+          {statBox("Tomados", approvedDays, COLORS.gold)}
+          <div style={{ width:1, background:COLORS.border, margin:"12px 0" }}/>
+          {statBox("En solicitud", pendingDays, COLORS.goldSoft)}
+        </div>
+        <p style={{ margin:"12px 0 0", fontSize:11, color:COLORS.textMuted, textAlign:"center" }}>
+          Saldo total: <strong>{vacationBalance}</strong> días
+        </p>
+      </Card>
+
+      <Card>
+        <CardHeader title="Historial de solicitudes" />
+        {vacationRequests.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>Aún no tienes solicitudes registradas.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+            {vacationRequests.map((r, i) => {
+              const st = statusStyle(r.status);
+              return (
+                <div key={r.id ?? i} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, color:COLORS.text, fontWeight:500 }}>
+                      {fmtSupaDate(r.start_date)}
+                      {r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""}
+                    </div>
+                    <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>
+                      {r.days_requested ?? "—"} días hábiles
+                    </div>
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:700, borderRadius:5, padding:"3px 9px", letterSpacing:"0.04em", ...st }}>
+                    {r.status ?? "—"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function Dashboard({ onLogout, profile, vacationRequests }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sectionTitle = { inicio: "Inicio", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil" }[active];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil" }[active];
+
+  const vacationBalance = profile?.vacation_balance ?? 0;
+  const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const availableDays = Math.max(0, vacationBalance - approvedDays);
+  const vacData = { approvedDays, pendingDays, availableDays, vacationBalance };
 
   function getInitials(name) {
     if (!name) return "";
@@ -1063,7 +1133,7 @@ function Dashboard({ onLogout, profile }) {
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1081,7 +1151,7 @@ function Dashboard({ onLogout, profile }) {
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1090,12 +1160,13 @@ function Dashboard({ onLogout, profile }) {
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
   const [profile, setProfile] = useState(null);
+  const [vacationRequests, setVacationRequests] = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) setProfile(null);
+      if (!s) { setProfile(null); setVacationRequests([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1108,6 +1179,13 @@ export default function App() {
       .eq("id", session.user.id)
       .single()
       .then(({ data }) => { if (data) setProfile(data); });
+    supabase
+      .from("requests")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("type", "vacaciones")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setVacationRequests(data); });
   }, [session]);
 
   if (session === undefined) {
@@ -1122,7 +1200,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
