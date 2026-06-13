@@ -154,20 +154,23 @@ function LoginForm({ onLogin }) {
 
 function LoginScreen({ onLogin }) {
   const isMobile = useIsMobile();
+  const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const anim = (delay) => noAnim ? {} : { animation: `loginFadeUp 0.55s ease-out ${delay}ms both` };
+
   if (isMobile) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Manrope', sans-serif", background: "#FFF" }}>
         {/* Compact top banner */}
         <div style={{ background: SIDEBAR_BG, padding: "28px 32px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <Logo width={200} />
-          <div style={{ width: 50, height: 1.5, background: COLORS.gold, opacity: 0.6 }} />
-          <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
+          <div style={anim(0)}><Logo width={200} /></div>
+          <div style={{ width: 50, height: 1.5, background: COLORS.gold, opacity: 0.6, ...anim(80) }} />
+          <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", ...anim(140) }}>
             Portal de Colaboradores
           </div>
         </div>
         {/* Form area with brand mark */}
         <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:24, position:"relative" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:24, position:"relative", ...anim(200) }}>
             <svg viewBox="10 22 80 56" style={{ width:36, height:20, stroke:COLORS.gold, fill:"none", strokeWidth:3.5, opacity:0.8, flexShrink:0 }}>
               <path d={INFINITY_PATH} strokeLinecap="round"/>
             </svg>
@@ -190,9 +193,9 @@ function LoginScreen({ onLogin }) {
         display: "flex", flexDirection: "column", justifyContent: "center",
         alignItems: "center", padding: "60px 56px", gap: 10,
       }}>
-        <Logo width={380} />
-        <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7 }} />
-        <div style={{ fontSize: 14, letterSpacing: "0.35em", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", textAlign: "center", fontWeight: 500 }}>
+        <div style={anim(0)}><Logo width={380} /></div>
+        <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7, ...anim(100) }} />
+        <div style={{ fontSize: 14, letterSpacing: "0.35em", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", textAlign: "center", fontWeight: 500, ...anim(180) }}>
           Portal de Colaboradores
         </div>
       </div>
