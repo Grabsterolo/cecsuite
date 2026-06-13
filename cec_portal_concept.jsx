@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck,
 } from "lucide-react";
 import { supabase } from "./src/lib/supabase";
 
@@ -230,7 +230,7 @@ const BIRTHDAYS = [
 ];
 
 /* ── Drawer móvil ── */
-function MobileDrawer({ open, onClose, active, setActive, onLogout }) {
+function MobileDrawer({ open, onClose, active, setActive, onLogout, profile }) {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -280,6 +280,23 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout }) {
               </button>
             );
           })}
+          {(profile?.role === "admin" || profile?.role === "rrhh") && (
+            <>
+              <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"10px 4px 6px" }} />
+              <div style={{ fontSize:10, letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", fontWeight:700, padding:"0 14px 4px" }}>Administración</div>
+              <button onClick={() => { setActive("aprobaciones"); onClose(); }} style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"12px 14px", borderRadius:10, border:"none",
+                cursor:"pointer", textAlign:"left", fontSize:15, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif",
+                color: active === "aprobaciones" ? "#FFF" : COLORS.sidebarMuted,
+                background: active === "aprobaciones" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition:"background 0.15s, color 0.15s",
+              }}>
+                <ClipboardCheck size={19} />Aprobaciones
+              </button>
+            </>
+          )}
         </nav>
         <div style={{ marginTop: "auto" }}>
           <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 4px 14px" }} />
@@ -297,7 +314,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout }) {
   );
 }
 
-function Sidebar({ active, setActive, onLogout }) {
+function Sidebar({ active, setActive, onLogout, profile }) {
   return (
     <div style={{
       width: 252,
@@ -342,6 +359,34 @@ function Sidebar({ active, setActive, onLogout }) {
             </button>
           );
         })}
+        {(profile?.role === "admin" || profile?.role === "rrhh") && (
+          <>
+            <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"10px 4px 6px" }} />
+            <div style={{ fontSize:10, letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", fontWeight:700, padding:"0 14px 4px" }}>Administración</div>
+            {(() => {
+              const isActive = active === "aprobaciones";
+              return (
+                <button
+                  onClick={() => setActive("aprobaciones")}
+                  style={{
+                    display:"flex", alignItems:"center", gap:12,
+                    padding:"10px 14px", borderRadius:8, border:"none",
+                    cursor:"pointer", textAlign:"left",
+                    fontSize:14, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif",
+                    color: isActive ? "#FFFFFF" : COLORS.sidebarMuted,
+                    background: isActive ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                    transition:"background 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
+                >
+                  <ClipboardCheck size={16} />Aprobaciones
+                </button>
+              );
+            })()}
+          </>
+        )}
       </nav>
 
       <div style={{ marginTop: "auto" }}>
@@ -1265,13 +1310,140 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [] }) {
+function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport }) {
+  const [errors,  setErrors]  = useState({});
+  const [loading, setLoading] = useState({});
+
+  const allItems = [
+    ...adminRequests.map(r => ({
+      id: r.id, kind: "request",
+      employeeName: r.profiles?.full_name ?? "—",
+      department:   r.profiles?.department ?? "",
+      label:   r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
+      subtitle: r.start_date
+        ? `${fmtSupaDate(r.start_date)}${r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""} · ${r.days_requested ?? 0} días`
+        : (r.comment || ""),
+      status: r.status, created_at: r.created_at,
+    })),
+    ...adminReports.map(r => ({
+      id: r.id, kind: "report",
+      employeeName: r.profiles?.full_name ?? "—",
+      department:   r.profiles?.department ?? "",
+      label:     r.category || "Reporte",
+      subtitle:  r.description || "",
+      location:  r.location,
+      photo_url: r.photo_url,
+      status: r.status, created_at: r.created_at,
+    })),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const pendientes = allItems.filter(i => i.status === "pendiente");
+  const resueltos  = allItems.filter(i => i.status !== "pendiente");
+
+  async function handleAction(item, newStatus) {
+    const key = `${item.kind}-${item.id}`;
+    setLoading(prev => ({ ...prev, [key]: newStatus }));
+    setErrors(prev => ({ ...prev, [key]: null }));
+    const { data: { user } } = await supabase.auth.getUser();
+    const table = item.kind === "request" ? "requests" : "reports";
+    const { error } = await supabase.from(table).update({
+      status: newStatus,
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", item.id);
+    setLoading(prev => ({ ...prev, [key]: null }));
+    if (error) { setErrors(prev => ({ ...prev, [key]: error.message })); return; }
+    if (item.kind === "request") onUpdateAdminRequest(item.id, { status: newStatus });
+    else                          onUpdateAdminReport(item.id,  { status: newStatus });
+  }
+
+  function renderItem(item) {
+    const key = `${item.kind}-${item.id}`;
+    const isPending = item.status === "pendiente";
+    const isLoading = !!loading[key];
+    const errMsg = errors[key];
+    return (
+      <div key={key} style={{ padding:"14px 16px", borderBottom:`1px solid ${COLORS.border}` }}>
+        <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>{item.employeeName}</span>
+              {item.department && <span style={{ fontSize:11, color:COLORS.textMuted }}>· {item.department}</span>}
+            </div>
+            <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:2 }}>{item.label}</div>
+            {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2 }}>{item.subtitle}</div>}
+            {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
+            <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8, flexShrink:0 }}>
+            {item.photo_url && (
+              <img src={item.photo_url} alt="foto" style={{ width:48, height:48, borderRadius:7, objectFit:"cover", border:`1px solid ${COLORS.border}` }} />
+            )}
+            <StatusBadge status={item.status} />
+          </div>
+        </div>
+        {isPending && (
+          <div style={{ display:"flex", gap:8, marginTop:10 }}>
+            <button onClick={() => handleAction(item, "aprobado")} disabled={isLoading} style={{
+              flex:1, padding:"7px 0", borderRadius:7, border:"none",
+              cursor:isLoading?"not-allowed":"pointer",
+              background:"rgba(44,99,86,0.12)", color:COLORS.greenSoft,
+              fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif",
+              opacity:isLoading?0.6:1, transition:"background 0.15s",
+            }}
+              onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.22)"; }}
+              onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.12)"; }}
+            >{loading[key] === "aprobado" ? "Aprobando..." : "Aprobar"}</button>
+            <button onClick={() => handleAction(item, "rechazado")} disabled={isLoading} style={{
+              flex:1, padding:"7px 0", borderRadius:7, border:"none",
+              cursor:isLoading?"not-allowed":"pointer",
+              background:"rgba(192,57,43,0.1)", color:"#c0392b",
+              fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif",
+              opacity:isLoading?0.6:1, transition:"background 0.15s",
+            }}
+              onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(192,57,43,0.2)"; }}
+              onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(192,57,43,0.1)"; }}
+            >{loading[key] === "rechazado" ? "Rechazando..." : "Rechazar"}</button>
+          </div>
+        )}
+        {errMsg && <p style={{ fontSize:11, color:"#e07070", margin:"6px 0 0" }}>{errMsg}</p>}
+      </div>
+    );
+  }
+
+  if (allItems.length === 0) {
+    return <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes registradas.</p></Card>;
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      {pendientes.length > 0 && (
+        <Card>
+          <CardHeader title={`Pendientes (${pendientes.length})`} />
+          <div style={{ margin:"4px -16px -16px" }}>
+            {pendientes.map(renderItem)}
+          </div>
+        </Card>
+      )}
+      {resueltos.length > 0 && (
+        <Card>
+          <CardHeader title="Resueltas" />
+          <div style={{ margin:"4px -16px -16px" }}>
+            {resueltos.map(renderItem)}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil" }[active];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones" }[active];
 
   const vacationRequests = allRequests.filter(r => r.type === "vacaciones");
   const allSolicitudes = [
@@ -1337,7 +1509,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             <Menu size={22} />
           </button>
         </div>
-        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={setActive} onLogout={onLogout} />
+        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={setActive} onLogout={onLogout} profile={profile} />
         <div style={{ padding: "24px 16px 48px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             Viernes 12 de junio, 2026
@@ -1345,7 +1517,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1353,7 +1525,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
-      <Sidebar active={active} setActive={setActive} onLogout={onLogout} />
+      <Sidebar active={active} setActive={setActive} onLogout={onLogout} profile={profile} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
@@ -1363,7 +1535,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1377,12 +1549,14 @@ export default function App() {
   const [documents, setDocuments] = useState([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState([]);
   const [reports, setReports] = useState([]);
+  const [adminRequests, setAdminRequests] = useState([]);
+  const [adminReports,  setAdminReports]  = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1439,6 +1613,15 @@ export default function App() {
     });
   }, [profile]);
 
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.role !== "admin" && profile.role !== "rrhh") return;
+    supabase.from("requests").select("*, profiles(full_name, department)").order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setAdminRequests(data); });
+    supabase.from("reports").select("*, profiles(full_name, department)").order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setAdminReports(data); });
+  }, [profile]);
+
   if (session === undefined) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.bg, fontFamily: "'Manrope', sans-serif", color: COLORS.textMuted, fontSize: 14 }}>
@@ -1451,7 +1634,21 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} allRequests={allRequests} onNewRequest={r => setAllRequests(prev => [r, ...prev])} reports={reports} onNewReport={r => setReports(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} />
+        ? <Dashboard
+            onLogout={() => supabase.auth.signOut()}
+            profile={profile}
+            allRequests={allRequests}
+            onNewRequest={r => setAllRequests(prev => [r, ...prev])}
+            reports={reports}
+            onNewReport={r => setReports(prev => [r, ...prev])}
+            announcements={announcements}
+            documents={documents}
+            upcomingBirthdays={upcomingBirthdays}
+            adminRequests={adminRequests}
+            adminReports={adminReports}
+            onUpdateAdminRequest={(id, changes) => setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
+            onUpdateAdminReport={(id, changes)  => setAdminReports(prev  => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
+          />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
