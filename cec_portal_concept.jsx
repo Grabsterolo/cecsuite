@@ -1363,7 +1363,8 @@ function GestionComunicadosSection({ adminAnnouncements = [], departments = [], 
   const nowLocal = () => {
     const d = new Date();
     d.setSeconds(0, 0);
-    return d.toISOString().slice(0, 16);
+    // Adjust for local timezone so datetime-local input shows the correct local time
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   };
   const [title,     setTitle]     = useState("");
   const [tag,       setTag]       = useState("");
