@@ -650,6 +650,38 @@ function Tag({ label }) {
 
 const MONTH_NAMES   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DAY_NAMES     = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
+
+const MOTIVATIONAL_MESSAGES = [
+  "Cada día es una oportunidad para marcar la diferencia en la vida de alguien.",
+  "El buen trabajo en equipo convierte lo difícil en posible.",
+  "La atención con calidad empieza con la actitud de cada uno.",
+  "Pequeñas mejoras constantes construyen grandes resultados.",
+  "Tu dedicación hoy es el bienestar de alguien mañana.",
+  "Un equipo que se apoya produce lo mejor en cada paciente.",
+  "La excelencia no es un acto puntual, es un hábito.",
+  "Cada paciente bien atendido es una misión cumplida.",
+  "El cuidado genuino se nota. Gracias por traerlo cada día.",
+  "Los detalles son lo que separa lo bueno de lo excepcional.",
+  "Trabajar con propósito hace que el esfuerzo valga la pena.",
+  "La confianza del paciente se gana con constancia y respeto.",
+  "Hoy es un buen día para hacer el trabajo con orgullo.",
+  "La comunicación clara es tan importante como la técnica.",
+  "Un ambiente positivo es también parte del tratamiento.",
+  "El trabajo bien hecho habla por sí solo.",
+  "Cada turno es una nueva oportunidad de hacer las cosas con excelencia.",
+  "La empatía es la herramienta más poderosa en salud.",
+  "El respeto entre colegas se refleja en la calidad del servicio.",
+  "Estar presente de verdad marca la diferencia para quienes nos necesitan.",
+  "La salud de las personas depende del compromiso de cada uno aquí.",
+  "Lo que hacemos importa más de lo que a veces percibimos.",
+];
+
+function getDailyMessage() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - start) / 86400000);
+  return MOTIVATIONAL_MESSAGES[dayOfYear % MOTIVATIONAL_MESSAGES.length];
+}
 const TIPOS_PERMISO = ["Permiso médico","Permiso personal","Permiso por duelo","Permiso de estudio","Permiso de paternidad/maternidad","Otro"];
 const TIPOS_REPORTE = ["Daño a instalaciones","Daño a equipos","Incidente de seguridad","Situación de riesgo","Conducta inapropiada","Otro"];
 
@@ -2476,6 +2508,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
     : timeGreeting;
   const DAY_NAMES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
   const todayStr = `${DAY_NAMES[now.getDay()]} ${now.getDate()} de ${MONTH_NAMES[now.getMonth()].toLowerCase()} de ${now.getFullYear()}`;
+  const dailyMessage = getDailyMessage();
 
   if (isMobile) {
     return (
@@ -2505,9 +2538,14 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             {todayStr}
           </div>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 6px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
+          {active === "inicio" && (
+            <p style={{ fontSize: 13, color: COLORS.textMuted, margin: "0 0 20px", lineHeight: 1.55, fontStyle: "italic" }}>
+              {dailyMessage}
+            </p>
+          )}
           {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : active === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
@@ -2522,9 +2560,14 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
             {todayStr}
           </div>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: 0, color: COLORS.green }}>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: "0 0 6px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
+          {active === "inicio" && (
+            <p style={{ fontSize: 14, color: COLORS.textMuted, margin: 0, lineHeight: 1.6, fontStyle: "italic" }}>
+              {dailyMessage}
+            </p>
+          )}
         </div>
         {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : active === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
