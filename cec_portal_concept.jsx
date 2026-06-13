@@ -639,50 +639,108 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
 }
 
 /* ── Formulario reporte ── */
-function ReporteForm({ onClose, onSubmit, editData }) {
-  const [tipoReporte, setTipoReporte] = useState(editData?.tipoReporte || "");
-  const [asunto, setAsunto]           = useState(editData?.asunto || "");
-  const [descripcion, setDescripcion] = useState(editData?.descripcion || "");
-  const [ubicacion, setUbicacion]     = useState(editData?.ubicacion || "");
+function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
+  const [category,    setCategory]    = useState(editData?.tipoReporte || "");
+  const [description, setDescription] = useState(editData?.descripcion || "");
+  const [location,    setLocation]    = useState(editData?.ubicacion || "");
+  const [file,        setFile]        = useState(null);
+  const [preview,     setPreview]     = useState(null);
+  const [loadingMsg,  setLoadingMsg]  = useState(null); // null = idle
+  const [error,       setError]       = useState(null);
 
-  function submit() {
-    if (!tipoReporte || !asunto) return;
-    onSubmit({ tipo:"reporte", tipoReporte, asunto, descripcion, ubicacion });
+  function handleFile(e) {
+    const f = e.target.files?.[0] ?? null;
+    setFile(f);
+    if (f) {
+      const reader = new FileReader();
+      reader.onload = ev => setPreview(ev.target.result);
+      reader.readAsDataURL(f);
+    } else {
+      setPreview(null);
+    }
+  }
+
+  async function submit() {
+    setError(null);
+    if (!category || !description.trim()) return;
+    if (editData) { onSubmit({ tipo:"reporte", tipoReporte:category, descripcion:description, ubicacion:location }); return; }
+
+    setLoadingMsg("Enviando...");
+    const { data: { user } } = await supabase.auth.getUser();
+    let photo_url = null;
+
+    if (file) {
+      setLoadingMsg("Subiendo foto...");
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from("reports").upload(fileName, file);
+      if (uploadError) { setError(uploadError.message); setLoadingMsg(null); return; }
+      const { data: urlData } = supabase.storage.from("reports").getPublicUrl(fileName);
+      photo_url = urlData.publicUrl;
+      setLoadingMsg("Enviando...");
+    }
+
+    const { data, error: insertError } = await supabase.from("reports").insert({
+      user_id: user.id,
+      category,
+      description: description.trim(),
+      location: location.trim() || null,
+      photo_url,
+      status: "pendiente",
+    }).select().single();
+
+    setLoadingMsg(null);
+    if (insertError) { setError(insertError.message); return; }
+    if (onNewReport) onNewReport(data);
+    onClose();
   }
 
   const inputSm = { ...taStyle, resize:"none", height:40, padding:"10px 14px", fontSize:14 };
+  const loading = !!loadingMsg;
 
   return (
     <ModalShell onClose={onClose} title={editData ? "Editar reporte" : "Nuevo Reporte"}>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Tipo de reporte</label>
-      <select value={tipoReporte} onChange={e => setTipoReporte(e.target.value)} style={{
-        width:"100%", background:COLORS.inputBg, border:`1.5px solid ${tipoReporte?COLORS.gold:COLORS.border}`,
-        borderRadius:8, padding:"11px 14px", color:tipoReporte?COLORS.text:"#9aaea8",
+      <select value={category} onChange={e => setCategory(e.target.value)} style={{
+        width:"100%", background:COLORS.inputBg, border:`1.5px solid ${category?COLORS.gold:COLORS.border}`,
+        borderRadius:8, padding:"11px 14px", color:category?COLORS.text:"#9aaea8",
         fontSize:14, outline:"none", boxSizing:"border-box", marginBottom:14,
         fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto", transition:"border-color 0.2s",
       }}>
         <option value="" disabled>Selecciona una categoría…</option>
         {TIPOS_REPORTE.map(t => <option key={t} value={t}>{t}</option>)}
       </select>
-      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Asunto</label>
-      <input type="text" value={asunto} onChange={e => setAsunto(e.target.value)} placeholder="Título breve del reporte..." style={{ ...inputSm, marginBottom:14, display:"block" }}
-        onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Descripción</label>
-      <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Describe la situación con el mayor detalle posible..." rows={4} style={{ ...taStyle, marginBottom:14 }}
+      <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe la situación con el mayor detalle posible..." rows={4} style={{ ...taStyle, marginBottom:14 }}
         onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Ubicación <span style={{ fontWeight:400 }}>(opcional)</span></label>
-      <input type="text" value={ubicacion} onChange={e => setUbicacion(e.target.value)} placeholder="Ej. Sala de cirugía, recepción..." style={{ ...inputSm, marginBottom:20, display:"block" }}
+      <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Ej. Sala de cirugía, recepción..." style={{ ...inputSm, marginBottom:14, display:"block" }}
         onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+      <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Foto <span style={{ fontWeight:400 }}>(opcional)</span></label>
+      <label style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, cursor:"pointer" }}>
+        <div style={{ flex:1, background:COLORS.inputBg, border:`1.5px dashed ${COLORS.border}`, borderRadius:8, padding:"10px 14px", fontSize:13, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif" }}>
+          {file ? file.name : "Adjuntar foto (opcional)"}
+        </div>
+        <input type="file" accept="image/*" onChange={handleFile} style={{ display:"none" }} />
+      </label>
+      {preview && (
+        <div style={{ marginBottom:14 }}>
+          <img src={preview} alt="vista previa" style={{ width:"100%", maxHeight:160, objectFit:"cover", borderRadius:8, border:`1px solid ${COLORS.border}` }} />
+        </div>
+      )}
+      {error && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
       <div style={{ display:"flex", gap:10 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} style={{ ...btnSubmitStyle, opacity:(tipoReporte&&asunto)?1:0.5 }}>{editData ? "Guardar cambios" : "Enviar reporte"}</button>
+        <button onClick={submit} disabled={loading} style={{ ...btnSubmitStyle, opacity:(category&&description.trim()&&!loading)?1:0.5, cursor:loading?"not-allowed":"pointer" }}>
+          {loadingMsg ?? (editData ? "Guardar cambios" : "Enviar reporte")}
+        </button>
       </div>
     </ModalShell>
   );
 }
 
 /* ── Modal selector de tipo + routing ── */
-function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRequest }) {
+function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRequest, onNewReport }) {
   const [tipo, setTipo] = useState(editData?.tipo || initialTipo || null);
 
   function handleSubmit(data) { onSubmit(data); onClose(); }
@@ -722,7 +780,7 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRe
 
   if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
   if (tipo === "permiso")    return <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest}/>;
-  return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
+  return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewReport={onNewReport}/>;
 }
 
 /* ── Item individual de solicitud ── */
@@ -774,7 +832,7 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest }) {
+function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport }) {
   const [modal, setModal] = useState(null); // null | "new-vac" | "new-sol" | solicitud-object(edit)
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
 
@@ -790,7 +848,7 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
         <VacationForm onClose={() => setModal(null)} onSubmit={handleSubmit} editData={null} />
       )}
       {modal === "new-sol" && (
-        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={data => { onAdd(data); setModal(null); }} editData={null} onNewRequest={onNewRequest} />
+        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={data => { onAdd(data); setModal(null); }} editData={null} onNewRequest={onNewRequest} onNewReport={onNewReport} />
       )}
       {modal && typeof modal === "object" && (
         <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={handleSubmit} editData={modal} />
@@ -1263,7 +1321,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
-function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announcements = [], documents = [], upcomingBirthdays = [] }) {
+function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announcements = [], documents = [], upcomingBirthdays = [], onNewReport }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -1330,7 +1388,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announce
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1348,7 +1406,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announce
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1361,12 +1419,13 @@ export default function App() {
   const [announcements, setAnnouncements] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState([]);
+  const [reports, setReports] = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1385,6 +1444,12 @@ export default function App() {
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setAllRequests(data); });
+    supabase
+      .from("reports")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setReports(data); });
   }, [session]);
 
   useEffect(() => {
@@ -1429,7 +1494,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={allRequests.filter(r => r.type === "vacaciones")} onNewRequest={r => setAllRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={allRequests.filter(r => r.type === "vacaciones")} onNewRequest={r => setAllRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewReport={r => setReports(prev => [r, ...prev])} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
