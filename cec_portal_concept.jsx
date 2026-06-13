@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, Megaphone, FileUp, Users, UserPlus,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -739,6 +739,12 @@ function Tag({ label }) {
   );
 }
 
+function SolicitudIcon({ kind, type, size = 18 }) {
+  if (kind === "report") return <AlertTriangle size={size} color={COLORS.gold} />;
+  if (type === "vacaciones") return <CalendarDays size={size} color={COLORS.gold} />;
+  return <ClipboardList size={size} color={COLORS.gold} />;
+}
+
 /* ─────────────────────────── SOLICITUDES ─────────────────────────── */
 
 const MONTH_NAMES   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -1286,7 +1292,10 @@ function SolicitudItem({ s }) {
     <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}` }}>
       <div style={{ marginTop:1, flexShrink:0 }}>{icon}</div>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word" }}>{s.label}</div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:1 }}>
+          <SolicitudIcon kind={s.kind} type={s.type} size={14} />
+          <span style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word" }}>{s.label}</span>
+        </div>
         {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>}
         {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
         {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
@@ -2560,7 +2569,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
 
   const allItems = [
     ...adminRequests.map(r => ({
-      id: r.id, kind: "request",
+      id: r.id, kind: "request", type: r.type,
       employeeName: r.profiles?.full_name ?? "—",
       department:   r.profiles?.department ?? "",
       label:   r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
@@ -2618,7 +2627,10 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
               <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>{item.employeeName}</span>
               {item.department && <span style={{ fontSize:11, color:COLORS.textMuted }}>· {item.department}</span>}
             </div>
-            <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:2, wordBreak:"break-word" }}>{item.label}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
+              <SolicitudIcon kind={item.kind} type={item.type} size={16} />
+              <span style={{ fontSize:13, fontWeight:600, color:COLORS.text, wordBreak:"break-word" }}>{item.label}</span>
+            </div>
             {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}>{item.subtitle}</div>}
             {item.comment && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}><span style={{ fontWeight:600 }}>Nota:</span> {item.comment}</div>}
             {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
@@ -2823,7 +2835,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   const vacationRequests = allRequests.filter(r => r.type === "vacaciones");
   const allSolicitudes = [
     ...allRequests.map(r => ({
-      id: r.id, kind: "request",
+      id: r.id, kind: "request", type: r.type,
       label: r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
       subtitle: r.start_date
         ? `${fmtSupaShort(r.start_date)} → ${fmtSupaShort(r.end_date)} · ${r.days_requested ?? 0} días`
