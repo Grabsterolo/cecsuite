@@ -1322,7 +1322,8 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       label:   r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
       subtitle: r.start_date
         ? `${fmtSupaDate(r.start_date)}${r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""} · ${r.days_requested ?? 0} días`
-        : (r.comment || ""),
+        : "",
+      comment: r.comment || null,
       status: r.status, created_at: r.created_at,
     })),
     ...adminReports.map(r => ({
@@ -1372,6 +1373,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
             </div>
             <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:2 }}>{item.label}</div>
             {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2 }}>{item.subtitle}</div>}
+            {item.comment && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2 }}><span style={{ fontWeight:600 }}>Nota:</span> {item.comment}</div>}
             {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
             <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
           </div>
