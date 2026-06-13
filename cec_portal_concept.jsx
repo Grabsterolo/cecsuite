@@ -1662,6 +1662,7 @@ function DocumentsSection({ documents }) {
 }
 
 function AnnouncementsSection({ announcements }) {
+  const [expanded, setExpanded] = useState({});
   function fmtFull(str) {
     if (!str) return "—";
     const d = new Date(str);
@@ -1672,16 +1673,30 @@ function AnnouncementsSection({ announcements }) {
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
       {announcements.length === 0 ? (
         <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay comunicados disponibles.</p></Card>
-      ) : announcements.map((a, i) => (
-        <Card key={a.id ?? i}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-            <Tag label={a.tag || "Aviso"} />
-            <span style={{ fontSize:12, color:COLORS.textMuted }}>{fmtFull(a.publish_at)}</span>
-          </div>
-          <h3 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:20, fontWeight:600, color:COLORS.green, margin:"0 0 10px", lineHeight:1.3, wordBreak:"break-word" }}>{a.title}</h3>
-          {a.body && <p style={{ fontSize:14, color:COLORS.text, lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{a.body}</p>}
-        </Card>
-      ))}
+      ) : announcements.map((a, i) => {
+        const key = a.id ?? i;
+        const isExpanded = !!expanded[key];
+        return (
+          <Card key={key}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+              <Tag label={a.tag || "Aviso"} />
+              <span style={{ fontSize:12, color:COLORS.textMuted }}>{fmtFull(a.publish_at)}</span>
+            </div>
+            <h3 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:20, fontWeight:600, color:COLORS.green, margin:"0 0 10px", lineHeight:1.3, wordBreak:"break-word" }}>{a.title}</h3>
+            {isExpanded && a.body && (
+              <p style={{ fontSize:14, color:COLORS.text, lineHeight:1.7, margin:"0 0 8px", whiteSpace:"pre-wrap" }}>{a.body}</p>
+            )}
+            {a.body && (
+              <button
+                onClick={() => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))}
+                style={{ background:"none", border:"none", color:COLORS.gold, fontSize:12, fontWeight:600, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}
+              >
+                {isExpanded ? "Ver menos" : "Ver más"}
+              </button>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
