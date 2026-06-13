@@ -993,11 +993,45 @@ function SolicitudesSection({ solicitudes, onAdd, onDelete, onUpdate }) {
   );
 }
 
-function VacationSection({ profile, vacationRequests }) {
+function VacationSection({ profile, vacationRequests, onNewRequest }) {
   const vacationBalance = profile?.vacation_balance ?? 0;
   const approvedDays = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
   const pendingDays  = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
   const availableDays = Math.max(0, vacationBalance - approvedDays);
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate,   setEndDate]   = useState("");
+  const [comment,   setComment]   = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
+  const [success,   setSuccess]   = useState(false);
+
+  const parsedStart = startDate ? new Date(startDate + "T12:00:00") : null;
+  const parsedEnd   = endDate   ? new Date(endDate   + "T12:00:00") : null;
+  const workDays    = calcWorkDays(parsedStart, parsedEnd);
+
+  async function handleSubmit() {
+    setError(null);
+    setSuccess(false);
+    if (!startDate || !endDate) return setError("Debes completar ambas fechas.");
+    if (parsedEnd < parsedStart)  return setError("La fecha de fin debe ser igual o posterior a la de inicio.");
+    setLoading(true);
+    const { data, error: insertError } = await supabase.from("requests").insert({
+      user_id: profile?.id,
+      type: "vacaciones",
+      status: "pendiente",
+      start_date: startDate,
+      end_date: endDate,
+      days_requested: workDays,
+      comment: comment.trim() || null,
+    }).select().single();
+    setLoading(false);
+    if (insertError) return setError(insertError.message);
+    onNewRequest(data);
+    setStartDate(""); setEndDate(""); setComment("");
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 4000);
+  }
 
   const statBox = (label, value, color) => (
     <div style={{ flex:1, textAlign:"center", padding:"16px 8px" }}>
@@ -1018,8 +1052,11 @@ function VacationSection({ profile, vacationRequests }) {
     return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
   }
 
+  const dateInputStyle = { ...inputStyle, fontSize:14, padding:"10px 14px" };
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      {/* Saldo */}
       <Card>
         <CardHeader title="Saldo de vacaciones" />
         <div style={{ display:"flex", borderTop:`1px solid ${COLORS.border}`, marginTop:4 }}>
@@ -1034,6 +1071,40 @@ function VacationSection({ profile, vacationRequests }) {
         </p>
       </Card>
 
+      {/* Formulario */}
+      <Card>
+        <CardHeader title="Solicitar vacaciones" />
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div>
+            <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Fecha de inicio</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={dateInputStyle}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          </div>
+          <div>
+            <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Fecha de fin</label>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={startDate} style={dateInputStyle}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          </div>
+        </div>
+        {startDate && endDate && (
+          <p style={{ margin:"0 0 12px", fontSize:13, color:COLORS.green, fontWeight:600 }}>
+            Días solicitados: <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:18 }}>{workDays}</span> hábiles
+          </p>
+        )}
+        <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Comentario</label>
+        <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Opcional" rows={2} style={{ ...taStyle, marginBottom:16 }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        {error   && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
+        {success && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 12px" }}>✓ Solicitud enviada correctamente.</p>}
+        <button onClick={handleSubmit} disabled={loading} style={{
+          ...btnSubmitStyle, width:"100%", opacity: loading ? 0.75 : 1,
+          cursor: loading ? "not-allowed" : "pointer",
+        }}>
+          {loading ? "Enviando..." : "Enviar solicitud"}
+        </button>
+      </Card>
+
+      {/* Historial */}
       <Card>
         <CardHeader title="Historial de solicitudes" />
         {vacationRequests.length === 0 ? (
@@ -1066,7 +1137,7 @@ function VacationSection({ profile, vacationRequests }) {
   );
 }
 
-function Dashboard({ onLogout, profile, vacationRequests }) {
+function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -1133,7 +1204,7 @@ function Dashboard({ onLogout, profile, vacationRequests }) {
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1151,7 +1222,7 @@ function Dashboard({ onLogout, profile, vacationRequests }) {
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1200,7 +1271,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} onNewVacationRequest={r => setVacationRequests(prev => [r, ...prev])} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
