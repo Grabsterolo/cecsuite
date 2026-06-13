@@ -32,6 +32,14 @@ const FONTS = `
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
+@keyframes wordOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes wordIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
@@ -81,6 +89,37 @@ const inputStyle = {
   fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s", display: "block",
 };
 
+const ROTATING_WORDS = ["comunicados", "vacaciones", "documentos", "permisos", "reportes", "tu equipo"];
+
+function RotatingWord({ noAnim }) {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (noAnim) return;
+    const id = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => { setIdx(i => (i + 1) % ROTATING_WORDS.length); setVisible(true); }, 330);
+    }, 2200);
+    return () => clearInterval(id);
+  }, [noAnim]);
+
+  const wordAnim = noAnim ? {} : visible
+    ? { animation: "wordIn 0.35s ease-out both" }
+    : { animation: "wordOut 0.32s ease-in both" };
+
+  return (
+    <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", columnGap:4, fontSize:13, color:COLORS.textMuted, marginBottom:28, lineHeight:1.6 }}>
+      <span>Accede a:</span>
+      <span style={{ overflow:"hidden", display:"inline-block", height:"1.35em", verticalAlign:"text-bottom" }}>
+        <span style={{ color:COLORS.gold, fontWeight:600, display:"block", ...wordAnim }}>
+          {ROTATING_WORDS[noAnim ? 0 : idx]}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function LoginForm({ onLogin }) {
   const [emailValue, setEmailValue] = useState("");
   const [passwordValue, setPasswordValue] = useState("");
@@ -101,17 +140,18 @@ function LoginForm({ onLogin }) {
   return (
     <>
       <div style={{
-        width: 32, height: 3,
+        width: 64, height: 3,
         background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`,
         borderRadius: 2, marginBottom: 20, transformOrigin: "left center",
         ...(noAnim ? {} : { animation: "goldLineGrow 0.65s ease-out both" }),
       }} />
-      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, marginBottom: 6, color: COLORS.green, lineHeight: 1.1, ...anim(80) }}>
-        Bienvenido al<br />equipo CEC
+      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, marginBottom: 8, color: COLORS.green, lineHeight: 1.15, ...anim(80) }}>
+        Te damos la bienvenida<br />al Portal CEC
       </h1>
-      <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 36, lineHeight: 1.6, ...anim(160) }}>
-        Accede a tus comunicados, solicitudes y novedades del equipo.
+      <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 16, lineHeight: 1.6, ...anim(160) }}>
+        Ingresa con tu cuenta institucional para continuar.
       </p>
+      <RotatingWord noAnim={noAnim} />
       <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(220) }}>Correo corporativo</label>
       <input
         type="email" placeholder="nombre@cec.co.cr" value={emailValue}
