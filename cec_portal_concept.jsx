@@ -24,9 +24,26 @@ const COLORS = {
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 * { -webkit-tap-highlight-color: transparent; }
+@keyframes infinityBreathe {
+  0%, 100% { opacity: 0.05; }
+  50% { opacity: 0.10; }
+}
+@keyframes loginFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes goldLineGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
 `;
 
 const SIDEBAR_BG = "linear-gradient(168deg, #24584C 0%, #1F4A40 40%, #152E27 100%)";
+
+const INFINITY_PATH = "M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70 C58 70 42 30 30 30";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
@@ -74,60 +91,55 @@ function LoginForm({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const anim = (delay) => noAnim ? {} : { animation: `loginFadeUp 0.55s ease-out ${delay}ms both` };
+
   async function handleLogin() {
     setError(null);
     setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: emailValue,
-      password: passwordValue,
-    });
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: emailValue, password: passwordValue });
     setLoading(false);
     if (authError) setError(authError.message);
   }
 
   return (
     <>
-      <div style={{ width: 32, height: 3, background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`, borderRadius: 2, marginBottom: 20 }} />
-      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, marginBottom: 6, color: COLORS.green, lineHeight: 1.1 }}>
-        Bienvenido<br />de nuevo
+      <div style={{
+        width: 32, height: 3,
+        background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`,
+        borderRadius: 2, marginBottom: 20, transformOrigin: "left center",
+        ...(noAnim ? {} : { animation: "goldLineGrow 0.65s ease-out both" }),
+      }} />
+      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, marginBottom: 6, color: COLORS.green, lineHeight: 1.1, ...anim(80) }}>
+        Bienvenido al<br />equipo CEC
       </h1>
-      <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 36, lineHeight: 1.6 }}>
-        Ingresa con tu cuenta institucional para continuar.
+      <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 36, lineHeight: 1.6, ...anim(160) }}>
+        Accede a tus comunicados, solicitudes y novedades del equipo.
       </p>
-      {/* Continuar con Microsoft — pendiente de configurar */}
-      {/* <button ...>Continuar con Microsoft</button> */}
-      {/* <div style={{ ...divisor }}>o con tu correo</div> */}
-      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>Correo corporativo</label>
+      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(220) }}>Correo corporativo</label>
       <input
-        type="email"
-        placeholder="nombre@cec.co.cr"
-        value={emailValue}
+        type="email" placeholder="nombre@cec.co.cr" value={emailValue}
         onChange={e => setEmailValue(e.target.value)}
-        style={{ ...inputStyle, marginBottom: 14 }}
+        style={{ ...inputStyle, marginBottom: 14, ...anim(260) }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
         onBlur={e => e.target.style.borderColor = COLORS.border}
       />
-      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em" }}>Contraseña</label>
+      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(300) }}>Contraseña</label>
       <input
-        type="password"
-        placeholder="••••••••"
-        value={passwordValue}
+        type="password" placeholder="••••••••" value={passwordValue}
         onChange={e => setPasswordValue(e.target.value)}
         onKeyDown={e => e.key === "Enter" && !loading && handleLogin()}
-        style={{ ...inputStyle, marginBottom: 24 }}
+        style={{ ...inputStyle, marginBottom: 24, ...anim(340) }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
         onBlur={e => e.target.style.borderColor = COLORS.border}
       />
       {error && (
-        <p style={{ fontSize: 12, color: "#e07070", marginBottom: 14, marginTop: -10, lineHeight: 1.5 }}>
-          {error}
-        </p>
+        <p style={{ fontSize: 12, color: "#e07070", marginBottom: 14, marginTop: -10, lineHeight: 1.5 }}>{error}</p>
       )}
       <button
-        type="button"
-        onClick={handleLogin}
-        disabled={loading}
+        type="button" onClick={handleLogin} disabled={loading}
         style={{
+          ...anim(400),
           width: "100%", background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
           border: "none", borderRadius: 8, padding: "13px 16px", color: "#FFF",
           fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
@@ -146,19 +158,34 @@ function LoginForm({ onLogin }) {
 
 function LoginScreen({ onLogin }) {
   const isMobile = useIsMobile();
+  const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motifAnim = noAnim ? {} : { animation: "infinityBreathe 18s ease-in-out infinite" };
 
   if (isMobile) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Manrope', sans-serif", background: "#FFF" }}>
-        <div style={{ background: SIDEBAR_BG, padding: "48px 32px 36px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <Logo width={240} />
-          <div style={{ width: 60, height: 1.5, background: COLORS.gold, opacity: 0.7 }} />
-          <div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
+        {/* Compact top banner */}
+        <div style={{ background: SIDEBAR_BG, padding: "28px 32px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <Logo width={200} />
+          <div style={{ width: 50, height: 1.5, background: COLORS.gold, opacity: 0.6 }} />
+          <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
             Portal de Colaboradores
           </div>
         </div>
-        <div style={{ flex: 1, padding: "32px 28px 48px" }}>
-          <LoginForm onLogin={onLogin} />
+        {/* Form area with motif + brand mark */}
+        <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
+          <svg viewBox="0 0 100 100" style={{ position:"absolute", width:"110%", top:"50%", left:"-5%", transform:"translateY(-50%)", stroke:COLORS.gold, fill:"none", strokeWidth:1, opacity:0.06, pointerEvents:"none", ...motifAnim }}>
+            <path d={INFINITY_PATH} strokeLinecap="round"/>
+          </svg>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:24, position:"relative" }}>
+            <svg viewBox="10 22 80 56" style={{ width:36, height:20, stroke:COLORS.gold, fill:"none", strokeWidth:3.5, opacity:0.8, flexShrink:0 }}>
+              <path d={INFINITY_PATH} strokeLinecap="round"/>
+            </svg>
+            <span style={{ fontSize:9, letterSpacing:"0.22em", color:COLORS.textMuted, textTransform:"uppercase", fontWeight:700 }}>Centro Europeo de Cirugía</span>
+          </div>
+          <div style={{ position:"relative" }}>
+            <LoginForm onLogin={onLogin} />
+          </div>
         </div>
       </div>
     );
@@ -169,35 +196,24 @@ function LoginScreen({ onLogin }) {
 
       {/* ── Panel izquierdo ── */}
       <div style={{
-        flex: "0 0 45%",
-        background: SIDEBAR_BG,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: "60px 56px",
-        gap: 10,
+        flex: "0 0 45%", background: SIDEBAR_BG,
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        alignItems: "center", padding: "60px 56px", gap: 10,
       }}>
         <Logo width={380} />
-
-        {/* Separador dorado */}
         <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7 }} />
-
-        <div style={{
-          fontSize: 14,
-          letterSpacing: "0.35em",
-          color: "rgba(255,255,255,0.55)",
-          textTransform: "uppercase",
-          textAlign: "center",
-          fontWeight: 500,
-        }}>
+        <div style={{ fontSize: 14, letterSpacing: "0.35em", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", textAlign: "center", fontWeight: 500 }}>
           Portal de Colaboradores
         </div>
       </div>
 
       {/* ── Panel derecho — formulario ── */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF" }}>
-        <div style={{ width: "100%", maxWidth: 360 }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF", position: "relative", overflow: "hidden" }}>
+        {/* SVG decorativo de fondo */}
+        <svg viewBox="0 0 100 100" style={{ position:"absolute", width:"88%", top:"50%", left:"6%", transform:"translateY(-50%)", stroke:COLORS.gold, fill:"none", strokeWidth:0.7, opacity:0.06, pointerEvents:"none", ...motifAnim }}>
+          <path d={INFINITY_PATH} strokeLinecap="round"/>
+        </svg>
+        <div style={{ width: "100%", maxWidth: 360, position: "relative" }}>
           <LoginForm onLogin={onLogin} />
         </div>
       </div>
