@@ -2463,6 +2463,7 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
     // Adjust for local timezone so datetime-local input shows the correct local time
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   };
+  const [expandedAnnouncements, setExpandedAnnouncements] = useState({});
   const [title,     setTitle]     = useState("");
   const [tag,       setTag]       = useState("");
   const [body,      setBody]      = useState("");
@@ -2577,25 +2578,41 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
           <div style={{ display:"flex", flexDirection:"column" }}>
             {adminAnnouncements.map((a, i) => {
               const isScheduled = a.publish_at && new Date(a.publish_at) > now;
+              const isExpanded = expandedAnnouncements[a.id ?? i];
+              const authorName = a.profiles?.full_name || null;
               return (
-                <div key={a.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}`, display:"flex", gap:12, alignItems:"flex-start" }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{a.title}</div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
-                      {a.tag && <Tag label={a.tag} />}
-                      <span style={{ fontSize:11, color:COLORS.textMuted }}>
-                        Audiencia: <strong>{Array.isArray(a.audience_list) ? (a.audience_list.includes("todos") ? "Todos los departamentos" : a.audience_list.join(", ")) : (a.audience === "todos" ? "Todos los departamentos" : (a.audience || "—"))}</strong>
-                      </span>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                      <span style={{ fontSize:11, color:COLORS.textMuted }}>{fmtPublishAt(a.publish_at)}</span>
-                      {isScheduled && (
-                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", padding:"2px 7px", borderRadius:4, background:"rgba(100,140,220,0.12)", color:"#5a7ec7" }}>
-                          PROGRAMADO
-                        </span>
-                      )}
-                    </div>
+                <div key={a.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{a.title}</div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
+                    {a.tag && <Tag label={a.tag} />}
+                    <span style={{ fontSize:11, color:COLORS.textMuted }}>
+                      Audiencia: <strong>{Array.isArray(a.audience_list) ? (a.audience_list.includes("todos") ? "Todos los departamentos" : a.audience_list.join(", ")) : (a.audience === "todos" ? "Todos los departamentos" : (a.audience || "—"))}</strong>
+                    </span>
                   </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                    <span style={{ fontSize:11, color:COLORS.textMuted }}>{fmtPublishAt(a.publish_at)}</span>
+                    {isScheduled && (
+                      <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", padding:"2px 7px", borderRadius:4, background:"rgba(100,140,220,0.12)", color:"#5a7ec7" }}>
+                        PROGRAMADO
+                      </span>
+                    )}
+                    {authorName && (
+                      <span style={{ fontSize:11, color:COLORS.textMuted }}>· Creado por: <strong>{authorName}</strong></span>
+                    )}
+                  </div>
+                  {isExpanded && a.body && (
+                    <div style={{ marginTop:10, fontSize:13, color:COLORS.text, lineHeight:1.65, whiteSpace:"pre-wrap", wordBreak:"break-word", background:COLORS.panelAlt, borderRadius:7, padding:"10px 12px" }}>
+                      {a.body}
+                    </div>
+                  )}
+                  {a.body && (
+                    <button
+                      onClick={() => setExpandedAnnouncements(prev => ({ ...prev, [a.id ?? i]: !prev[a.id ?? i] }))}
+                      style={{ marginTop:8, background:"none", border:"none", color:COLORS.gold, fontSize:12, fontWeight:600, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}
+                    >
+                      {isExpanded ? "Ver menos" : "Ver más"}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -3169,7 +3186,7 @@ export default function App() {
     supabase.from("reports").select("*, profiles!reports_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setAdminReports(data);
       });
-    supabase.from("announcements").select("*").order("publish_at", { ascending: false })
+    supabase.from("announcements").select("*, profiles!announcements_created_by_fkey(full_name)").order("publish_at", { ascending: false })
       .then(({ data }) => { if (data) setAdminAnnouncements(data); });
     supabase.from("documents").select("*").order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setAdminDocuments(data); });
