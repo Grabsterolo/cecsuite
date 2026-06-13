@@ -1664,13 +1664,16 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   }
   const initials = getInitials(profile?.full_name);
 
-  const hour = new Date().getHours();
+  const now = new Date();
+  const hour = now.getHours();
   const timeGreeting = hour >= 5 && hour < 12 ? "Buenos días"
     : hour >= 12 && hour < 19 ? "Buenas tardes"
     : "Buenas noches";
   const greeting = profile?.full_name
     ? `${timeGreeting}, ${profile.full_name.split(" ")[0]}`
     : timeGreeting;
+  const DAY_NAMES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+  const todayStr = `${DAY_NAMES[now.getDay()]} ${now.getDate()} de ${MONTH_NAMES[now.getMonth()].toLowerCase()} de ${now.getFullYear()}`;
 
   if (isMobile) {
     return (
@@ -1698,7 +1701,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
         <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={setActive} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
         <div style={{ padding: "24px 16px 48px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
-            Viernes 12 de junio, 2026
+            {todayStr}
           </div>
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
@@ -1715,7 +1718,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
-            Viernes 12 de junio, 2026
+            {todayStr}
           </div>
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: 0, color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
