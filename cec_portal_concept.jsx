@@ -2592,7 +2592,8 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   const sectionAnim = (!sectionPhase || noAnim) ? {} : sectionPhase === "out"
     ? { animation: "sectionOut 0.17s ease-in both" }
     : { animation: "sectionIn 0.22s ease-out both" };
-  const dashboardInAnim = noAnim ? {} : { animation: "dashboardIn 0.45s ease-out both" };
+  const [dashDone, setDashDone] = useState(false);
+  const dashboardInAnim = (!dashDone && !noAnim) ? { animation: "dashboardIn 0.45s ease-out both" } : {};
 
   const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[displayActive];
 
@@ -2699,11 +2700,11 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   }
 
   return (
-    <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }}>
+    <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }} onAnimationEnd={(e) => { if (e.animationName === "dashboardIn") setDashDone(true); }}>
       {isBirthday && !noAnim && <BirthdayConfetti />}
       <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
-        <div style={sectionAnim} onAnimationEnd={() => { if (sectionPhase === "in") setSectionPhase(null); }}>
+        <div style={sectionAnim} onAnimationEnd={(e) => { if (e.animationName === "sectionIn") setSectionPhase(null); }}>
           <div style={{ marginBottom: 32 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
               {todayStr}
