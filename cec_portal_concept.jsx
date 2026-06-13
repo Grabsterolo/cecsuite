@@ -420,6 +420,32 @@ function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
 }
 
 
+function fmtSupaDate(str) {
+  if (!str) return "—";
+  const d = new Date(str + "T12:00:00");
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+}
+function fmtSupaShort(str) {
+  if (!str) return "—";
+  const d = new Date(str + "T12:00:00");
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3).toLowerCase()}`;
+}
+
+function StatusBadge({ status }) {
+  const styles = {
+    pendiente: { color: COLORS.gold,    background: "rgba(201,162,78,0.12)" },
+    aprobado:  { color: "#2C6356",      background: "rgba(44,99,86,0.1)"    },
+    rechazado: { color: "#c0392b",      background: "rgba(192,57,43,0.1)"   },
+  };
+  const s = styles[status] ?? { color: COLORS.textMuted, background: COLORS.panelAlt };
+  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : "—";
+  return (
+    <span style={{ fontSize:11, fontWeight:700, borderRadius:5, padding:"3px 9px", letterSpacing:"0.04em", whiteSpace:"nowrap", ...s }}>
+      {label}
+    </span>
+  );
+}
+
 function Tag({ label }) {
   return (
     <span style={{
@@ -784,43 +810,26 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRe
 }
 
 /* ── Item individual de solicitud ── */
-function SolicitudItem({ s, onDelete, onEdit }) {
-  const enRevision = s.status === "en_revision";
-  const isReporte = s.tipo === "reporte";
-
-  const label = s.tipo === "vacaciones"
-    ? `Vacaciones${s.endDate ? ` · ${calcWorkDays(s.startDate,s.endDate)} días hábiles` : ""}`
-    : s.tipo === "reporte"
-    ? (s.asunto || s.tipoReporte || "Reporte")
-    : (s.tipoPermiso || "Permiso");
-
-  const sub = isReporte
-    ? (s.tipoReporte || "")
-    : s.startDate
-    ? fmtDate(s.startDate) + (s.endDate ? ` — ${fmtDate(s.endDate)}` : "")
-    : "";
-
-  const bgColor = isReporte
-    ? (enRevision ? "rgba(201,162,78,0.07)" : "rgba(44,99,86,0.07)")
-    : (enRevision ? "rgba(201,162,78,0.07)" : "rgba(44,99,86,0.07)");
-
+function SolicitudItem({ s }) {
+  const isReport = s.kind === "report";
+  const icon = isReport
+    ? <AlertTriangle size={15} color={s.status === "pendiente" ? COLORS.gold : s.status === "aprobado" ? COLORS.greenSoft : "#c0392b"} />
+    : s.status === "aprobado" ? <CheckCircle2 size={15} color={COLORS.greenSoft} />
+    : <Clock size={15} color={s.status === "pendiente" ? COLORS.gold : COLORS.textMuted} />;
+  const dateStr = s.created_at ? fmtSupaDate(s.created_at.slice(0,10)) : "";
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, background: bgColor }}>
-      {isReporte
-        ? <AlertTriangle size={16} color={enRevision ? COLORS.gold : COLORS.greenSoft}/>
-        : enRevision ? <Clock size={16} color={COLORS.gold}/> : <CheckCircle2 size={16} color={COLORS.greenSoft}/>
-      }
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}` }}>
+      <div style={{ marginTop:1, flexShrink:0 }}>{icon}</div>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ color:COLORS.text, fontWeight:500, fontSize:13 }}>{label}</div>
-        {sub && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:1 }}>{sub}</div>}
-        <div style={{ color:enRevision?COLORS.gold:COLORS.greenSoft, fontSize:11, marginTop:1 }}>{enRevision?"En revisión":"Aprobado"}</div>
+        <div style={{ color:COLORS.text, fontWeight:600, fontSize:13 }}>{s.label}</div>
+        {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5 }}>{s.subtitle}</div>}
+        {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
+        {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
       </div>
-      {enRevision && (
-        <div style={{ display:"flex", gap:5, flexShrink:0 }}>
-          <button onClick={() => onEdit(s)} title="Editar" style={{ border:"none", background:"rgba(31,74,64,0.08)", color:COLORS.green, cursor:"pointer", borderRadius:6, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}><Edit2 size={13}/></button>
-          <button onClick={() => onDelete(s.id)} title="Eliminar" style={{ border:"none", background:"rgba(200,50,50,0.08)", color:"#c0392b", cursor:"pointer", borderRadius:6, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}><Trash2 size={13}/></button>
-        </div>
+      {s.photo_url && (
+        <img src={s.photo_url} alt="foto" style={{ width:44, height:44, borderRadius:6, objectFit:"cover", flexShrink:0, border:`1px solid ${COLORS.border}` }} />
       )}
+      <div style={{ flexShrink:0, marginTop:1 }}><StatusBadge status={s.status} /></div>
     </div>
   );
 }
@@ -832,26 +841,14 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport }) {
-  const [modal, setModal] = useState(null); // null | "new-vac" | "new-sol" | solicitud-object(edit)
+function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport }) {
+  const [modal, setModal] = useState(null); // null | "new-sol"
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
-
-  function handleSubmit(data) {
-    if (modal && typeof modal === "object") onUpdate(modal.id, data);
-    else onAdd(data);
-    setModal(null);
-  }
 
   return (
     <>
-      {modal === "new-vac" && (
-        <VacationForm onClose={() => setModal(null)} onSubmit={handleSubmit} editData={null} />
-      )}
       {modal === "new-sol" && (
-        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={data => { onAdd(data); setModal(null); }} editData={null} onNewRequest={onNewRequest} onNewReport={onNewReport} />
-      )}
-      {modal && typeof modal === "object" && (
-        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={handleSubmit} editData={modal} />
+        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={() => setModal(null)} editData={null} onNewRequest={onNewRequest} onNewReport={onNewReport} />
       )}
     <div style={isMobile
       ? { display: "flex", flexDirection: "column", gap: 14 }
@@ -943,7 +940,7 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
         )}
       </Card>
 
-      {/* Solicitudes — muestra las 2 más recientes */}
+      {/* Solicitudes — 3 más recientes */}
       <Card>
         <CardHeader title="Solicitudes"
           action={
@@ -960,14 +957,14 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
             </div>
           }
         />
-        {solicitudes.length === 0 ? (
+        {allSolicitudes.length === 0 ? (
           <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>Sin solicitudes activas.{" "}
             <button onClick={() => setModal("new-sol")} style={{ background:"none", border:"none", color:COLORS.gold, fontWeight:600, fontSize:13, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}>Crear una</button>
           </p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {solicitudes.slice(0,2).map(s => (
-              <SolicitudItem key={s.id} s={s} onDelete={onDelete} onEdit={sol => setModal(sol)} />
+            {allSolicitudes.slice(0,3).map(s => (
+              <SolicitudItem key={`${s.kind}-${s.id}`} s={s} />
             ))}
           </div>
         )}
@@ -1053,41 +1050,36 @@ function ProfileSection({ profile }) {
   );
 }
 
-function SolicitudesSection({ solicitudes, onAdd, onDelete, onUpdate }) {
+function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport }) {
   const [modal, setModal] = useState(false);
-  const [editData, setEditData] = useState(null);
-
-  function openEdit(s) { setEditData(s); setModal(true); }
-  function openNew()   { setEditData(null); setModal(true); }
-  function handleSubmit(data) {
-    if (editData) onUpdate(editData.id, data); else onAdd(data);
-    setModal(false); setEditData(null);
-  }
 
   return (
     <div>
-      {modal && <CrearSolicitudModal onClose={() => { setModal(false); setEditData(null); }} onSubmit={handleSubmit} editData={editData} />}
+      {modal && (
+        <CrearSolicitudModal
+          onClose={() => setModal(false)}
+          onSubmit={() => setModal(false)}
+          editData={null}
+          onNewRequest={onNewRequest}
+          onNewReport={onNewReport}
+        />
+      )}
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:20 }}>
-        <button onClick={openNew} style={{
+        <button onClick={() => setModal(true)} style={{
           display:"flex", alignItems:"center", gap:8,
           background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
           border:"none", borderRadius:8, padding:"10px 18px",
           color:"#FFF", fontSize:14, fontWeight:700, cursor:"pointer",
-          fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.35)", transition:"box-shadow 0.2s, transform 0.15s",
-        }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow="0 6px 20px rgba(201,162,78,0.5)"; e.currentTarget.style.transform="translateY(-1px)"; }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow="0 4px 14px rgba(201,162,78,0.35)"; e.currentTarget.style.transform="none"; }}
-        ><Plus size={16}/> Crear Solicitud</button>
+          fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.35)",
+        }}><Plus size={16}/> Nueva solicitud</button>
       </div>
       <Card>
         <CardHeader title="Mis solicitudes" />
-        {solicitudes.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No tienes solicitudes activas. Crea una con el botón de arriba.</p>
+        {allSolicitudes.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No tienes solicitudes. Crea una con el botón de arriba.</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {solicitudes.map(s => (
-              <SolicitudItem key={s.id} s={s} onDelete={onDelete} onEdit={openEdit} />
-            ))}
+            {allSolicitudes.map(s => <SolicitudItem key={`${s.kind}-${s.id}`} s={s} />)}
           </div>
         )}
       </Card>
@@ -1321,16 +1313,35 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
-function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announcements = [], documents = [], upcomingBirthdays = [], onNewReport }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [solicitudes, setSolicitudes] = useState([]);
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil" }[active];
 
-  const vacationBalance = profile?.vacation_balance ?? 0;
+  const vacationRequests = allRequests.filter(r => r.type === "vacaciones");
+  const allSolicitudes = [
+    ...allRequests.map(r => ({
+      id: r.id, kind: "request",
+      label: r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
+      subtitle: r.start_date
+        ? `${fmtSupaShort(r.start_date)} → ${fmtSupaShort(r.end_date)} · ${r.days_requested ?? 0} días`
+        : (r.comment || ""),
+      status: r.status, created_at: r.created_at,
+    })),
+    ...reports.map(r => ({
+      id: r.id, kind: "report",
+      label: r.category || "Reporte",
+      subtitle: r.description || "",
+      location: r.location,
+      photo_url: r.photo_url,
+      status: r.status, created_at: r.created_at,
+    })),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const vacationBalance = profile?.vacation_balance ?? VAC_TOTAL;
   const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
   const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
   const availableDays = Math.max(0, vacationBalance - approvedDays);
@@ -1350,12 +1361,6 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announce
   const greeting = profile?.full_name
     ? `${timeGreeting}, ${profile.full_name.split(" ")[0]}`
     : timeGreeting;
-
-  const addSolicitud    = useCallback(data => setSolicitudes(prev => [{ ...data, id: Date.now(), status:"en_revision", createdAt: new Date() }, ...prev]), []);
-  const deleteSolicitud = useCallback(id   => setSolicitudes(prev => prev.filter(s => s.id !== id)), []);
-  const updateSolicitud = useCallback((id, data) => setSolicitudes(prev => prev.map(s => s.id === id ? { ...s, ...data } : s)), []);
-
-  const solProps = { solicitudes, onAdd: addSolicitud, onDelete: deleteSolicitud, onUpdate: updateSolicitud };
 
   if (isMobile) {
     return (
@@ -1388,7 +1393,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announce
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1406,7 +1411,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announce
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1494,7 +1499,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={allRequests.filter(r => r.type === "vacaciones")} onNewRequest={r => setAllRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewReport={r => setReports(prev => [r, ...prev])} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} allRequests={allRequests} onNewRequest={r => setAllRequests(prev => [r, ...prev])} reports={reports} onNewReport={r => setReports(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
