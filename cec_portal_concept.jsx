@@ -643,10 +643,10 @@ function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
   )`;
 
   return (
-    <div style={{ width:120, height:120, borderRadius:"50%", background:gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-      <div style={{ width:86, height:86, borderRadius:"50%", background:COLORS.panel, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1 }}>
-        <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:34, fontWeight:700, color:COLORS.green, lineHeight:1 }}>{available}</span>
-        <span style={{ fontSize:9, color:COLORS.textMuted, letterSpacing:"0.04em" }}>disponibles</span>
+    <div style={{ width:160, height:160, borderRadius:"50%", background:gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+      <div style={{ width:116, height:116, borderRadius:"50%", background:COLORS.panel, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}>
+        <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:44, fontWeight:700, color:COLORS.green, lineHeight:1 }}>{available}</span>
+        <span style={{ fontSize:10, color:COLORS.textMuted, letterSpacing:"0.04em" }}>disponibles</span>
       </div>
     </div>
   );
