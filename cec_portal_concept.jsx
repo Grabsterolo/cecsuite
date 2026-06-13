@@ -2935,14 +2935,9 @@ export default function App() {
     if (!profile) return;
     if (profile.role !== "admin" && profile.role !== "rrhh") return;
     supabase.from("requests").select("*, profiles!requests_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        console.log("[admin] requests data:", data, "error:", error);
-        if (data) setAdminRequests(data);
-      });
+      .then(({ data }) => { if (data) setAdminRequests(data); });
     supabase.from("reports").select("*, profiles!reports_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        console.log("[admin] reports data:", data, "error:", error);
-        if (data) setAdminReports(data);
+      .then(({ data }) => { if (data) setAdminReports(data);
       });
     supabase.from("announcements").select("*").order("publish_at", { ascending: false })
       .then(({ data }) => { if (data) setAdminAnnouncements(data); });
