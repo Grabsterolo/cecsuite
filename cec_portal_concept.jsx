@@ -63,7 +63,7 @@ function Logo({ width = 200 }) {
 const inputStyle = {
   width: "100%", background: "#F7F5F0",
   border: "1.5px solid rgba(31,74,64,0.12)", borderRadius: 8,
-  padding: "11px 14px", color: "#1F4A40", fontSize: 16,
+  padding: "12px 14px", color: "#1F4A40", fontSize: 16,
   outline: "none", boxSizing: "border-box",
   fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s", display: "block",
 };
@@ -1058,8 +1058,8 @@ function SolicitudItem({ s }) {
     <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}` }}>
       <div style={{ marginTop:1, flexShrink:0 }}>{icon}</div>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ color:COLORS.text, fontWeight:600, fontSize:13 }}>{s.label}</div>
-        {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5 }}>{s.subtitle}</div>}
+        <div style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word" }}>{s.label}</div>
+        {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>}
         {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
         {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
       </div>
@@ -1139,7 +1139,7 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
                   paddingBottom: 14, borderBottom: `1px solid ${COLORS.border}`,
                 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 500 }}>{a.title}</div>
+                    <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 500, wordBreak:"break-word" }}>{a.title}</div>
                     {a.tag && <Tag label={a.tag} />}
                   </div>
                   <div style={{ fontSize: 12, color: COLORS.textMuted, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", marginLeft: 16 }}>
@@ -1334,7 +1334,7 @@ function DocumentsSection({ documents }) {
 
   const DocRow = ({ doc }) => (
     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-      <span style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:COLORS.text, fontWeight:500 }}>
+      <span style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:COLORS.text, fontWeight:500, wordBreak:"break-word", minWidth:0 }}>
         <FileText size={14} color={COLORS.textMuted} />{doc.title}
       </span>
       {doc.file_url && (
@@ -1398,7 +1398,7 @@ function AnnouncementsSection({ announcements }) {
             <Tag label={a.tag || "Aviso"} />
             <span style={{ fontSize:12, color:COLORS.textMuted }}>{fmtFull(a.publish_at)}</span>
           </div>
-          <h3 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:20, fontWeight:600, color:COLORS.green, margin:"0 0 10px", lineHeight:1.3 }}>{a.title}</h3>
+          <h3 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:20, fontWeight:600, color:COLORS.green, margin:"0 0 10px", lineHeight:1.3, wordBreak:"break-word" }}>{a.title}</h3>
           {a.body && <p style={{ fontSize:14, color:COLORS.text, lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{a.body}</p>}
         </Card>
       ))}
@@ -1486,6 +1486,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
 }
 
 function AltaEmpleadoSection({ departmentsList = [] }) {
+  const isMobile = useIsMobile();
   const [email,         setEmail]         = useState("");
   const [password,      setPassword]      = useState("");
   const [fullName,      setFullName]      = useState("");
@@ -1567,7 +1568,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       <CardHeader title="Nuevo empleado" />
 
       {/* Credenciales */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
         <div>
           {fl("Correo corporativo")}
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@cec.cr" style={inp}
@@ -1588,7 +1589,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       </div>
 
       {/* Datos personales */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
         <div>
           {fl("Nombre completo")}
           <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Nombre Apellido" style={inp}
@@ -1627,7 +1628,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       </div>
 
       {/* Fechas */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
         <div>
           {fl("Fecha de ingreso", true)}
           <input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} style={inp}
@@ -1641,7 +1642,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       </div>
 
       {/* Rol y vacaciones */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap:12, marginBottom:20 }}>
         <div>
           {fl("Rol")}
           <select value={role} onChange={e => setRole(e.target.value)} style={selStyle}>
@@ -1687,6 +1688,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
 }
 
 function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
+  const isMobile = useIsMobile();
   const [fullName,    setFullName]    = useState(emp.full_name ?? "");
   const [position,    setPosition]    = useState(emp.position ?? "");
   const [selectedDepts, setSelectedDepts] = useState(
@@ -1737,8 +1739,8 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
 
   return (
     <ModalShell onClose={onClose} title={`Editar: ${emp.full_name ?? "empleado"}`}>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-        <div style={{ gridColumn:"span 2" }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
+        <div style={{ gridColumn:isMobile ? "1" : "span 2" }}>
           {fl("Nombre completo")}
           <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
@@ -1780,7 +1782,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
         </div>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
         <div>
           {fl("Fecha de ingreso", true)}
           <input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} style={inp}
@@ -1933,14 +1935,14 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
                   {/* Info */}
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:2 }}>
-                      <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:19, fontWeight:600, color:COLORS.green }}>{emp.full_name ?? "—"}</span>
+                      <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:19, fontWeight:600, color:COLORS.green, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%" }}>{emp.full_name ?? "—"}</span>
                       {showRole && (
                         <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:5, padding:"2px 8px" }}>
                           {emp.role === "admin" ? "Admin" : "RRHH"}
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize:12, color:COLORS.textMuted, marginBottom:6 }}>
+                    <div style={{ fontSize:12, color:COLORS.textMuted, marginBottom:6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                       {[emp.position, Array.isArray(emp.departments) ? emp.departments.join(", ") : emp.department].filter(Boolean).join(" · ") || "—"}
                       {emp.hire_date ? <span style={{ marginLeft:8 }}>· Ingreso: {fmtHireDate(emp.hire_date)}</span> : null}
                     </div>
@@ -1983,6 +1985,7 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
 }
 
 function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], onNewDocument, onDeleteDocument }) {
+  const isMobile = useIsMobile();
   const [title,         setTitle]         = useState("");
   const [category,      setCategory]      = useState("");
   const [deptTodos,     setDeptTodos]     = useState(true);
@@ -2063,7 +2066,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
         {fieldLabel("Título")}
         <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Nombre del documento" style={{ ...dateInputStyle, marginBottom:14, display:"block" }}
           onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+        <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
           <div>
             {fieldLabel("Categoría")}
             <input type="text" value={category} onChange={e => setCategory(e.target.value)} placeholder="Ej. Protocolo, Manual" style={dateInputStyle}
@@ -2127,7 +2130,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
                 <div key={doc.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:4 }}>{doc.title}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{doc.title}</div>
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                         {doc.category && <Tag label={doc.category} />}
                         <span style={{ fontSize:11, color:COLORS.textMuted }}>{Array.isArray(doc.departments) ? (doc.departments.length === 0 ? "Todos los departamentos" : doc.departments.join(", ")) : (doc.department || "Todos los departamentos")}</span>
@@ -2175,6 +2178,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
 }
 
 function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = [], onNewAnnouncement }) {
+  const isMobile = useIsMobile();
   const nowLocal = () => {
     const d = new Date();
     d.setSeconds(0, 0);
@@ -2236,7 +2240,7 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
         {fieldLabel("Título")}
         <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título del comunicado" style={{ ...dateInputStyle, marginBottom:14, display:"block" }}
           onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+        <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
           <div>
             {fieldLabel("Etiqueta")}
             <input type="text" value={tag} onChange={e => setTag(e.target.value)} placeholder="Ej. General, Operaciones" style={dateInputStyle}
@@ -2298,7 +2302,7 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
               return (
                 <div key={a.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}`, display:"flex", gap:12, alignItems:"flex-start" }}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4 }}>{a.title}</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{a.title}</div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
                       {a.tag && <Tag label={a.tag} />}
                       <span style={{ fontSize:11, color:COLORS.textMuted }}>
@@ -2385,9 +2389,9 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
               <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>{item.employeeName}</span>
               {item.department && <span style={{ fontSize:11, color:COLORS.textMuted }}>· {item.department}</span>}
             </div>
-            <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:2 }}>{item.label}</div>
-            {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2 }}>{item.subtitle}</div>}
-            {item.comment && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2 }}><span style={{ fontWeight:600 }}>Nota:</span> {item.comment}</div>}
+            <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:2, wordBreak:"break-word" }}>{item.label}</div>
+            {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}>{item.subtitle}</div>}
+            {item.comment && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}><span style={{ fontWeight:600 }}>Nota:</span> {item.comment}</div>}
             {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
             <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
           </div>
