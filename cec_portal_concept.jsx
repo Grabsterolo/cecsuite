@@ -52,6 +52,11 @@ const FONTS = `
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes confettiFall {
+  0%   { opacity: 0.9; transform: translateY(-10px) rotate(0deg); }
+  85%  { opacity: 0.7; }
+  100% { opacity: 0;   transform: translateY(100vh) rotate(540deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
@@ -2523,6 +2528,50 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   );
 }
 
+function isBirthdayToday(birthDate) {
+  if (!birthDate) return false;
+  const today = new Date();
+  const bd = new Date(birthDate + "T12:00:00");
+  return bd.getMonth() === today.getMonth() && bd.getDate() === today.getDate();
+}
+
+const CONFETTI_PARTICLES = [
+  { left: "4%",  delay: 0,    dur: 3.8, color: "#C9A24E", size: 8,  rect: true  },
+  { left: "10%", delay: 0.6,  dur: 4.5, color: "#1F4A40", size: 6,  rect: false },
+  { left: "17%", delay: 1.2,  dur: 3.3, color: "#D4B97A", size: 9,  rect: true  },
+  { left: "24%", delay: 0.3,  dur: 4.8, color: "#C9A24E", size: 7,  rect: false },
+  { left: "31%", delay: 1.8,  dur: 3.6, color: "#1F4A40", size: 8,  rect: true  },
+  { left: "38%", delay: 0.9,  dur: 4.2, color: "#F0EBE0", size: 6,  rect: false },
+  { left: "45%", delay: 2.1,  dur: 3.9, color: "#C9A24E", size: 10, rect: true  },
+  { left: "52%", delay: 0.5,  dur: 4.6, color: "#D4B97A", size: 7,  rect: true  },
+  { left: "59%", delay: 1.5,  dur: 3.3, color: "#1F4A40", size: 8,  rect: false },
+  { left: "66%", delay: 0.8,  dur: 4.9, color: "#C9A24E", size: 6,  rect: true  },
+  { left: "72%", delay: 2.4,  dur: 3.6, color: "#D4B97A", size: 9,  rect: false },
+  { left: "78%", delay: 1.1,  dur: 4.3, color: "#C9A24E", size: 7,  rect: true  },
+  { left: "84%", delay: 0.2,  dur: 3.9, color: "#1F4A40", size: 8,  rect: false },
+  { left: "90%", delay: 1.7,  dur: 4.6, color: "#D4B97A", size: 6,  rect: true  },
+  { left: "96%", delay: 0.7,  dur: 3.3, color: "#C9A24E", size: 10, rect: false },
+  { left: "7%",  delay: 2.8,  dur: 4.1, color: "#D4B97A", size: 7,  rect: true  },
+  { left: "43%", delay: 3.2,  dur: 3.7, color: "#1F4A40", size: 6,  rect: false },
+  { left: "70%", delay: 1.9,  dur: 4.4, color: "#C9A24E", size: 8,  rect: true  },
+];
+
+function BirthdayConfetti() {
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9, overflow: "hidden" }}>
+      {CONFETTI_PARTICLES.map((p, i) => (
+        <div key={i} style={{
+          position: "absolute", top: 0, left: p.left,
+          width: p.size, height: p.rect ? Math.round(p.size * 1.5) : p.size,
+          borderRadius: p.rect ? 2 : "50%",
+          background: p.color,
+          animation: `confettiFall ${p.dur}s ease-in ${p.delay}s infinite`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
 function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -2594,6 +2643,8 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
     : timeGreeting;
   const DAY_NAMES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
   const todayStr = `${DAY_NAMES[now.getDay()]} ${now.getDate()} de ${MONTH_NAMES[now.getMonth()].toLowerCase()} de ${now.getFullYear()}`;
+  const isBirthday = isBirthdayToday(profile?.birth_date);
+  const firstName = profile?.full_name?.split(" ")[0] || "";
   const dailyMessage = getDailyMessage();
 
   if (isMobile) {
@@ -2619,6 +2670,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             <Menu size={22} />
           </button>
         </div>
+        {isBirthday && !noAnim && <BirthdayConfetti />}
         <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
         <div style={{ padding: "24px 16px 48px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
@@ -2627,6 +2679,14 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 6px", color: COLORS.green }}>
             {displayActive === "inicio" ? greeting : sectionTitle}
           </h1>
+          {isBirthday && displayActive === "inicio" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 10px" }}>
+              <Cake size={18} color={COLORS.gold} />
+              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, color: COLORS.gold }}>
+                ¡Feliz cumpleaños, {firstName}!
+              </span>
+            </div>
+          )}
           {displayActive === "inicio" && (
             <p style={{ fontSize: 13, color: COLORS.textMuted, margin: "0 0 20px", lineHeight: 1.55, fontStyle: "italic" }}>
               {dailyMessage}
@@ -2640,6 +2700,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }}>
+      {isBirthday && !noAnim && <BirthdayConfetti />}
       <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={sectionAnim} onAnimationEnd={() => { if (sectionPhase === "in") setSectionPhase(null); }}>
@@ -2650,6 +2711,14 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 600, margin: "0 0 6px", color: COLORS.green }}>
               {displayActive === "inicio" ? greeting : sectionTitle}
             </h1>
+            {isBirthday && displayActive === "inicio" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 10px" }}>
+                <Cake size={20} color={COLORS.gold} />
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 26, fontWeight: 600, color: COLORS.gold }}>
+                  ¡Feliz cumpleaños, {firstName}!
+                </span>
+              </div>
+            )}
             {displayActive === "inicio" && (
               <p style={{ fontSize: 14, color: COLORS.textMuted, margin: 0, lineHeight: 1.6, fontStyle: "italic" }}>
                 {dailyMessage}
