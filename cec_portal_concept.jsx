@@ -24,10 +24,6 @@ const COLORS = {
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 * { -webkit-tap-highlight-color: transparent; }
-@keyframes infinityBreathe {
-  0%, 100% { opacity: 0.05; }
-  50% { opacity: 0.10; }
-}
 @keyframes loginFadeUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -158,9 +154,6 @@ function LoginForm({ onLogin }) {
 
 function LoginScreen({ onLogin }) {
   const isMobile = useIsMobile();
-  const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const motifAnim = noAnim ? {} : { animation: "infinityBreathe 18s ease-in-out infinite" };
-
   if (isMobile) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Manrope', sans-serif", background: "#FFF" }}>
@@ -172,11 +165,8 @@ function LoginScreen({ onLogin }) {
             Portal de Colaboradores
           </div>
         </div>
-        {/* Form area with motif + brand mark */}
+        {/* Form area with brand mark */}
         <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
-          <svg viewBox="0 0 100 100" style={{ position:"absolute", width:"110%", top:"50%", left:"-5%", transform:"translateY(-50%)", stroke:COLORS.gold, fill:"none", strokeWidth:1, opacity:0.06, pointerEvents:"none", ...motifAnim }}>
-            <path d={INFINITY_PATH} strokeLinecap="round"/>
-          </svg>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:24, position:"relative" }}>
             <svg viewBox="10 22 80 56" style={{ width:36, height:20, stroke:COLORS.gold, fill:"none", strokeWidth:3.5, opacity:0.8, flexShrink:0 }}>
               <path d={INFINITY_PATH} strokeLinecap="round"/>
@@ -209,10 +199,6 @@ function LoginScreen({ onLogin }) {
 
       {/* ── Panel derecho — formulario ── */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF", position: "relative", overflow: "hidden" }}>
-        {/* SVG decorativo de fondo */}
-        <svg viewBox="0 0 100 100" style={{ position:"absolute", width:"88%", top:"50%", left:"6%", transform:"translateY(-50%)", stroke:COLORS.gold, fill:"none", strokeWidth:0.7, opacity:0.06, pointerEvents:"none", ...motifAnim }}>
-          <path d={INFINITY_PATH} strokeLinecap="round"/>
-        </svg>
         <div style={{ width: "100%", maxWidth: 360, position: "relative" }}>
           <LoginForm onLogin={onLogin} />
         </div>
