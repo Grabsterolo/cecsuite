@@ -3,7 +3,7 @@ import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
   Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send,
 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
 
 function translateError(msg = "") {
@@ -18,6 +18,7 @@ function translateError(msg = "") {
   if (m.includes("jwt expired") || m.includes("session expired")) return "Tu sesión ha expirado. Vuelve a iniciar sesión.";
   if (m.includes("row-level security") || m.includes("rls") || m.includes("policy")) return "No tienes permisos para realizar esta acción.";
   if (m.includes("duplicate") || m.includes("unique")) return "Ya existe un registro con estos datos.";
+  if (m.includes("overlap") || m.includes("exclusion") || m.includes("conflicting")) return "Ya tienes una solicitud de vacaciones en ese rango de fechas.";
   if (m.includes("not found") || m.includes("no rows")) return "No se encontró el registro solicitado.";
   if (m.includes("storage") || m.includes("upload")) return "Error al subir el archivo. Intenta de nuevo.";
   return msg || "Ocurrió un error inesperado. Intenta de nuevo.";
@@ -1183,7 +1184,7 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
     if (file) {
       setLoadingMsg("Subiendo foto...");
       const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}-${crypto.randomUUID()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from("reports").upload(fileName, file);
       if (uploadError) { setError(translateError(uploadError.message)); setLoadingMsg(null); return; }
       photo_url = fileName;
@@ -1986,7 +1987,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       return;
     }
     setLoading(true);
-    const tempClient = createClient(
+    const tempClient = _createSupabaseClient(
       import.meta.env.VITE_SUPABASE_URL,
       import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       { auth: { persistSession: false, autoRefreshToken: false } }
@@ -2646,7 +2647,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
     setStatus("uploading");
     const { data: { user } } = await supabase.auth.getUser();
     const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${file.name}`;
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
     const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
     if (uploadError) { setError(translateError(uploadError.message)); setStatus(null); return; }
     setStatus("saving");
