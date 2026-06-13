@@ -294,7 +294,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
   return (
     <>
       <div onClick={onClose} style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 90,
+        position: "fixed", top:0, right:0, bottom:0, left:0, background: "rgba(0,0,0,0.5)", zIndex: 90,
         opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none",
         transition: "opacity 0.25s ease",
       }} />
@@ -823,7 +823,7 @@ function CalendarWidget({ startDate, endDate, onChange }) {
 /* ── Modal shell ── */
 function ModalShell({ onClose, title, children }) {
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+    <div style={{ position:"fixed", top:0, right:0, bottom:0, left:0, zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:"#FFF", borderRadius:16, padding:"28px 24px", width:"100%", maxWidth:420, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,0.25)", fontFamily:"'Manrope', sans-serif" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <h2 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:24, fontWeight:600, color:COLORS.green, margin:0 }}>{title}</h2>
@@ -2558,7 +2558,7 @@ const CONFETTI_PARTICLES = [
 
 function BirthdayConfetti() {
   return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9, overflow: "hidden" }}>
+    <div style={{ position: "fixed", top:0, right:0, bottom:0, left:0, pointerEvents: "none", zIndex: 9, overflow: "hidden" }}>
       {CONFETTI_PARTICLES.map((p, i) => (
         <div key={i} style={{
           position: "absolute", top: 0, left: p.left,
