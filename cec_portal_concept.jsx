@@ -635,11 +635,27 @@ function CardHeader({ title, action }) {
 const VAC_TOTAL = 12;
 
 function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
+  const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [pct, setPct] = useState(noAnim ? 1 : 0);
+
+  useEffect(() => {
+    if (noAnim) return;
+    const duration = 900;
+    const start = performance.now();
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setPct(eased);
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }, [noAnim]);
+
   const safeUsed = Math.min(used, total);
   const safeReq  = Math.min(requested, total - safeUsed);
   const available = total - safeUsed - safeReq;
-  const usedDeg = Math.round((safeUsed / total) * 360);
-  const reqDeg  = Math.round((safeReq  / total) * 360);
+  const usedDeg = (safeUsed / total) * 360 * pct;
+  const reqDeg  = (safeReq  / total) * 360 * pct;
 
   const gradient = `conic-gradient(
     ${COLORS.gold}     0deg ${usedDeg}deg,
