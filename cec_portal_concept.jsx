@@ -1572,15 +1572,24 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       {/* Departamentos */}
       <div style={{ marginBottom:14 }}>
         {fl("Departamentos")}
-        <div style={{ display:"flex", flexWrap:"wrap", gap:8, padding:"10px 12px", background:COLORS.inputBg, border:`1.5px solid ${selectedDepts.length>0?COLORS.gold:COLORS.border}`, borderRadius:8 }}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
           {departmentsList.length === 0
             ? <span style={{ fontSize:13, color:COLORS.textMuted }}>No hay departamentos registrados.</span>
-            : departmentsList.map(dept => (
-                <label key={dept.id} style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }}>
-                  <input type="checkbox" checked={selectedDepts.includes(dept.name)} onChange={() => toggleDept(dept.name)} style={{ accentColor:COLORS.gold, width:14, height:14, cursor:"pointer" }}/>
-                  <span style={{ fontSize:13, color:COLORS.text }}>{dept.name}</span>
-                </label>
-              ))
+            : departmentsList.map(dept => {
+                const sel = selectedDepts.includes(dept.name);
+                return (
+                  <button type="button" key={dept.id} onClick={() => toggleDept(dept.name)} style={{
+                    display:"inline-flex", alignItems:"center", padding:"5px 12px", borderRadius:20,
+                    cursor:"pointer", fontSize:12, fontWeight:sel?600:400,
+                    border:`1.5px solid ${sel?COLORS.gold:COLORS.border}`,
+                    background:sel?"rgba(201,162,78,0.12)":COLORS.panel,
+                    color:sel?COLORS.green:COLORS.textMuted,
+                    transition:"all 0.15s", fontFamily:"'Manrope', sans-serif",
+                  }}>
+                    {dept.name}
+                  </button>
+                );
+              })
           }
         </div>
       </div>
@@ -1868,17 +1877,30 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
           </div>
           <div>
             {fieldLabel("Departamento")}
-            <div style={{ padding:"8px 10px", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, display:"flex", flexDirection:"column", gap:6 }}>
-              <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", paddingBottom:5, borderBottom:`1px solid ${COLORS.border}` }}>
-                <input type="checkbox" checked={deptTodos} onChange={e => { setDeptTodos(e.target.checked); if (e.target.checked) setSelectedDepts([]); }} style={{ accentColor:COLORS.gold, width:14, height:14, cursor:"pointer" }}/>
-                <span style={{ fontSize:13, fontWeight:600, color:COLORS.text }}>Todos los departamentos</span>
-              </label>
-              {departmentsList.map(dept => (
-                <label key={dept.id} style={{ display:"flex", alignItems:"center", gap:6, cursor:deptTodos?"not-allowed":"pointer", opacity:deptTodos?0.45:1 }}>
-                  <input type="checkbox" checked={selectedDepts.includes(dept.name)} onChange={() => { setDeptTodos(false); setSelectedDepts(prev => prev.includes(dept.name) ? prev.filter(d => d !== dept.name) : [...prev, dept.name]); }} disabled={deptTodos} style={{ accentColor:COLORS.gold, width:14, height:14, cursor:deptTodos?"not-allowed":"pointer" }}/>
-                  <span style={{ fontSize:13, color:COLORS.text }}>{dept.name}</span>
-                </label>
-              ))}
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {(() => {
+                const chipBase = (sel) => ({
+                  display:"inline-flex", alignItems:"center", padding:"5px 12px", borderRadius:20,
+                  cursor:"pointer", fontSize:12, fontWeight:sel?600:400,
+                  border:`1.5px solid ${sel?COLORS.gold:COLORS.border}`,
+                  background:sel?"rgba(201,162,78,0.12)":COLORS.panel,
+                  color:sel?COLORS.green:COLORS.textMuted,
+                  transition:"all 0.15s", fontFamily:"'Manrope', sans-serif",
+                });
+                return (<>
+                  <button type="button" onClick={() => { setDeptTodos(true); setSelectedDepts([]); }} style={chipBase(deptTodos)}>
+                    Todos los departamentos
+                  </button>
+                  {departmentsList.map(dept => {
+                    const sel = selectedDepts.includes(dept.name);
+                    return (
+                      <button type="button" key={dept.id} onClick={() => { setDeptTodos(false); setSelectedDepts(prev => sel ? prev.filter(d => d !== dept.name) : [...prev, dept.name]); }} style={chipBase(sel)}>
+                        {dept.name}
+                      </button>
+                    );
+                  })}
+                </>);
+              })()}
             </div>
           </div>
         </div>
@@ -2028,17 +2050,30 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
           </div>
           <div>
             {fieldLabel("Audiencia")}
-            <div style={{ padding:"8px 10px", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, display:"flex", flexDirection:"column", gap:6 }}>
-              <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", paddingBottom:5, borderBottom:`1px solid ${COLORS.border}` }}>
-                <input type="checkbox" checked={audienceTodos} onChange={e => { setAudienceTodos(e.target.checked); if (e.target.checked) setAudienceDepts([]); }} style={{ accentColor:COLORS.gold, width:14, height:14, cursor:"pointer" }}/>
-                <span style={{ fontSize:13, fontWeight:600, color:COLORS.text }}>Todos los departamentos</span>
-              </label>
-              {departmentsList.map(dept => (
-                <label key={dept.id} style={{ display:"flex", alignItems:"center", gap:6, cursor:audienceTodos?"not-allowed":"pointer", opacity:audienceTodos?0.45:1 }}>
-                  <input type="checkbox" checked={audienceDepts.includes(dept.name)} onChange={() => { setAudienceTodos(false); setAudienceDepts(prev => prev.includes(dept.name) ? prev.filter(d => d !== dept.name) : [...prev, dept.name]); }} disabled={audienceTodos} style={{ accentColor:COLORS.gold, width:14, height:14, cursor:audienceTodos?"not-allowed":"pointer" }}/>
-                  <span style={{ fontSize:13, color:COLORS.text }}>{dept.name}</span>
-                </label>
-              ))}
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {(() => {
+                const chipBase = (sel) => ({
+                  display:"inline-flex", alignItems:"center", padding:"5px 12px", borderRadius:20,
+                  cursor:"pointer", fontSize:12, fontWeight:sel?600:400,
+                  border:`1.5px solid ${sel?COLORS.gold:COLORS.border}`,
+                  background:sel?"rgba(201,162,78,0.12)":COLORS.panel,
+                  color:sel?COLORS.green:COLORS.textMuted,
+                  transition:"all 0.15s", fontFamily:"'Manrope', sans-serif",
+                });
+                return (<>
+                  <button type="button" onClick={() => { setAudienceTodos(true); setAudienceDepts([]); }} style={chipBase(audienceTodos)}>
+                    Todos los departamentos
+                  </button>
+                  {departmentsList.map(dept => {
+                    const sel = audienceDepts.includes(dept.name);
+                    return (
+                      <button type="button" key={dept.id} onClick={() => { setAudienceTodos(false); setAudienceDepts(prev => sel ? prev.filter(d => d !== dept.name) : [...prev, dept.name]); }} style={chipBase(sel)}>
+                        {dept.name}
+                      </button>
+                    );
+                  })}
+                </>);
+              })()}
             </div>
           </div>
         </div>
