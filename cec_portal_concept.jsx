@@ -165,8 +165,10 @@ function LoginForm({ onLogin }) {
 
   async function handleLogin() {
     setError(null);
+    if (!emailValue.trim()) { setError("Ingresa tu correo corporativo."); return; }
+    if (!passwordValue) { setError("Ingresa tu contraseña."); return; }
     setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: emailValue, password: passwordValue });
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: emailValue.trim(), password: passwordValue });
     setLoading(false);
     if (authError) setError(translateError(authError.message));
   }
