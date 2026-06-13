@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -91,6 +91,38 @@ function useIsMobile() {
     return () => window.removeEventListener("resize", fn);
   }, []);
   return isMobile;
+}
+
+function PasswordInput({ value, onChange, placeholder, disabled, style, onFocus, onBlur, onKeyDown }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position:"relative", display:"flex", alignItems:"center" }}>
+      <input
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        disabled={disabled}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        style={{ ...style, paddingRight:36, width:"100%", boxSizing:"border-box" }}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onMouseDown={e => e.preventDefault()}
+        onClick={() => setShow(s => !s)}
+        style={{
+          position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+          background:"none", border:"none", cursor:"pointer", padding:0,
+          color:COLORS.textMuted, display:"flex", alignItems:"center", lineHeight:1,
+        }}
+      >
+        {show ? <EyeOff size={16}/> : <Eye size={16}/>}
+      </button>
+    </div>
+  );
 }
 
 function Logo({ width = 200 }) {
@@ -197,10 +229,11 @@ function LoginForm({ onLogin }) {
         onBlur={e => e.target.style.borderColor = COLORS.border}
       />
       <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(360) }}>Contraseña</label>
-      <input
-        type="password" placeholder="••••••••" value={passwordValue}
+      <PasswordInput
+        value={passwordValue}
         onChange={e => setPasswordValue(e.target.value)}
         onKeyDown={e => e.key === "Enter" && !loading && handleLogin()}
+        placeholder="••••••••"
         style={{ ...inputStyle, marginBottom: 24, ...anim(400) }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
         onBlur={e => e.target.style.borderColor = COLORS.border}
@@ -1594,8 +1627,7 @@ function ProfileSection({ profile }) {
         <form onSubmit={handleChangePassword} style={{ display:"flex", flexDirection:"column", gap:12 }}>
           <div>
             <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif", marginBottom:5 }}>Contraseña actual</label>
-            <input
-              type="password"
+            <PasswordInput
               value={currentPwd}
               onChange={e => setCurrentPwd(e.target.value)}
               placeholder="••••••••"
@@ -1604,8 +1636,7 @@ function ProfileSection({ profile }) {
           </div>
           <div>
             <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif", marginBottom:5 }}>Nueva contraseña</label>
-            <input
-              type="password"
+            <PasswordInput
               value={newPwd}
               onChange={e => setNewPwd(e.target.value)}
               placeholder="••••••••"
@@ -1614,8 +1645,7 @@ function ProfileSection({ profile }) {
           </div>
           <div>
             <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif", marginBottom:5 }}>Confirmar nueva contraseña</label>
-            <input
-              type="password"
+            <PasswordInput
               value={confirmPwd}
               onChange={e => setConfirmPwd(e.target.value)}
               placeholder="••••••••"
