@@ -2586,55 +2586,52 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
       </Card>
 
       {/* Lista */}
-      <Card>
-        <CardHeader title="Comunicados creados" />
-        {adminAnnouncements.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay comunicados creados.</p>
-        ) : (
-          <div style={{ display:"flex", flexDirection:"column" }}>
-            {adminAnnouncements.map((a, i) => {
-              const isScheduled = a.publish_at && new Date(a.publish_at) > now;
-              const isExpanded = expandedAnnouncements[a.id ?? i];
-              const authorName = a.profiles?.full_name || null;
-              return (
-                <div key={a.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-                  <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{a.title}</div>
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
-                    {a.tag && <Tag label={a.tag} />}
-                    <span style={{ fontSize:11, color:COLORS.textMuted }}>
-                      Audiencia: <strong>{Array.isArray(a.audience_list) ? (a.audience_list.includes("todos") ? "Todos los departamentos" : a.audience_list.join(", ")) : (a.audience === "todos" ? "Todos los departamentos" : (a.audience || "—"))}</strong>
+      {adminAnnouncements.length === 0 ? (
+        <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay comunicados creados.</p></Card>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {adminAnnouncements.map((a, i) => {
+            const isScheduled = a.publish_at && new Date(a.publish_at) > now;
+            const isExpanded = expandedAnnouncements[a.id ?? i];
+            const authorName = a.profiles?.full_name || null;
+            return (
+              <Card key={a.id ?? i}>
+                <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{a.title}</div>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
+                  {a.tag && <Tag label={a.tag} />}
+                  <span style={{ fontSize:11, color:COLORS.textMuted }}>
+                    Audiencia: <strong>{Array.isArray(a.audience_list) ? (a.audience_list.includes("todos") ? "Todos los departamentos" : a.audience_list.join(", ")) : (a.audience === "todos" ? "Todos los departamentos" : (a.audience || "—"))}</strong>
+                  </span>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:11, color:COLORS.textMuted }}>{fmtPublishAt(a.publish_at)}</span>
+                  {isScheduled && (
+                    <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", padding:"2px 7px", borderRadius:4, background:"rgba(100,140,220,0.12)", color:"#5a7ec7" }}>
+                      PROGRAMADO
                     </span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                    <span style={{ fontSize:11, color:COLORS.textMuted }}>{fmtPublishAt(a.publish_at)}</span>
-                    {isScheduled && (
-                      <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", padding:"2px 7px", borderRadius:4, background:"rgba(100,140,220,0.12)", color:"#5a7ec7" }}>
-                        PROGRAMADO
-                      </span>
-                    )}
-                    {authorName && (
-                      <span style={{ fontSize:11, color:COLORS.textMuted }}>· Creado por: <strong>{authorName}</strong></span>
-                    )}
-                  </div>
-                  {isExpanded && a.body && (
-                    <div style={{ marginTop:10, fontSize:13, color:COLORS.text, lineHeight:1.65, whiteSpace:"pre-wrap", wordBreak:"break-word", background:COLORS.panelAlt, borderRadius:7, padding:"10px 12px" }}>
-                      {a.body}
-                    </div>
                   )}
-                  {a.body && (
-                    <button
-                      onClick={() => setExpandedAnnouncements(prev => ({ ...prev, [a.id ?? i]: !prev[a.id ?? i] }))}
-                      style={{ marginTop:8, background:"none", border:"none", color:COLORS.gold, fontSize:12, fontWeight:600, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}
-                    >
-                      {isExpanded ? "Ver menos" : "Ver más"}
-                    </button>
+                  {authorName && (
+                    <span style={{ fontSize:11, color:COLORS.textMuted }}>· Creado por: <strong>{authorName}</strong></span>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+                {isExpanded && a.body && (
+                  <div style={{ marginTop:10, fontSize:13, color:COLORS.text, lineHeight:1.65, whiteSpace:"pre-wrap", wordBreak:"break-word", background:COLORS.panelAlt, borderRadius:7, padding:"10px 12px" }}>
+                    {a.body}
+                  </div>
+                )}
+                {a.body && (
+                  <button
+                    onClick={() => setExpandedAnnouncements(prev => ({ ...prev, [a.id ?? i]: !prev[a.id ?? i] }))}
+                    style={{ marginTop:8, background:"none", border:"none", color:COLORS.gold, fontSize:12, fontWeight:600, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}
+                  >
+                    {isExpanded ? "Ver menos" : "Ver más"}
+                  </button>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
