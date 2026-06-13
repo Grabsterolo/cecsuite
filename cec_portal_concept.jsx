@@ -1516,54 +1516,25 @@ function DocumentsSection({ documents }) {
   if (documents.length === 0) {
     return <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay documentos disponibles.</p></Card>;
   }
-
-  const categories = [...new Set(documents.map(d => d.category).filter(Boolean))];
-  const multiCat = categories.length > 1;
-
-  const DocRow = ({ doc }) => (
-    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-      <span style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:COLORS.text, fontWeight:500, wordBreak:"break-word", minWidth:0 }}>
-        <FileText size={14} color={COLORS.textMuted} />{doc.title}
-      </span>
-      {doc.file_url && (
-        <DocDownloadBtn fileUrl={doc.file_url} />
-      )}
-    </div>
-  );
-
-  if (!multiCat) {
-    return (
-      <Card>
-        <CardHeader title="Documentos" />
-        <div style={{ display:"flex", flexDirection:"column" }}>
-          {documents.map((doc, i) => <DocRow key={doc.id ?? i} doc={doc} />)}
-        </div>
-      </Card>
-    );
-  }
-
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-      {categories.map(cat => {
-        const catDocs = documents.filter(d => d.category === cat);
-        return (
-          <Card key={cat}>
-            <CardHeader title={cat} />
-            <div style={{ display:"flex", flexDirection:"column" }}>
-              {catDocs.map((doc, i) => <DocRow key={doc.id ?? i} doc={doc} />)}
-            </div>
-          </Card>
-        );
-      })}
-      {documents.filter(d => !d.category).length > 0 && (
-        <Card>
-          <CardHeader title="General" />
-          <div style={{ display:"flex", flexDirection:"column" }}>
-            {documents.filter(d => !d.category).map((doc, i) => <DocRow key={doc.id ?? i} doc={doc} />)}
+    <Card>
+      <div style={{ display:"flex", flexDirection:"column" }}>
+        {documents.map((doc, i) => (
+          <div key={doc.id ?? i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+            <span style={{ display:"flex", alignItems:"center", gap:8, minWidth:0, flex:1 }}>
+              <FileText size={14} color={COLORS.textMuted} style={{ flexShrink:0 }} />
+              <span style={{ minWidth:0 }}>
+                <span style={{ fontSize:13, color:COLORS.text, fontWeight:500, wordBreak:"break-word" }}>{doc.title}</span>
+                {doc.category && (
+                  <span style={{ marginLeft:8, fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.1)", borderRadius:4, padding:"1px 6px" }}>{doc.category}</span>
+                )}
+              </span>
+            </span>
+            {doc.file_url && <DocDownloadBtn fileUrl={doc.file_url} />}
           </div>
-        </Card>
-      )}
-    </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
