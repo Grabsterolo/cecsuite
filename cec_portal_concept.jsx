@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, Megaphone,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, Megaphone, FileUp,
 } from "lucide-react";
 import { supabase } from "./src/lib/supabase";
 
@@ -314,6 +314,17 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
               }}>
                 <Megaphone size={19} />Gestionar comunicados
               </button>
+              <button onClick={() => { setActive("documentos-admin"); onClose(); }} style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"12px 14px", borderRadius:10, border:"none",
+                cursor:"pointer", textAlign:"left", fontSize:15, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif",
+                color: active === "documentos-admin" ? "#FFF" : COLORS.sidebarMuted,
+                background: active === "documentos-admin" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition:"background 0.15s, color 0.15s",
+              }}>
+                <FileUp size={19} />Gestionar documentos
+              </button>
             </>
           )}
         </nav>
@@ -431,6 +442,28 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
                   onMouseLeave={e => { if (!isActive2) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
                 >
                   <Megaphone size={16} />Gestionar comunicados
+                </button>
+              );
+            })()}
+            {(() => {
+              const isActive3 = active === "documentos-admin";
+              return (
+                <button
+                  onClick={() => setActive("documentos-admin")}
+                  style={{
+                    display:"flex", alignItems:"center", gap:12,
+                    padding:"10px 14px", borderRadius:8, border:"none",
+                    cursor:"pointer", textAlign:"left",
+                    fontSize:14, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif",
+                    color: isActive3 ? "#FFFFFF" : COLORS.sidebarMuted,
+                    background: isActive3 ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                    transition:"background 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!isActive3) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
+                  onMouseLeave={e => { if (!isActive3) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
+                >
+                  <FileUp size={16} />Gestionar documentos
                 </button>
               );
             })()}
@@ -1359,6 +1392,132 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
+function GestionDocumentosSection({ adminDocuments = [], departments = [], onNewDocument }) {
+  const [title,      setTitle]      = useState("");
+  const [category,   setCategory]   = useState("");
+  const [department, setDepartment] = useState("todos");
+  const [file,       setFile]       = useState(null);
+  const [status,     setStatus]     = useState(null); // null | "uploading" | "saving"
+  const [error,      setError]      = useState(null);
+  const [success,    setSuccess]    = useState(false);
+
+  function handleFile(e) { setFile(e.target.files?.[0] ?? null); }
+
+  async function handleSubmit() {
+    setError(null);
+    setSuccess(false);
+    if (!title.trim() || !category.trim() || !file) {
+      setError("Título, categoría y archivo son obligatorios.");
+      return;
+    }
+    setStatus("uploading");
+    const { data: { user } } = await supabase.auth.getUser();
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
+    if (uploadError) { setError(uploadError.message); setStatus(null); return; }
+    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
+    setStatus("saving");
+    const { data, error: insertError } = await supabase.from("documents").insert({
+      title: title.trim(),
+      category: category.trim(),
+      department: department === "todos" ? null : department,
+      file_url: urlData.publicUrl,
+      uploaded_by: user.id,
+    }).select().single();
+    setStatus(null);
+    if (insertError) { setError(insertError.message); return; }
+    onNewDocument(data);
+    setTitle(""); setCategory(""); setDepartment("todos"); setFile(null);
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 4000);
+  }
+
+  const fieldLabel = (text) => (
+    <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>{text}</label>
+  );
+  const dateInputStyle = { ...inputStyle, fontSize:14, padding:"10px 14px" };
+  const isLoading = !!status;
+
+  function fmtDate(str) {
+    if (!str) return "—";
+    const d = new Date(str);
+    const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      <Card>
+        <CardHeader title="Subir documento" />
+        {fieldLabel("Título")}
+        <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Nombre del documento" style={{ ...dateInputStyle, marginBottom:14, display:"block" }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div>
+            {fieldLabel("Categoría")}
+            <input type="text" value={category} onChange={e => setCategory(e.target.value)} placeholder="Ej. Protocolo, Manual" style={dateInputStyle}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          </div>
+          <div>
+            {fieldLabel("Departamento")}
+            <select value={department} onChange={e => setDepartment(e.target.value)} style={{
+              width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`,
+              borderRadius:8, padding:"11px 14px", color:COLORS.text,
+              fontSize:14, outline:"none", boxSizing:"border-box",
+              fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto",
+            }}>
+              <option value="todos">Todos los departamentos</option>
+              {departments.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+        </div>
+        {fieldLabel("Archivo")}
+        <label style={{ display:"block", marginBottom:16, cursor:"pointer" }}>
+          <div style={{ background:COLORS.inputBg, border:`1.5px dashed ${COLORS.border}`, borderRadius:8, padding:"11px 14px", fontSize:13, color: file ? COLORS.text : COLORS.textMuted, fontFamily:"'Manrope', sans-serif" }}>
+            {file ? file.name : "Seleccionar archivo…"}
+          </div>
+          <input type="file" onChange={handleFile} style={{ display:"none" }} />
+        </label>
+        {error   && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
+        {success && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 12px" }}>✓ Documento subido correctamente.</p>}
+        <button onClick={handleSubmit} disabled={isLoading} style={{
+          ...btnSubmitStyle, width:"100%", opacity: isLoading ? 0.75 : 1, cursor: isLoading ? "not-allowed" : "pointer",
+        }}>
+          {status === "uploading" ? "Subiendo archivo..." : status === "saving" ? "Guardando..." : "Subir documento"}
+        </button>
+      </Card>
+
+      <Card>
+        <CardHeader title="Documentos subidos" />
+        {adminDocuments.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay documentos subidos.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {adminDocuments.map((doc, i) => (
+              <div key={doc.id ?? i} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:4 }}>{doc.title}</div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                    {doc.category && <Tag label={doc.category} />}
+                    <span style={{ fontSize:11, color:COLORS.textMuted }}>{doc.department || "Todos los departamentos"}</span>
+                    <span style={{ fontSize:11, color:COLORS.textMuted }}>· {fmtDate(doc.created_at)}</span>
+                  </div>
+                </div>
+                {doc.file_url && (
+                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:5, color:COLORS.gold, fontSize:12, fontWeight:600, textDecoration:"none", fontFamily:"'Manrope', sans-serif", flexShrink:0 }}>
+                    <Download size={14} />Descargar
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function GestionComunicadosSection({ adminAnnouncements = [], departments = [], onNewAnnouncement }) {
   const nowLocal = () => {
     const d = new Date();
@@ -1620,13 +1779,13 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, departments = [] }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, departments = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados" }[active];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos" }[active];
 
   const pendingApprovalCount = (profile?.role === "admin" || profile?.role === "rrhh")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
@@ -1707,7 +1866,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1725,7 +1884,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1742,13 +1901,14 @@ export default function App() {
   const [adminRequests,      setAdminRequests]      = useState([]);
   const [adminReports,       setAdminReports]        = useState([]);
   const [adminAnnouncements, setAdminAnnouncements]  = useState([]);
+  const [adminDocuments,     setAdminDocuments]      = useState([]);
   const [departments,        setDepartments]         = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setDepartments([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setDepartments([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1820,6 +1980,8 @@ export default function App() {
       });
     supabase.from("announcements").select("*").order("publish_at", { ascending: false })
       .then(({ data }) => { if (data) setAdminAnnouncements(data); });
+    supabase.from("documents").select("*").order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setAdminDocuments(data); });
     supabase.from("profiles").select("department")
       .then(({ data }) => {
         if (!data) return;
@@ -1856,6 +2018,8 @@ export default function App() {
             onUpdateAdminReport={(id, changes)  => setAdminReports(prev  => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
             adminAnnouncements={adminAnnouncements}
             onNewAnnouncement={a => setAdminAnnouncements(prev => [a, ...prev])}
+            adminDocuments={adminDocuments}
+            onNewDocument={d => setAdminDocuments(prev => [d, ...prev])}
             departments={departments}
           />
         : <LoginScreen onLogin={() => {}} />
