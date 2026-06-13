@@ -813,10 +813,10 @@ function CalendarWidget({ startDate, endDate, onChange, minDate }) {
             <button key={day} onClick={() => click(day)} disabled={isPast} style={{
               height:36, border:"none", borderRadius:6, fontSize:13,
               cursor: isPast ? "default" : "pointer",
-              background: ep?COLORS.gold:s==="r"?"rgba(201,162,78,0.18)":"transparent",
-              color: isPast ? COLORS.border : ep?"#FFF":COLORS.text,
+              background: isPast ? "transparent" : ep?COLORS.gold:s==="r"?"rgba(201,162,78,0.18)":"transparent",
+              color: isPast ? "#b0bbb8" : ep?"#FFF":COLORS.text,
               fontWeight: ep?700:400, transition:"background 0.1s",
-              opacity: isPast ? 0.4 : 1,
+              opacity: 1,
             }}>{day}</button>
           );
         })}
