@@ -3526,6 +3526,91 @@ export default function App() {
       .then(({ data }) => { if (data) setDepartmentsList(data); });
   }, [profile]);
 
+  // ── Realtime subscriptions ──
+  useEffect(() => {
+    if (!profile || !session?.user) return;
+
+    const userId    = session.user.id;
+    const isAdmin   = profile.role === "admin" || profile.role === "rrhh";
+    const userDepts = Array.isArray(profile.departments) ? profile.departments : [];
+
+    function audienceMatch(list) {
+      if (!Array.isArray(list)) return false;
+      return list.includes("todos") || userDepts.some(d => list.includes(d));
+    }
+    function deptsMatch(list) {
+      if (!Array.isArray(list)) return false;
+      return list.includes("todos") || userDepts.some(d => list.includes(d));
+    }
+
+    const ch = supabase.channel("portal-realtime-" + userId);
+
+    // ── announcements ──
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "announcements" }, ({ new: row }) => {
+      if (new Date(row.publish_at) > new Date()) return;
+      if (audienceMatch(row.audience_list)) {
+        setAnnouncements(prev => prev.some(a => a.id === row.id) ? prev : [row, ...prev]);
+      }
+      if (isAdmin) {
+        supabase.from("announcements").select("*, profiles!announcements_created_by_fkey(full_name)").eq("id", row.id).single()
+          .then(({ data }) => { if (data) setAdminAnnouncements(prev => prev.some(a => a.id === data.id) ? prev : [data, ...prev]); });
+      }
+    });
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "announcements" }, ({ new: row }) => {
+      setAnnouncements(prev => prev.map(a => a.id === row.id ? { ...a, ...row } : a));
+      if (isAdmin) setAdminAnnouncements(prev => prev.map(a => a.id === row.id ? { ...a, ...row } : a));
+    });
+    ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "announcements" }, ({ old: row }) => {
+      setAnnouncements(prev => prev.filter(a => a.id !== row.id));
+      if (isAdmin) setAdminAnnouncements(prev => prev.filter(a => a.id !== row.id));
+    });
+
+    // ── documents ──
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "documents" }, ({ new: row }) => {
+      if (deptsMatch(row.departments)) {
+        setDocuments(prev => prev.some(d => d.id === row.id) ? prev : [row, ...prev]);
+      }
+      if (isAdmin) setAdminDocuments(prev => prev.some(d => d.id === row.id) ? prev : [row, ...prev]);
+    });
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "documents" }, ({ new: row }) => {
+      setDocuments(prev => prev.map(d => d.id === row.id ? { ...d, ...row } : d));
+      if (isAdmin) setAdminDocuments(prev => prev.map(d => d.id === row.id ? { ...d, ...row } : d));
+    });
+    ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "documents" }, ({ old: row }) => {
+      setDocuments(prev => prev.filter(d => d.id !== row.id));
+      if (isAdmin) setAdminDocuments(prev => prev.filter(d => d.id !== row.id));
+    });
+
+    // ── employee's own requests: status updates ──
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
+      setAllRequests(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
+    });
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "reports", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
+      setReports(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
+    });
+
+    // ── admin: all requests & reports ──
+    if (isAdmin) {
+      ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "requests" }, ({ new: row }) => {
+        supabase.from("requests").select("*, profiles!requests_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").eq("id", row.id).single()
+          .then(({ data }) => { if (data) setAdminRequests(prev => prev.some(r => r.id === data.id) ? prev : [data, ...prev]); });
+      });
+      ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests" }, ({ new: row }) => {
+        setAdminRequests(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
+      });
+      ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "reports" }, ({ new: row }) => {
+        supabase.from("reports").select("*, profiles!reports_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").eq("id", row.id).single()
+          .then(({ data }) => { if (data) setAdminReports(prev => prev.some(r => r.id === data.id) ? prev : [data, ...prev]); });
+      });
+      ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "reports" }, ({ new: row }) => {
+        setAdminReports(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
+      });
+    }
+
+    ch.subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [profile, session]);
+
   if (session === undefined) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.bg, fontFamily: "'Manrope', sans-serif", color: COLORS.textMuted, fontSize: 14 }}>
