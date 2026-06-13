@@ -1545,6 +1545,39 @@ function ProfileSection({ profile }) {
 
 function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, availableDays, existingVacationRequests = [] }) {
   const [modal, setModal] = useState(false);
+  const [filterType,   setFilterType]   = useState("todos");
+  const [filterStatus, setFilterStatus] = useState("todos");
+
+  const typeOpts = [
+    { value:"todos",      label:"Todos"      },
+    { value:"vacaciones", label:"Vacaciones" },
+    { value:"permiso",    label:"Permisos"   },
+    { value:"report",     label:"Reportes"   },
+  ];
+  const statusOpts = [
+    { value:"todos",      label:"Todos"      },
+    { value:"pendiente",  label:"Pendiente"  },
+    { value:"aprobado",   label:"Aprobado"   },
+    { value:"rechazado",  label:"Rechazado"  },
+    { value:"atendido",   label:"Atendido"   },
+    { value:"descartado", label:"Descartado" },
+  ];
+
+  const filtered = allSolicitudes.filter(s => {
+    if (filterType === "vacaciones" && !(s.kind === "request" && s.type === "vacaciones")) return false;
+    if (filterType === "permiso"    && !(s.kind === "request" && s.type !== "vacaciones")) return false;
+    if (filterType === "report"     && s.kind !== "report") return false;
+    if (filterStatus !== "todos"    && s.status !== filterStatus) return false;
+    return true;
+  });
+
+  const chipStyle = active => ({
+    padding:"4px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+    fontFamily:"'Manrope', sans-serif", transition:"all 0.15s",
+    border:`1px solid ${active ? COLORS.gold : COLORS.border}`,
+    background: active ? "rgba(201,162,78,0.13)" : "transparent",
+    color: active ? COLORS.gold : COLORS.textMuted,
+  });
 
   return (
     <div>
@@ -1559,7 +1592,7 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
           existingVacationRequests={existingVacationRequests}
         />
       )}
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:20 }}>
+      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
         <button onClick={() => setModal(true)} style={{
           display:"flex", alignItems:"center", gap:8,
           background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
@@ -1568,13 +1601,33 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
           fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.35)",
         }}><Plus size={16}/> Nueva solicitud</button>
       </div>
+      <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:8, marginBottom:14 }}>
+        <div style={{ display:"flex", gap:5, flexWrap:"wrap", flex:1 }}>
+          {typeOpts.map(opt => (
+            <button key={opt.value} onClick={() => setFilterType(opt.value)} style={chipStyle(filterType === opt.value)}>{opt.label}</button>
+          ))}
+        </div>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          style={{
+            padding:"4px 10px", borderRadius:8, border:`1px solid ${COLORS.border}`,
+            background:COLORS.panelAlt, color:COLORS.text, fontSize:12,
+            fontFamily:"'Manrope', sans-serif", cursor:"pointer", outline:"none",
+          }}
+        >
+          {statusOpts.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        </select>
+      </div>
       <Card>
         <CardHeader title="Mis solicitudes" />
         {allSolicitudes.length === 0 ? (
           <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No tienes solicitudes. Crea una con el botón de arriba.</p>
+        ) : filtered.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes que coincidan con los filtros.</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {allSolicitudes.map(s => <SolicitudItem key={`${s.kind}-${s.id}`} s={s} />)}
+            {filtered.map(s => <SolicitudItem key={`${s.kind}-${s.id}`} s={s} />)}
           </div>
         )}
       </Card>
@@ -2556,8 +2609,11 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
 function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, reviewerName }) {
   const [errors,        setErrors]        = useState({});
   const [loading,       setLoading]       = useState({});
-  const [pendingAction, setPendingAction] = useState({}); // key -> "atendido"|"descartado"|null
-  const [noteText,      setNoteText]      = useState({}); // key -> string
+  const [pendingAction, setPendingAction] = useState({});
+  const [noteText,      setNoteText]      = useState({});
+  const [filterSearch, setFilterSearch]   = useState("");
+  const [filterType,   setFilterType]     = useState("todos");
+  const [filterStatus, setFilterStatus]   = useState("pendiente");
 
   const allItems = [
     ...adminRequests.map(r => ({
@@ -2586,8 +2642,23 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     })),
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  const pendientes = allItems.filter(i => i.status === "pendiente");
-  const resueltos  = allItems.filter(i => i.status !== "pendiente");
+  const filtered = allItems.filter(item => {
+    if (filterType === "vacaciones" && !(item.kind === "request" && item.type === "vacaciones")) return false;
+    if (filterType === "permiso"    && !(item.kind === "request" && item.type !== "vacaciones")) return false;
+    if (filterType === "report"     && item.kind !== "report") return false;
+    if (filterStatus === "pendiente" && item.status !== "pendiente") return false;
+    if (filterStatus === "resuelto"  && item.status === "pendiente") return false;
+    if (filterSearch.trim()) {
+      const q = filterSearch.trim().toLowerCase();
+      if (!(
+        item.employeeName.toLowerCase().includes(q) ||
+        item.label.toLowerCase().includes(q) ||
+        (item.subtitle || "").toLowerCase().includes(q) ||
+        (item.comment  || "").toLowerCase().includes(q)
+      )) return false;
+    }
+    return true;
+  });
 
   async function handleAction(item, newStatus, resolutionNote = null) {
     const key = `${item.kind}-${item.id}`;
@@ -2725,28 +2796,74 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     );
   }
 
-  if (allItems.length === 0) {
-    return <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes registradas.</p></Card>;
-  }
+  const chipStyle = active => ({
+    padding:"4px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+    fontFamily:"'Manrope', sans-serif", transition:"all 0.15s",
+    border:`1px solid ${active ? COLORS.gold : COLORS.border}`,
+    background: active ? "rgba(201,162,78,0.13)" : "transparent",
+    color: active ? COLORS.gold : COLORS.textMuted,
+  });
+
+  const cardTitle = filterStatus === "pendiente"
+    ? `Pendientes (${filtered.length})`
+    : filterStatus === "resuelto"
+    ? `Resueltas (${filtered.length})`
+    : `Todas (${filtered.length})`;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-      {pendientes.length > 0 && (
-        <Card>
-          <CardHeader title={`Pendientes (${pendientes.length})`} />
-          <div style={{ margin:"4px -16px -16px" }}>
-            {pendientes.map(renderItem)}
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        <input
+          type="text"
+          value={filterSearch}
+          onChange={e => setFilterSearch(e.target.value)}
+          placeholder="Buscar por empleado, tipo o descripción..."
+          style={{
+            width:"100%", padding:"8px 12px", borderRadius:8, border:`1px solid ${COLORS.border}`,
+            background:COLORS.panelAlt, color:COLORS.text, fontSize:13,
+            fontFamily:"'Manrope', sans-serif", outline:"none", boxSizing:"border-box",
+          }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold}
+          onBlur={e => e.target.style.borderColor=COLORS.border}
+        />
+        <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:8 }}>
+          <div style={{ display:"flex", gap:5, flexWrap:"wrap", flex:1 }}>
+            {[
+              { value:"todos",      label:"Todos"      },
+              { value:"vacaciones", label:"Vacaciones" },
+              { value:"permiso",    label:"Permisos"   },
+              { value:"report",     label:"Reportes"   },
+            ].map(opt => (
+              <button key={opt.value} onClick={() => setFilterType(opt.value)} style={chipStyle(filterType === opt.value)}>{opt.label}</button>
+            ))}
           </div>
-        </Card>
-      )}
-      {resueltos.length > 0 && (
-        <Card>
-          <CardHeader title="Resueltas" />
-          <div style={{ margin:"4px -16px -16px" }}>
-            {resueltos.map(renderItem)}
-          </div>
-        </Card>
-      )}
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            style={{
+              padding:"4px 10px", borderRadius:8, border:`1px solid ${COLORS.border}`,
+              background:COLORS.panelAlt, color:COLORS.text, fontSize:12,
+              fontFamily:"'Manrope', sans-serif", cursor:"pointer", outline:"none",
+            }}
+          >
+            <option value="pendiente">Pendientes</option>
+            <option value="resuelto">Resueltos</option>
+            <option value="todos">Todos</option>
+          </select>
+        </div>
+      </div>
+      <Card>
+        <CardHeader title={cardTitle} />
+        <div style={{ margin:"4px -16px -16px" }}>
+          {allItems.length === 0 ? (
+            <p style={{ color:COLORS.textMuted, fontSize:14, margin:"0 16px 16px" }}>No hay solicitudes registradas.</p>
+          ) : filtered.length === 0 ? (
+            <p style={{ color:COLORS.textMuted, fontSize:14, margin:"0 16px 16px" }}>No hay solicitudes que coincidan con los filtros.</p>
+          ) : (
+            filtered.map(renderItem)
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
