@@ -1662,18 +1662,67 @@ function DocumentsSection({ documents }) {
 }
 
 function AnnouncementsSection({ announcements }) {
-  const [expanded, setExpanded] = useState({});
+  const [expanded,     setExpanded]     = useState({});
+  const [filterTag,    setFilterTag]    = useState("todos");
+  const [filterSearch, setFilterSearch] = useState("");
+
   function fmtFull(str) {
     if (!str) return "—";
     const d = new Date(str);
     const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
     return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
   }
+
+  const uniqueTags = ["todos", ...Array.from(new Set(announcements.map(a => a.tag).filter(Boolean)))];
+
+  const filtered = announcements.filter(a => {
+    if (filterTag !== "todos" && a.tag !== filterTag) return false;
+    if (filterSearch.trim()) {
+      const q = filterSearch.trim().toLowerCase();
+      if (!(a.title?.toLowerCase().includes(q) || a.body?.toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+
+  const chipStyle = active => ({
+    padding:"4px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+    fontFamily:"'Manrope', sans-serif", transition:"all 0.15s",
+    border:`1px solid ${active ? COLORS.gold : COLORS.border}`,
+    background: active ? "rgba(201,162,78,0.13)" : "transparent",
+    color: active ? COLORS.gold : COLORS.textMuted,
+  });
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        <input
+          type="text"
+          value={filterSearch}
+          onChange={e => setFilterSearch(e.target.value)}
+          placeholder="Buscar comunicados..."
+          style={{
+            width:"100%", padding:"8px 12px", borderRadius:8, border:`1px solid ${COLORS.border}`,
+            background:COLORS.panelAlt, color:COLORS.text, fontSize:13,
+            fontFamily:"'Manrope', sans-serif", outline:"none", boxSizing:"border-box",
+          }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold}
+          onBlur={e => e.target.style.borderColor=COLORS.border}
+        />
+        {uniqueTags.length > 1 && (
+          <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+            {uniqueTags.map(tag => (
+              <button key={tag} onClick={() => setFilterTag(tag)} style={chipStyle(filterTag === tag)}>
+                {tag === "todos" ? "Todos" : tag}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {announcements.length === 0 ? (
         <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay comunicados disponibles.</p></Card>
-      ) : announcements.map((a, i) => {
+      ) : filtered.length === 0 ? (
+        <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay comunicados que coincidan con los filtros.</p></Card>
+      ) : filtered.map((a, i) => {
         const key = a.id ?? i;
         const isExpanded = !!expanded[key];
         return (
