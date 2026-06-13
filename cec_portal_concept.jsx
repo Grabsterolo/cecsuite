@@ -2222,7 +2222,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
     const { data, error: insertError } = await supabase.from("documents").insert({
       title: title.trim(),
       category: category.trim(),
-      departments: deptTodos ? [] : selectedDepts,
+      departments: deptTodos ? ["todos"] : selectedDepts,
       file_url: fileName,
       uploaded_by: user.id,
     }).select().single();
