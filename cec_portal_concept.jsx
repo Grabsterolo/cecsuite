@@ -549,16 +549,34 @@ const btnCancelStyle = { flex:1, background:"transparent", border:`1.5px solid $
 const btnSubmitStyle = { flex:2, background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`, border:"none", borderRadius:8, padding:"11px 16px", color:"#FFF", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.4)" };
 
 /* ── Formulario vacaciones ── */
-function VacationForm({ onClose, onSubmit, editData }) {
+function VacationForm({ onClose, onSubmit, editData, onNewRequest }) {
   const [startDate, setStartDate] = useState(editData?.startDate || null);
   const [endDate,   setEndDate]   = useState(editData?.endDate   || null);
-  const [includeHolidays, setIncludeHolidays] = useState(editData?.includeHolidays || false);
-  const [coverPerson, setCoverPerson] = useState(editData?.coverPerson || "");
+  const [comment,   setComment]   = useState(editData?.comment   || "");
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
   const wd = calcWorkDays(startDate, endDate);
+  const toDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
 
-  function submit() {
+  async function submit() {
+    setError(null);
     if (!startDate) return;
-    onSubmit({ tipo:"vacaciones", startDate, endDate, includeHolidays, coverPerson });
+    if (editData) { onSubmit({ tipo:"vacaciones", startDate, endDate, comment }); return; }
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error: insertError } = await supabase.from("requests").insert({
+      user_id: user?.id,
+      type: "vacaciones",
+      status: "pendiente",
+      start_date: toDate(startDate),
+      end_date: toDate(endDate),
+      days_requested: wd,
+      comment: comment.trim() || null,
+    }).select().single();
+    setLoading(false);
+    if (insertError) { setError(insertError.message); return; }
+    if (onNewRequest) onNewRequest(data);
+    onClose();
   }
 
   return (
@@ -573,18 +591,17 @@ function VacationForm({ onClose, onSubmit, editData }) {
           </>}
         </div>
       )}
-      <label style={{ display:"flex", alignItems:"center", gap:10, marginTop:14, cursor:"pointer", fontSize:13, color:COLORS.text, userSelect:"none" }}>
-        <input type="checkbox" checked={includeHolidays} onChange={e => setIncludeHolidays(e.target.checked)} style={{ width:16, height:16, accentColor:COLORS.gold, cursor:"pointer" }} />
-        Incluir feriados en el período
-      </label>
       <div style={{ marginTop:14 }}>
-        <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>¿Quién cubre tu ausencia?</label>
-        <textarea value={coverPerson} onChange={e => setCoverPerson(e.target.value)} placeholder="Nombre del colaborador o indicación..." rows={2} style={taStyle}
+        <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Comentario <span style={{ fontWeight:400 }}>(opcional)</span></label>
+        <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Información adicional..." rows={2} style={taStyle}
           onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
       </div>
+      {error && <p style={{ fontSize:12, color:"#e07070", margin:"12px 0 0" }}>{error}</p>}
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} style={{ ...btnSubmitStyle, opacity: startDate?1:0.5 }}>{editData ? "Guardar cambios" : "Solicitar"}</button>
+        <button onClick={submit} disabled={loading} style={{ ...btnSubmitStyle, opacity:(startDate&&!loading)?1:0.5, cursor:loading?"not-allowed":"pointer" }}>
+          {loading ? "Enviando..." : editData ? "Guardar cambios" : "Solicitar"}
+        </button>
       </div>
     </ModalShell>
   );
@@ -804,7 +821,7 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRe
     );
   }
 
-  if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
+  if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest}/>;
   if (tipo === "permiso")    return <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest}/>;
   return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewReport={onNewReport}/>;
 }
@@ -1170,44 +1187,11 @@ function AnnouncementsSection({ announcements }) {
 }
 
 function VacationSection({ profile, vacationRequests, onNewRequest }) {
-  const vacationBalance = profile?.vacation_balance ?? 0;
-  const approvedDays = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
-  const pendingDays  = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const vacationBalance = profile?.vacation_balance ?? VAC_TOTAL;
+  const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
   const availableDays = Math.max(0, vacationBalance - approvedDays);
-
-  const [startDate, setStartDate] = useState("");
-  const [endDate,   setEndDate]   = useState("");
-  const [comment,   setComment]   = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState(null);
-  const [success,   setSuccess]   = useState(false);
-
-  const parsedStart = startDate ? new Date(startDate + "T12:00:00") : null;
-  const parsedEnd   = endDate   ? new Date(endDate   + "T12:00:00") : null;
-  const workDays    = calcWorkDays(parsedStart, parsedEnd);
-
-  async function handleSubmit() {
-    setError(null);
-    setSuccess(false);
-    if (!startDate || !endDate) return setError("Debes completar ambas fechas.");
-    if (parsedEnd < parsedStart)  return setError("La fecha de fin debe ser igual o posterior a la de inicio.");
-    setLoading(true);
-    const { data, error: insertError } = await supabase.from("requests").insert({
-      user_id: profile?.id,
-      type: "vacaciones",
-      status: "pendiente",
-      start_date: startDate,
-      end_date: endDate,
-      days_requested: workDays,
-      comment: comment.trim() || null,
-    }).select().single();
-    setLoading(false);
-    if (insertError) return setError(insertError.message);
-    onNewRequest(data);
-    setStartDate(""); setEndDate(""); setComment("");
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 4000);
-  }
+  const [showModal, setShowModal] = useState(false);
 
   const statBox = (label, value, color) => (
     <div style={{ flex:1, textAlign:"center", padding:"16px 8px" }}>
@@ -1216,25 +1200,32 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
     </div>
   );
 
-  const statusStyle = (status) => ({
-    aprobado:  { color:"#2C6356", background:"rgba(44,99,86,0.1)"  },
-    pendiente: { color:COLORS.gold, background:"rgba(201,162,78,0.1)" },
-    rechazado: { color:"#c0392b", background:"rgba(192,57,43,0.1)"  },
-  }[status] ?? { color:COLORS.textMuted, background:COLORS.panelAlt });
-
-  function fmtSupaDate(str) {
-    if (!str) return "—";
-    const d = new Date(str + "T12:00:00");
-    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
-  }
-
-  const dateInputStyle = { ...inputStyle, fontSize:14, padding:"10px 14px" };
-
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      {showModal && (
+        <CrearSolicitudModal
+          onClose={() => setShowModal(false)}
+          onSubmit={() => setShowModal(false)}
+          editData={null}
+          initialTipo="vacaciones"
+          onNewRequest={onNewRequest}
+          onNewReport={() => {}}
+        />
+      )}
+
       {/* Saldo */}
       <Card>
-        <CardHeader title="Saldo de vacaciones" />
+        <CardHeader title="Saldo de vacaciones"
+          action={
+            <button onClick={() => setShowModal(true)} style={{
+              display:"flex", alignItems:"center", gap:6,
+              background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+              border:"none", borderRadius:7, padding:"7px 14px",
+              color:"#FFF", fontSize:13, fontWeight:700, cursor:"pointer",
+              fontFamily:"'Manrope', sans-serif", boxShadow:"0 3px 10px rgba(201,162,78,0.35)",
+            }}><Plus size={14}/> Solicitar</button>
+          }
+        />
         <div style={{ display:"flex", borderTop:`1px solid ${COLORS.border}`, marginTop:4 }}>
           {statBox("Disponibles", availableDays, COLORS.green)}
           <div style={{ width:1, background:COLORS.border, margin:"12px 0" }}/>
@@ -1247,39 +1238,6 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
         </p>
       </Card>
 
-      {/* Formulario */}
-      <Card>
-        <CardHeader title="Solicitar vacaciones" />
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-          <div>
-            <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Fecha de inicio</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={dateInputStyle}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
-          <div>
-            <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Fecha de fin</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={startDate} style={dateInputStyle}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
-        </div>
-        {startDate && endDate && (
-          <p style={{ margin:"0 0 12px", fontSize:13, color:COLORS.green, fontWeight:600 }}>
-            Días solicitados: <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:18 }}>{workDays}</span> hábiles
-          </p>
-        )}
-        <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Comentario</label>
-        <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Opcional" rows={2} style={{ ...taStyle, marginBottom:16 }}
-          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-        {error   && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
-        {success && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 12px" }}>✓ Solicitud enviada correctamente.</p>}
-        <button onClick={handleSubmit} disabled={loading} style={{
-          ...btnSubmitStyle, width:"100%", opacity: loading ? 0.75 : 1,
-          cursor: loading ? "not-allowed" : "pointer",
-        }}>
-          {loading ? "Enviando..." : "Enviar solicitud"}
-        </button>
-      </Card>
-
       {/* Historial */}
       <Card>
         <CardHeader title="Historial de solicitudes" />
@@ -1287,25 +1245,19 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
           <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>Aún no tienes solicitudes registradas.</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
-            {vacationRequests.map((r, i) => {
-              const st = statusStyle(r.status);
-              return (
-                <div key={r.id ?? i} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, color:COLORS.text, fontWeight:500 }}>
-                      {fmtSupaDate(r.start_date)}
-                      {r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""}
-                    </div>
-                    <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>
-                      {r.days_requested ?? "—"} días hábiles
-                    </div>
+            {vacationRequests.map((r, i) => (
+              <div key={r.id ?? i} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, color:COLORS.text, fontWeight:500 }}>
+                    {fmtSupaDate(r.start_date)}{r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""}
                   </div>
-                  <span style={{ fontSize:11, fontWeight:700, borderRadius:5, padding:"3px 9px", letterSpacing:"0.04em", ...st }}>
-                    {r.status ?? "—"}
-                  </span>
+                  <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>
+                    {r.days_requested ?? "—"} días hábiles
+                  </div>
                 </div>
-              );
-            })}
+                <StatusBadge status={r.status} />
+              </div>
+            ))}
           </div>
         )}
       </Card>
