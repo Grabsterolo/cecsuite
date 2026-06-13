@@ -1301,7 +1301,7 @@ function ReportPhoto({ path, size = 44, radius = 6 }) {
 
   useEffect(() => {
     if (!path) return;
-    supabase.storage.from("reports").createSignedUrl(path, 300)
+    supabase.storage.from("reports").createSignedUrl(path, 3600)
       .then(({ data }) => { if (data?.signedUrl) setSrc(data.signedUrl); });
   }, [path]);
 
@@ -1383,7 +1383,7 @@ function DocDownloadBtn({ fileUrl, label, iconOnly = false }) {
   async function open() {
     if (!fileUrl) return;
     setLoading(true);
-    const { data, error } = await supabase.storage.from("documents").createSignedUrl(fileUrl, 60);
+    const { data, error } = await supabase.storage.from("documents").createSignedUrl(fileUrl, 3600);
     setLoading(false);
     if (error || !data?.signedUrl) { alert("No se pudo abrir el documento. Intenta de nuevo."); return; }
     window.open(data.signedUrl, "_blank", "noreferrer");
@@ -3302,7 +3302,7 @@ function SupportChatWidget({ userId }) {
         }
       })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
   }, [userId, open]);
 
   async function handleSend() {
@@ -3415,10 +3415,11 @@ function AdminSupportChatWidget({ adminId }) {
   const [badge,        setBadge]        = useState(0);
   const [deletingId,   setDeletingId]   = useState(null); // userId pending delete confirm
   const [deleteError,  setDeleteError]  = useState(null);
-  const bottomRef   = useRef(null);
-  const viewRef     = useRef("list");
-  const selectedRef = useRef(null);
-  const openRef     = useRef(false);
+  const bottomRef        = useRef(null);
+  const viewRef          = useRef("list");
+  const selectedRef      = useRef(null);
+  const openRef          = useRef(false);
+  const pendingFetchsRef = useRef(new Set());
   useEffect(() => { viewRef.current     = view; },         [view]);
   useEffect(() => { selectedRef.current = selectedConv; }, [selectedConv]);
   useEffect(() => { openRef.current     = open; },         [open]);
@@ -3543,17 +3544,25 @@ function AdminSupportChatWidget({ adminId }) {
               ? { ...c, lastMessage: row.message, lastTime: row.created_at, hasUnread: inThisChat ? false : true }
               : c);
           } else {
-            // New conversation — fetch name async, placeholder for now
-            supabase.from("profiles").select("full_name").eq("id", row.user_id).single()
-              .then(({ data }) => {
-                setConversations(p => p ? [...(p.filter(c => c.userId !== row.user_id)), {
-                  userId: row.user_id, full_name: data?.full_name || "Empleado",
-                  lastMessage: row.message, lastTime: row.created_at, hasUnread: !inThisChat,
-                }].sort((a, b) => {
-                  if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
-                  return new Date(b.lastTime) - new Date(a.lastTime);
-                }) : p);
-              });
+            // New conversation — fetch name once per user_id (guard against rapid duplicates)
+            if (!pendingFetchsRef.current.has(row.user_id)) {
+              pendingFetchsRef.current.add(row.user_id);
+              supabase.from("profiles").select("full_name").eq("id", row.user_id).single()
+                .then(({ data }) => {
+                  pendingFetchsRef.current.delete(row.user_id);
+                  setConversations(p => {
+                    if (!p) return p;
+                    if (p.some(c => c.userId === row.user_id)) return p;
+                    return [...p, {
+                      userId: row.user_id, full_name: data?.full_name || "Empleado",
+                      lastMessage: row.message, lastTime: row.created_at, hasUnread: !inThisChat,
+                    }].sort((a, b) => {
+                      if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
+                      return new Date(b.lastTime) - new Date(a.lastTime);
+                    });
+                  });
+                });
+            }
             return prev;
           }
           return next.sort((a, b) => {
@@ -3563,7 +3572,7 @@ function AdminSupportChatWidget({ adminId }) {
         });
       })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
   }, [adminId]);
 
   const panelStyle = {
@@ -4138,7 +4147,7 @@ export default function App() {
     }
 
     ch.subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
   }, [profile, session]);
 
   if (session === undefined) {
