@@ -1224,6 +1224,11 @@ function SolicitudItem({ s }) {
         {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>}
         {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
         {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
+        {s.reviewerName && s.status !== "pendiente" && (
+          <div style={{ fontSize:11, marginTop:3, color: s.status === "aprobado" ? COLORS.green : "#c0392b", fontWeight:500 }}>
+            {s.status === "aprobado" ? "Aprobado" : "Rechazado"} por {s.reviewerName}
+          </div>
+        )}
       </div>
       {s.photo_url && (
         <img src={s.photo_url} alt="foto" style={{ width:44, height:44, borderRadius:6, objectFit:"cover", flexShrink:0, border:`1px solid ${COLORS.border}` }} />
@@ -1640,6 +1645,11 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
                   <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>
                     {r.days_requested ?? "—"} días hábiles
                   </div>
+                  {r.reviewer?.full_name && r.status !== "pendiente" && (
+                    <div style={{ fontSize:11, marginTop:3, color: r.status === "aprobado" ? COLORS.green : "#c0392b", fontWeight:500 }}>
+                      {r.status === "aprobado" ? "Aprobado" : "Rechazado"} por {r.reviewer.full_name}
+                    </div>
+                  )}
                 </div>
                 <StatusBadge status={r.status} />
               </div>
@@ -2705,6 +2715,8 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
         ? `${fmtSupaShort(r.start_date)} → ${fmtSupaShort(r.end_date)} · ${r.days_requested ?? 0} días`
         : (r.comment || ""),
       status: r.status, created_at: r.created_at,
+      reviewerName: r.reviewer?.full_name || null,
+      reviewed_at: r.reviewed_at || null,
     })),
     ...reports.map(r => ({
       id: r.id, kind: "report",
@@ -2870,7 +2882,7 @@ export default function App() {
       .then(({ data }) => { if (data) setProfile(data); });
     supabase
       .from("requests")
-      .select("*")
+      .select("*, reviewer:profiles!reviewed_by(full_name)")
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setAllRequests(data); });
