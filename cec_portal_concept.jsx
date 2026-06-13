@@ -1654,17 +1654,157 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
   );
 }
 
-function EmpleadosSection({ adminProfiles = [], adminRequests = [] }) {
-  const [search,     setSearch]     = useState("");
-  const [filterDept, setFilterDept] = useState("todos");
+function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
+  const [fullName,    setFullName]    = useState(emp.full_name ?? "");
+  const [position,    setPosition]    = useState(emp.position ?? "");
+  const [selectedDepts, setSelectedDepts] = useState(
+    Array.isArray(emp.departments) ? emp.departments : (emp.department ? [emp.department] : [])
+  );
+  const [hireDate,    setHireDate]    = useState(emp.hire_date ?? "");
+  const [birthDate,   setBirthDate]   = useState(emp.birth_date ?? "");
+  const [role,        setRole]        = useState(emp.role ?? "empleado");
+  const [vacBalance,  setVacBalance]  = useState(emp.vacation_balance !== undefined && emp.vacation_balance !== null ? String(emp.vacation_balance) : "");
+  const [vacPerYear,  setVacPerYear]  = useState(emp.vacation_days_per_year !== undefined && emp.vacation_days_per_year !== null ? String(emp.vacation_days_per_year) : "12");
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
 
-  const departments = [...new Set(adminProfiles.map(p => p.department).filter(Boolean))].sort();
+  function toggleDept(name) {
+    setSelectedDepts(prev => prev.includes(name) ? prev.filter(d => d !== name) : [...prev, name]);
+  }
+
+  async function handleSave() {
+    setError(null);
+    if (!fullName.trim() || selectedDepts.length === 0) {
+      setError("Nombre completo y al menos un departamento son obligatorios.");
+      return;
+    }
+    setLoading(true);
+    const updates = {
+      full_name:              fullName.trim(),
+      position:               position.trim() || null,
+      departments:            selectedDepts,
+      hire_date:              hireDate  || null,
+      birth_date:             birthDate || null,
+      role,
+      vacation_balance:       vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
+      vacation_days_per_year: vacPerYear  !== "" ? Number(vacPerYear)  : VAC_TOTAL,
+    };
+    const { error: updateError } = await supabase.from("profiles").update(updates).eq("id", emp.id);
+    setLoading(false);
+    if (updateError) { setError(updateError.message); return; }
+    onSave({ ...emp, ...updates });
+  }
+
+  const fl = (text, optional) => (
+    <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>
+      {text}{optional && <span style={{ fontWeight:400 }}> (opcional)</span>}
+    </label>
+  );
+  const inp = { ...inputStyle, fontSize:14, padding:"10px 14px" };
+  const selStyle = { width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"11px 14px", color:COLORS.text, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto" };
+
+  return (
+    <ModalShell onClose={onClose} title={`Editar: ${emp.full_name ?? "empleado"}`}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+        <div style={{ gridColumn:"span 2" }}>
+          {fl("Nombre completo")}
+          <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Puesto", true)}
+          <input type="text" value={position} onChange={e => setPosition(e.target.value)} placeholder="Ej. Enfermera" style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Rol")}
+          <select value={role} onChange={e => setRole(e.target.value)} style={selStyle}>
+            <option value="empleado">Empleado</option>
+            <option value="rrhh">RRHH</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{ marginBottom:14 }}>
+        {fl("Departamentos")}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+          {departmentsList.length === 0
+            ? <span style={{ fontSize:13, color:COLORS.textMuted }}>No hay departamentos registrados.</span>
+            : departmentsList.map(dept => {
+                const sel = selectedDepts.includes(dept.name);
+                return (
+                  <button type="button" key={dept.id} onClick={() => toggleDept(dept.name)} style={{
+                    display:"inline-flex", alignItems:"center", padding:"5px 12px", borderRadius:20,
+                    cursor:"pointer", fontSize:12, fontWeight:sel?600:400,
+                    border:`1.5px solid ${sel?COLORS.gold:COLORS.border}`,
+                    background:sel?"rgba(201,162,78,0.12)":COLORS.panel,
+                    color:sel?COLORS.green:COLORS.textMuted,
+                    transition:"all 0.15s", fontFamily:"'Manrope', sans-serif",
+                  }}>{dept.name}</button>
+                );
+              })
+          }
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+        <div>
+          {fl("Fecha de ingreso", true)}
+          <input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Fecha de nacimiento", true)}
+          <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Saldo vacaciones", true)}
+          <input type="number" min="0" value={vacBalance} onChange={e => setVacBalance(e.target.value)} placeholder={String(VAC_TOTAL)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Días por año", true)}
+          <input type="number" min="0" value={vacPerYear} onChange={e => setVacPerYear(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+      </div>
+
+      {error && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
+      <div style={{ display:"flex", gap:10 }}>
+        <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
+        <button onClick={handleSave} disabled={loading} style={{ ...btnSubmitStyle, opacity:loading?0.75:1, cursor:loading?"not-allowed":"pointer" }}>
+          {loading ? "Guardando..." : "Guardar cambios"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsList = [], onUpdateProfile }) {
+  const [search,      setSearch]      = useState("");
+  const [filterDept,  setFilterDept]  = useState("todos");
+  const [editingEmp,  setEditingEmp]  = useState(null);
+  const [savedEmpId,  setSavedEmpId]  = useState(null);
+
+  const departments = [...new Set(adminProfiles.flatMap(p =>
+    Array.isArray(p.departments) ? p.departments : (p.department ? [p.department] : [])
+  ).filter(Boolean))].sort();
 
   const filtered = adminProfiles.filter(p => {
     const matchSearch = !search || (p.full_name ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchDept   = filterDept === "todos" || p.department === filterDept;
+    const empDepts = Array.isArray(p.departments) ? p.departments : (p.department ? [p.department] : []);
+    const matchDept   = filterDept === "todos" || empDepts.includes(filterDept);
     return matchSearch && matchDept;
   });
+
+  function handleSaved(updatedEmp) {
+    onUpdateProfile(updatedEmp);
+    setEditingEmp(null);
+    setSavedEmpId(updatedEmp.id);
+    setTimeout(() => setSavedEmpId(null), 3000);
+  }
 
   function getVacStats(userId) {
     const reqs = adminRequests.filter(r => r.user_id === userId && r.type === "vacaciones");
@@ -1684,6 +1824,14 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [] }) {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      {editingEmp && (
+        <EditEmployeeModal
+          emp={editingEmp}
+          departmentsList={departmentsList}
+          onClose={() => setEditingEmp(null)}
+          onSave={handleSaved}
+        />
+      )}
       {/* Resumen rápido */}
       <Card>
         <div style={{ display:"flex", gap:0 }}>
@@ -1737,6 +1885,9 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [] }) {
             const showRole  = emp.role === "admin" || emp.role === "rrhh";
             return (
               <Card key={emp.id}>
+                {savedEmpId === emp.id && (
+                  <div style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, marginBottom:10 }}>✓ Cambios guardados correctamente.</div>
+                )}
                 <div style={{ display:"flex", alignItems:"flex-start", gap:14, flexWrap:"wrap" }}>
                   {/* Avatar iniciales */}
                   <div style={{
@@ -1758,7 +1909,7 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [] }) {
                       )}
                     </div>
                     <div style={{ fontSize:12, color:COLORS.textMuted, marginBottom:6 }}>
-                      {[emp.position, emp.department].filter(Boolean).join(" · ") || "—"}
+                      {[emp.position, Array.isArray(emp.departments) ? emp.departments.join(", ") : emp.department].filter(Boolean).join(" · ") || "—"}
                       {emp.hire_date ? <span style={{ marginLeft:8 }}>· Ingreso: {fmtHireDate(emp.hire_date)}</span> : null}
                     </div>
                     {/* Barra de vacaciones */}
@@ -1778,6 +1929,17 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [] }) {
                       </div>
                     </div>
                   </div>
+                  <button onClick={() => setEditingEmp(emp)} title="Editar empleado" style={{
+                    border:`1.5px solid ${COLORS.border}`, background:COLORS.inputBg,
+                    color:COLORS.textMuted, cursor:"pointer", borderRadius:8,
+                    width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center",
+                    flexShrink:0, transition:"all 0.15s",
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor=COLORS.gold; e.currentTarget.style.color=COLORS.gold; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor=COLORS.border; e.currentTarget.style.color=COLORS.textMuted; }}
+                  >
+                    <Edit2 size={14}/>
+                  </button>
                 </div>
               </Card>
             );
@@ -2259,7 +2421,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [] }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -2346,7 +2508,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} /> : active === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : active === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -2364,7 +2526,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} /> : active === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : active === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -2516,6 +2678,7 @@ export default function App() {
             adminProfiles={adminProfiles}
             departments={departments}
             departmentsList={departmentsList}
+            onUpdateAdminProfile={updatedEmp => setAdminProfiles(prev => prev.map(p => p.id === updatedEmp.id ? updatedEmp : p))}
           />
         : <LoginScreen onLogin={() => {}} />
       }
