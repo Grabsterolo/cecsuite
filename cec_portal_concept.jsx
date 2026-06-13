@@ -845,7 +845,7 @@ const btnCancelStyle = { flex:1, background:"transparent", border:`1.5px solid $
 const btnSubmitStyle = { flex:2, background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`, border:"none", borderRadius:8, padding:"11px 16px", color:"#FFF", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.4)" };
 
 /* ── Formulario vacaciones ── */
-function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays }) {
+function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays, existingRequests = [] }) {
   const [startDate, setStartDate] = useState(editData?.startDate || null);
   const [endDate,   setEndDate]   = useState(editData?.endDate   || null);
   const [comment,   setComment]   = useState(editData?.comment   || "");
@@ -857,11 +857,22 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
   const today = new Date(); today.setHours(0,0,0,0);
   const isPastStart = startDate && startDate < today;
   const exceedsBalance = availableDays != null && endDate && wd > availableDays;
+  const rangeEnd = endDate || startDate;
+  const overlapping = startDate && rangeEnd
+    ? existingRequests.filter(r => {
+        if (r.status !== "pendiente" && r.status !== "aprobado") return false;
+        if (editData && r.id === editData.id) return false;
+        const rs = new Date(r.start_date + "T12:00:00");
+        const re = r.end_date ? new Date(r.end_date + "T12:00:00") : rs;
+        return startDate <= re && rangeEnd >= rs;
+      })
+    : [];
 
   async function submit() {
     setError(null);
     if (!startDate) return;
     if (isPastStart) return;
+    if (overlapping.length > 0) return;
     if (editData) { onSubmit({ tipo:"vacaciones", startDate, endDate, comment }); return; }
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -902,6 +913,12 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
           No se pueden solicitar fechas en el pasado.
         </div>
       )}
+      {overlapping.length > 0 && (
+        <div style={{ marginTop:8, fontSize:12, color:"#c0392b" }}>
+          Ya tienes una solicitud de vacaciones que se solapa con estas fechas
+          {" "}(del {overlapping[0].start_date} al {overlapping[0].end_date || overlapping[0].start_date}).
+        </div>
+      )}
       <div style={{ marginTop:14 }}>
         <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Comentario <span style={{ fontWeight:400 }}>(opcional)</span></label>
         <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Información adicional..." rows={2} style={taStyle}
@@ -910,7 +927,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
       {error && <p style={{ fontSize:12, color:"#e07070", margin:"12px 0 0" }}>{error}</p>}
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} disabled={loading || !!exceedsBalance || !!isPastStart} style={{ ...btnSubmitStyle, opacity:(startDate&&!loading&&!exceedsBalance&&!isPastStart)?1:0.5, cursor:(loading||exceedsBalance||isPastStart)?"not-allowed":"pointer" }}>
+        <button onClick={submit} disabled={loading || !!exceedsBalance || !!isPastStart || overlapping.length > 0} style={{ ...btnSubmitStyle, opacity:(startDate&&!loading&&!exceedsBalance&&!isPastStart&&overlapping.length===0)?1:0.5, cursor:(loading||exceedsBalance||isPastStart||overlapping.length>0)?"not-allowed":"pointer" }}>
           {loading ? "Enviando..." : editData ? "Guardar cambios" : "Solicitar"}
         </button>
       </div>
@@ -1102,7 +1119,7 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
 }
 
 /* ── Modal selector de tipo + routing ── */
-function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRequest, onNewReport, availableDays }) {
+function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRequest, onNewReport, availableDays, existingVacationRequests }) {
   const [tipo, setTipo] = useState(editData?.tipo || initialTipo || null);
 
   function handleSubmit(data) { onSubmit(data); onClose(); }
@@ -1140,7 +1157,7 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRe
     );
   }
 
-  if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest} availableDays={availableDays}/>;
+  if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest} availableDays={availableDays} existingRequests={existingVacationRequests}/>;
   if (tipo === "permiso")    return <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest}/>;
   return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewReport={onNewReport}/>;
 }
@@ -1177,14 +1194,14 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport }) {
+function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [] }) {
   const [modal, setModal] = useState(null); // null | "new-sol"
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
 
   return (
     <>
       {modal === "new-sol" && (
-        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={() => setModal(null)} editData={null} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} />
+        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={() => setModal(null)} editData={null} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={existingVacationRequests} />
       )}
     <div style={isMobile
       ? { display: "flex", flexDirection: "column", gap: 14 }
@@ -1386,7 +1403,7 @@ function ProfileSection({ profile }) {
   );
 }
 
-function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, availableDays }) {
+function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, availableDays, existingVacationRequests = [] }) {
   const [modal, setModal] = useState(false);
 
   return (
@@ -1399,6 +1416,7 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
           onNewRequest={onNewRequest}
           onNewReport={onNewReport}
           availableDays={availableDays}
+          existingVacationRequests={existingVacationRequests}
         />
       )}
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:20 }}>
@@ -1531,6 +1549,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
           onNewRequest={onNewRequest}
           onNewReport={() => {}}
           availableDays={availableDays}
+          existingVacationRequests={vacationRequests}
         />
       )}
 
@@ -2723,7 +2742,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -2756,7 +2775,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     </div>
