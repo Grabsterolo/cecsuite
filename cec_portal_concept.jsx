@@ -1100,8 +1100,7 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from("reports").upload(fileName, file);
       if (uploadError) { setError(translateError(uploadError.message)); setLoadingMsg(null); return; }
-      const { data: urlData } = supabase.storage.from("reports").getPublicUrl(fileName);
-      photo_url = urlData.publicUrl;
+      photo_url = fileName;
       setLoadingMsg("Enviando...");
     }
 
@@ -1208,6 +1207,54 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRe
   return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewReport={onNewReport}/>;
 }
 
+/* ── Private report photo with signed URL + lightbox ── */
+function ReportPhoto({ path, size = 44, radius = 6 }) {
+  const [src, setSrc] = useState(null);
+  const [lightbox, setLightbox] = useState(false);
+
+  useEffect(() => {
+    if (!path) return;
+    supabase.storage.from("reports").createSignedUrl(path, 300)
+      .then(({ data }) => { if (data?.signedUrl) setSrc(data.signedUrl); });
+  }, [path]);
+
+  if (!path) return null;
+
+  return (
+    <>
+      <div onClick={() => src && setLightbox(true)} style={{
+        width: size, height: size, borderRadius: radius, flexShrink: 0,
+        border: `1px solid ${COLORS.border}`, overflow: "hidden",
+        background: COLORS.panelAlt, cursor: src ? "zoom-in" : "default",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {src
+          ? <img src={src} alt="foto" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          : <FileText size={size * 0.4} color={COLORS.border} />
+        }
+      </div>
+      {lightbox && (
+        <div onClick={() => setLightbox(false)} style={{
+          position: "fixed", inset: 0, zIndex: 9000,
+          background: "rgba(0,0,0,0.82)", display: "flex",
+          alignItems: "center", justifyContent: "center", padding: 16,
+        }}>
+          <button onClick={() => setLightbox(false)} style={{
+            position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.12)",
+            border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer",
+            color: "#FFF", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>✕</button>
+          <img
+            src={src} alt="foto"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: "100%", maxHeight: "90vh", borderRadius: 10, objectFit: "contain", boxShadow: "0 8px 40px rgba(0,0,0,0.6)" }}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ── Item individual de solicitud ── */
 function SolicitudItem({ s }) {
   const isReport = s.kind === "report";
@@ -1230,9 +1277,7 @@ function SolicitudItem({ s }) {
           </div>
         )}
       </div>
-      {s.photo_url && (
-        <img src={s.photo_url} alt="foto" style={{ width:44, height:44, borderRadius:6, objectFit:"cover", flexShrink:0, border:`1px solid ${COLORS.border}` }} />
-      )}
+      {s.photo_url && <ReportPhoto path={s.photo_url} size={44} radius={6} />}
       <div style={{ flexShrink:0, marginTop:1 }}><StatusBadge status={s.status} /></div>
     </div>
   );
@@ -2558,9 +2603,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
             )}
           </div>
           <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8, flexShrink:0 }}>
-            {item.photo_url && (
-              <img src={item.photo_url} alt="foto" style={{ width:48, height:48, borderRadius:7, objectFit:"cover", border:`1px solid ${COLORS.border}` }} />
-            )}
+            {item.photo_url && <ReportPhoto path={item.photo_url} size={48} radius={7} />}
             <StatusBadge status={item.status} />
           </div>
         </div>
