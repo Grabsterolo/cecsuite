@@ -1282,20 +1282,12 @@ function ReportPhoto({ path, size = 44, radius = 6 }) {
 
 /* ── Item individual de solicitud ── */
 function SolicitudItem({ s }) {
-  const isReport = s.kind === "report";
-  const icon = isReport
-    ? <AlertTriangle size={15} color={s.status === "pendiente" ? COLORS.gold : s.status === "atendido" ? COLORS.greenSoft : COLORS.textMuted} />
-    : s.status === "aprobado" ? <CheckCircle2 size={15} color={COLORS.greenSoft} />
-    : <Clock size={15} color={s.status === "pendiente" ? COLORS.gold : COLORS.textMuted} />;
   const dateStr = s.created_at ? fmtSupaDate(s.created_at.slice(0,10)) : "";
   return (
     <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}` }}>
-      <div style={{ marginTop:1, flexShrink:0 }}>{icon}</div>
+      <div style={{ marginTop:2, flexShrink:0 }}><SolicitudIcon kind={s.kind} type={s.type} size={16} /></div>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:1 }}>
-          <SolicitudIcon kind={s.kind} type={s.type} size={14} />
-          <span style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word" }}>{s.label}</span>
-        </div>
+        <div style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word", marginBottom:1 }}>{s.label}</div>
         {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>}
         {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
         {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
