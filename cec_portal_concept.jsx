@@ -2608,7 +2608,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             {todayStr}
           </div>
-          <div style={sectionAnim}>
+          <div style={sectionAnim} onAnimationEnd={() => { if (sectionPhase === "in") setSectionPhase(null); }}>
             <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 6px", color: COLORS.green }}>
               {displayActive === "inicio" ? greeting : sectionTitle}
             </h1>
@@ -2628,7 +2628,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }}>
       <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
-        <div style={sectionAnim}>
+        <div style={sectionAnim} onAnimationEnd={() => { if (sectionPhase === "in") setSectionPhase(null); }}>
           <div style={{ marginBottom: 32 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
               {todayStr}
