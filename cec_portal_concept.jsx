@@ -1392,7 +1392,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
-function GestionDocumentosSection({ adminDocuments = [], departments = [], onNewDocument }) {
+function GestionDocumentosSection({ adminDocuments = [], departments = [], onNewDocument, onDeleteDocument }) {
   const [title,      setTitle]      = useState("");
   const [category,   setCategory]   = useState("");
   const [department, setDepartment] = useState("todos");
@@ -1400,6 +1400,25 @@ function GestionDocumentosSection({ adminDocuments = [], departments = [], onNew
   const [status,     setStatus]     = useState(null); // null | "uploading" | "saving"
   const [error,      setError]      = useState(null);
   const [success,    setSuccess]    = useState(false);
+  const [deleting,   setDeleting]   = useState({}); // { [id]: true }
+  const [confirmDel, setConfirmDel] = useState(null); // id pending confirmation
+
+  async function handleDelete(doc) {
+    setDeleting(prev => ({ ...prev, [doc.id]: true }));
+    // Best-effort: remove file from storage using path extracted from URL
+    if (doc.file_url) {
+      try {
+        const url = new URL(doc.file_url);
+        const parts = url.pathname.split("/documents/");
+        if (parts[1]) await supabase.storage.from("documents").remove([decodeURIComponent(parts[1])]);
+      } catch (_) {}
+    }
+    const { error: delError } = await supabase.from("documents").delete().eq("id", doc.id);
+    setDeleting(prev => ({ ...prev, [doc.id]: false }));
+    if (delError) { setError(delError.message); return; }
+    onDeleteDocument(doc.id);
+    setConfirmDel(null);
+  }
 
   function handleFile(e) { setFile(e.target.files?.[0] ?? null); }
 
@@ -1494,23 +1513,53 @@ function GestionDocumentosSection({ adminDocuments = [], departments = [], onNew
           <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay documentos subidos.</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column" }}>
-            {adminDocuments.map((doc, i) => (
-              <div key={doc.id ?? i} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:4 }}>{doc.title}</div>
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                    {doc.category && <Tag label={doc.category} />}
-                    <span style={{ fontSize:11, color:COLORS.textMuted }}>{doc.department || "Todos los departamentos"}</span>
-                    <span style={{ fontSize:11, color:COLORS.textMuted }}>· {fmtDate(doc.created_at)}</span>
+            {adminDocuments.map((doc, i) => {
+              const isConfirming = confirmDel === doc.id;
+              const isDeleting   = !!deleting[doc.id];
+              return (
+                <div key={doc.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:4 }}>{doc.title}</div>
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                        {doc.category && <Tag label={doc.category} />}
+                        <span style={{ fontSize:11, color:COLORS.textMuted }}>{doc.department || "Todos los departamentos"}</span>
+                        <span style={{ fontSize:11, color:COLORS.textMuted }}>· {fmtDate(doc.created_at)}</span>
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                      {doc.file_url && (
+                        <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:5, color:COLORS.gold, fontSize:12, fontWeight:600, textDecoration:"none", fontFamily:"'Manrope', sans-serif" }}>
+                          <Download size={14} />Descargar
+                        </a>
+                      )}
+                      <button onClick={() => setConfirmDel(isConfirming ? null : doc.id)} disabled={isDeleting} title="Eliminar" style={{
+                        border:"none", background:"rgba(192,57,43,0.08)", color:"#c0392b",
+                        cursor:"pointer", borderRadius:6, width:30, height:30,
+                        display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                      }}>
+                        <Trash2 size={13}/>
+                      </button>
+                    </div>
                   </div>
+                  {isConfirming && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, padding:"8px 10px", background:"rgba(192,57,43,0.06)", borderRadius:7 }}>
+                      <span style={{ fontSize:12, color:"#c0392b", flex:1 }}>¿Eliminar este documento?</span>
+                      <button onClick={() => handleDelete(doc)} disabled={isDeleting} style={{
+                        border:"none", background:"#c0392b", color:"#FFF", borderRadius:6,
+                        padding:"5px 12px", fontSize:12, fontWeight:700, cursor:"pointer",
+                        fontFamily:"'Manrope', sans-serif", opacity: isDeleting ? 0.6 : 1,
+                      }}>{isDeleting ? "Eliminando..." : "Sí, eliminar"}</button>
+                      <button onClick={() => setConfirmDel(null)} style={{
+                        border:"none", background:COLORS.panelAlt, color:COLORS.textMuted, borderRadius:6,
+                        padding:"5px 12px", fontSize:12, fontWeight:600, cursor:"pointer",
+                        fontFamily:"'Manrope', sans-serif",
+                      }}>Cancelar</button>
+                    </div>
+                  )}
                 </div>
-                {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:5, color:COLORS.gold, fontSize:12, fontWeight:600, textDecoration:"none", fontFamily:"'Manrope', sans-serif", flexShrink:0 }}>
-                    <Download size={14} />Descargar
-                  </a>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
@@ -1779,7 +1828,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, departments = [] }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, departments = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -1866,7 +1915,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1884,7 +1933,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -2020,6 +2069,7 @@ export default function App() {
             onNewAnnouncement={a => setAdminAnnouncements(prev => [a, ...prev])}
             adminDocuments={adminDocuments}
             onNewDocument={d => setAdminDocuments(prev => [d, ...prev])}
+            onDeleteDocument={id => setAdminDocuments(prev => prev.filter(d => d.id !== id))}
             departments={departments}
           />
         : <LoginScreen onLogin={() => {}} />
