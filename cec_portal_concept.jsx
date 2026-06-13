@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, Megaphone, FileUp, Users,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, Megaphone, FileUp, Users, UserPlus,
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
 
 const COLORS = {
@@ -336,6 +337,17 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
               }}>
                 <Users size={19} />Empleados
               </button>
+              <button onClick={() => { setActive("alta-empleado"); onClose(); }} style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"12px 14px", borderRadius:10, border:"none",
+                cursor:"pointer", textAlign:"left", fontSize:15, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif",
+                color: active === "alta-empleado" ? "#FFF" : COLORS.sidebarMuted,
+                background: active === "alta-empleado" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition:"background 0.15s, color 0.15s",
+              }}>
+                <UserPlus size={19} />Dar de alta empleado
+              </button>
             </>
           )}
         </nav>
@@ -494,6 +506,25 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
                   onMouseLeave={e => { if (!isA) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
                 >
                   <Users size={16} />Empleados
+                </button>
+              );
+            })()}
+            {(() => {
+              const isA = active === "alta-empleado";
+              return (
+                <button onClick={() => setActive("alta-empleado")} style={{
+                  display:"flex", alignItems:"center", gap:12,
+                  padding:"10px 14px", borderRadius:8, border:"none",
+                  cursor:"pointer", textAlign:"left", fontSize:14, fontWeight:600,
+                  fontFamily:"'Manrope', sans-serif",
+                  color: isA ? "#FFFFFF" : COLORS.sidebarMuted,
+                  background: isA ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                  transition:"background 0.15s, color 0.15s",
+                }}
+                  onMouseEnter={e => { if (!isA) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
+                  onMouseLeave={e => { if (!isA) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
+                >
+                  <UserPlus size={16} />Dar de alta empleado
                 </button>
               );
             })()}
@@ -1422,6 +1453,195 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
+function AltaEmpleadoSection({ departments = [] }) {
+  const [email,       setEmail]       = useState("");
+  const [password,    setPassword]    = useState("");
+  const [fullName,    setFullName]    = useState("");
+  const [position,    setPosition]    = useState("");
+  const [deptSelect,  setDeptSelect]  = useState("");
+  const [deptCustom,  setDeptCustom]  = useState("");
+  const [hireDate,    setHireDate]    = useState("");
+  const [birthDate,   setBirthDate]   = useState("");
+  const [role,        setRole]        = useState("empleado");
+  const [vacBalance,  setVacBalance]  = useState("");
+  const [vacPerYear,  setVacPerYear]  = useState("12");
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
+  const [partialErr,  setPartialErr]  = useState(null);
+  const [successInfo, setSuccessInfo] = useState(null);
+
+  const finalDept = deptSelect === "otro" ? deptCustom.trim() : deptSelect;
+
+  function generatePassword() {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let pwd = "";
+    for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+    setPassword(pwd);
+  }
+
+  async function handleCreate() {
+    setError(null); setPartialErr(null); setSuccessInfo(null);
+    if (!email.trim() || !password || !fullName.trim() || !finalDept) {
+      setError("Correo, contraseña, nombre completo y departamento son obligatorios.");
+      return;
+    }
+    setLoading(true);
+    const tempClient = createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+    const { data, error: signUpError } = await tempClient.auth.signUp({ email: email.trim(), password });
+    if (signUpError) { setError(signUpError.message); setLoading(false); return; }
+    const userId = data?.user?.id;
+    if (!userId) {
+      setError("No se pudo obtener el ID del nuevo usuario. Es posible que el correo ya esté registrado.");
+      setLoading(false); return;
+    }
+    const { error: profileError } = await supabase.from("profiles").update({
+      full_name:             fullName.trim(),
+      position:              position.trim() || null,
+      department:            finalDept,
+      hire_date:             hireDate   || null,
+      birth_date:            birthDate  || null,
+      role,
+      vacation_balance:      vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
+      vacation_days_per_year: vacPerYear !== "" ? Number(vacPerYear) : VAC_TOTAL,
+    }).eq("id", userId);
+    setLoading(false);
+    if (profileError) {
+      setPartialErr(`El usuario fue creado en autenticación (ID: ${userId}) pero no se pudo actualizar el perfil: ${profileError.message}`);
+      return;
+    }
+    const savedEmail = email.trim();
+    const savedPwd   = password;
+    setEmail(""); setPassword(""); setFullName(""); setPosition("");
+    setDeptSelect(""); setDeptCustom(""); setHireDate(""); setBirthDate("");
+    setRole("empleado"); setVacBalance(""); setVacPerYear("12");
+    setSuccessInfo({ email: savedEmail, password: savedPwd });
+  }
+
+  const fl = (text, optional) => (
+    <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>
+      {text}{optional && <span style={{ fontWeight:400 }}> (opcional)</span>}
+    </label>
+  );
+  const inp = { ...inputStyle, fontSize:14, padding:"10px 14px" };
+  const selStyle = { width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"11px 14px", color:COLORS.text, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto" };
+
+  return (
+    <Card>
+      <CardHeader title="Nuevo empleado" />
+
+      {/* Credenciales */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+        <div>
+          {fl("Correo corporativo")}
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@cec.cr" style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Contraseña temporal")}
+          <div style={{ display:"flex", gap:8 }}>
+            <input type="text" value={password} onChange={e => setPassword(e.target.value)} placeholder="Contraseña…" style={{ ...inp, flex:1 }}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+            <button onClick={generatePassword} title="Generar contraseña" style={{
+              border:`1.5px solid ${COLORS.border}`, background:COLORS.inputBg, borderRadius:8, padding:"0 12px",
+              color:COLORS.textMuted, fontSize:12, fontWeight:600, cursor:"pointer",
+              fontFamily:"'Manrope', sans-serif", whiteSpace:"nowrap", flexShrink:0,
+            }}>Generar</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Datos personales */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+        <div>
+          {fl("Nombre completo")}
+          <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Nombre Apellido" style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Puesto", true)}
+          <input type="text" value={position} onChange={e => setPosition(e.target.value)} placeholder="Ej. Enfermera, Recepcionista" style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+      </div>
+
+      {/* Departamento */}
+      <div style={{ marginBottom:14 }}>
+        {fl("Departamento")}
+        <select value={deptSelect} onChange={e => setDeptSelect(e.target.value)} style={{ ...selStyle, border:`1.5px solid ${deptSelect?COLORS.gold:COLORS.border}`, color:deptSelect?COLORS.text:"#9aaea8" }}>
+          <option value="" disabled>Selecciona…</option>
+          {departments.map(d => <option key={d} value={d}>{d}</option>)}
+          <option value="otro">Otro…</option>
+        </select>
+        {deptSelect === "otro" && (
+          <input type="text" value={deptCustom} onChange={e => setDeptCustom(e.target.value)} placeholder="Nombre del departamento" style={{ ...inp, marginTop:8, display:"block" }}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        )}
+      </div>
+
+      {/* Fechas */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+        <div>
+          {fl("Fecha de ingreso", true)}
+          <input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Fecha de nacimiento", true)}
+          <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+      </div>
+
+      {/* Rol y vacaciones */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:20 }}>
+        <div>
+          {fl("Rol")}
+          <select value={role} onChange={e => setRole(e.target.value)} style={selStyle}>
+            <option value="empleado">Empleado</option>
+            <option value="rrhh">RRHH</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div>
+          {fl("Saldo vacaciones inicial", true)}
+          <input type="number" min="0" value={vacBalance} onChange={e => setVacBalance(e.target.value)} placeholder={String(VAC_TOTAL)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Días por año", true)}
+          <input type="number" min="0" value={vacPerYear} onChange={e => setVacPerYear(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+      </div>
+
+      {error && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
+      {partialErr && (
+        <div style={{ fontSize:12, color:"#e07070", background:"rgba(192,57,43,0.06)", borderRadius:7, padding:"10px 12px", margin:"0 0 12px", lineHeight:1.6 }}>
+          ⚠️ {partialErr}
+        </div>
+      )}
+      {successInfo && (
+        <div style={{ fontSize:13, background:"rgba(44,99,86,0.08)", borderRadius:8, padding:"12px 16px", margin:"0 0 16px", lineHeight:1.8, border:`1px solid rgba(44,99,86,0.2)` }}>
+          <div style={{ fontWeight:700, color:COLORS.green, marginBottom:6 }}>✓ Empleado creado correctamente</div>
+          <div style={{ color:COLORS.text }}>Correo: <strong>{successInfo.email}</strong></div>
+          <div style={{ color:COLORS.text }}>Contraseña temporal: <strong style={{ fontFamily:"monospace", letterSpacing:"0.05em" }}>{successInfo.password}</strong></div>
+          <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:6 }}>Comparte estos datos con el empleado para que pueda ingresar al portal.</div>
+        </div>
+      )}
+
+      <button onClick={handleCreate} disabled={loading} style={{
+        ...btnSubmitStyle, width:"100%", opacity: loading ? 0.75 : 1, cursor: loading ? "not-allowed" : "pointer",
+      }}>
+        {loading ? "Creando..." : "Crear empleado"}
+      </button>
+    </Card>
+  );
+}
+
 function EmpleadosSection({ adminProfiles = [], adminRequests = [] }) {
   const [search,     setSearch]     = useState("");
   const [filterDept, setFilterDept] = useState("todos");
@@ -1998,7 +2218,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados" }[active];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Dar de alta empleado" }[active];
 
   const pendingApprovalCount = (profile?.role === "admin" || profile?.role === "rrhh")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
@@ -2079,7 +2299,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} /> : active === "alta-empleado" ? <AltaEmpleadoSection departments={departments} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -2097,7 +2317,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : active === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departments={departments} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : active === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} /> : active === "alta-empleado" ? <AltaEmpleadoSection departments={departments} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
