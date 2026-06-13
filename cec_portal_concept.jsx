@@ -1075,17 +1075,33 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
   const [preview,     setPreview]     = useState(null);
   const [loadingMsg,  setLoadingMsg]  = useState(null); // null = idle
   const [error,       setError]       = useState(null);
+  const [converting,  setConverting]  = useState(false);
 
-  function handleFile(e) {
-    const f = e.target.files?.[0] ?? null;
-    setFile(f);
-    if (f) {
-      const reader = new FileReader();
-      reader.onload = ev => setPreview(ev.target.result);
-      reader.readAsDataURL(f);
-    } else {
-      setPreview(null);
+  async function handleFile(e) {
+    const raw = e.target.files?.[0] ?? null;
+    if (!raw) { setFile(null); setPreview(null); return; }
+    const ext = raw.name.split(".").pop().toLowerCase();
+    const isHeic = raw.type === "image/heic" || raw.type === "image/heif" || ext === "heic" || ext === "heif";
+    let f = raw;
+    if (isHeic) {
+      setConverting(true);
+      setError(null);
+      try {
+        const { default: heic2any } = await import("heic2any");
+        const blob = await heic2any({ blob: raw, toType: "image/jpeg", quality: 0.85 });
+        const newName = raw.name.replace(/\.(heic|heif)$/i, ".jpg");
+        f = new File([blob], newName, { type: "image/jpeg" });
+      } catch (_) {
+        setConverting(false);
+        setError("No se pudo procesar la imagen, intenta con otra foto.");
+        return;
+      }
+      setConverting(false);
     }
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = ev => setPreview(ev.target.result);
+    reader.readAsDataURL(f);
   }
 
   async function submit() {
@@ -1145,10 +1161,10 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
         onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Foto <span style={{ fontWeight:400 }}>(opcional)</span></label>
       <label style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, cursor:"pointer" }}>
-        <div style={{ flex:1, background:COLORS.inputBg, border:`1.5px dashed ${COLORS.border}`, borderRadius:8, padding:"10px 14px", fontSize:13, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif" }}>
-          {file ? file.name : "Adjuntar foto (opcional)"}
+        <div style={{ flex:1, background:COLORS.inputBg, border:`1.5px dashed ${COLORS.border}`, borderRadius:8, padding:"10px 14px", fontSize:13, color:converting?COLORS.gold:COLORS.textMuted, fontFamily:"'Manrope', sans-serif" }}>
+          {converting ? "Procesando imagen..." : file ? file.name : "Adjuntar foto (opcional)"}
         </div>
-        <input type="file" accept="image/*" onChange={handleFile} style={{ display:"none" }} />
+        <input type="file" accept="image/*,image/heic,image/heif" onChange={handleFile} disabled={converting} style={{ display:"none" }} />
       </label>
       {preview && (
         <div style={{ marginBottom:14 }}>
@@ -1158,8 +1174,8 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
       {error && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
       <div style={{ display:"flex", gap:10 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} disabled={loading} style={{ ...btnSubmitStyle, opacity:(category&&description.trim()&&!loading)?1:0.5, cursor:loading?"not-allowed":"pointer" }}>
-          {loadingMsg ?? (editData ? "Guardar cambios" : "Enviar reporte")}
+        <button onClick={submit} disabled={loading || converting} style={{ ...btnSubmitStyle, opacity:(category&&description.trim()&&!loading&&!converting)?1:0.5, cursor:(loading||converting)?"not-allowed":"pointer" }}>
+          {converting ? "Procesando imagen..." : loadingMsg ?? (editData ? "Guardar cambios" : "Enviar reporte")}
         </button>
       </div>
     </ModalShell>
