@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -3254,7 +3254,156 @@ function BirthdayConfetti() {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile }) {
+function SupportChatWidget({ userId }) {
+  const [open,     setOpen]     = useState(false);
+  const [messages, setMessages] = useState(null); // null = not yet loaded
+  const [input,    setInput]    = useState("");
+  const [sending,  setSending]  = useState(false);
+  const [unread,   setUnread]   = useState(false);
+  const bottomRef = useRef(null);
+
+  function fmtTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+
+  // Load messages on first open
+  useEffect(() => {
+    if (!open || messages !== null) return;
+    supabase.from("support_messages").select("*").eq("user_id", userId).order("created_at", { ascending: true })
+      .then(({ data }) => setMessages(data || []));
+  }, [open]);
+
+  // Mark admin messages as read when panel opens
+  useEffect(() => {
+    if (!open) return;
+    setUnread(false);
+    supabase.from("support_messages").update({ read_by_employee: true })
+      .eq("user_id", userId).eq("read_by_employee", false);
+  }, [open]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Realtime: admin replies
+  useEffect(() => {
+    const ch = supabase.channel("support-emp-" + userId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
+        if (row.sender_id === userId) return; // own message, already added optimistically
+        if (open) {
+          setMessages(prev => prev ? (prev.some(m => m.id === row.id) ? prev : [...prev, row]) : [row]);
+          supabase.from("support_messages").update({ read_by_employee: true }).eq("id", row.id);
+        } else {
+          setUnread(true);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId, open]);
+
+  async function handleSend() {
+    const text = input.trim();
+    if (!text || sending) return;
+    setSending(true);
+    const optimistic = { id: "opt-" + Date.now(), user_id: userId, sender_id: userId, message: text, created_at: new Date().toISOString() };
+    setMessages(prev => [...(prev || []), optimistic]);
+    setInput("");
+    await supabase.from("support_messages").insert({ user_id: userId, sender_id: userId, message: text, read_by_admin: false, read_by_employee: true });
+    setSending(false);
+  }
+
+  const isMineStyle = { background:"rgba(201,162,78,0.15)", border:"1px solid rgba(201,162,78,0.3)", borderRadius:"14px 14px 4px 14px" };
+  const isTheirsStyle = { background:COLORS.panelAlt, border:`1px solid ${COLORS.border}`, borderRadius:"14px 14px 14px 4px" };
+
+  return (
+    <>
+      {open && (
+        <div style={{
+          position:"fixed", bottom:90, right:24, width:340, height:420,
+          background:COLORS.panel, borderRadius:16, border:`1px solid ${COLORS.border}`,
+          boxShadow:"0 8px 32px rgba(0,0,0,0.14)", display:"flex", flexDirection:"column",
+          zIndex:200, fontFamily:"'Manrope', sans-serif", animation:"sectionIn 0.2s ease-out both",
+        }}>
+          {/* Header */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 16px", borderBottom:`1px solid ${COLORS.border}`, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:"#27ae60", flexShrink:0 }} />
+              <span style={{ fontSize:14, fontWeight:700, color:COLORS.green }}>Soporte</span>
+            </div>
+            <button onClick={() => setOpen(false)} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4 }}>
+              <X size={16}/>
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+            {messages === null ? (
+              <p style={{ color:COLORS.textMuted, fontSize:12, textAlign:"center", marginTop:24 }}>Cargando...</p>
+            ) : messages.length === 0 ? (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", textAlign:"center", gap:12 }}>
+                <MessageCircle size={28} color={COLORS.gold}/>
+                <p style={{ color:COLORS.textMuted, fontSize:13, lineHeight:1.55, margin:0, maxWidth:220 }}>
+                  ¿Tienes alguna duda o necesitas ayuda? Escríbenos y te responderemos pronto.
+                </p>
+              </div>
+            ) : messages.map((msg, i) => {
+              const mine = msg.sender_id === userId;
+              return (
+                <div key={msg.id || i} style={{ display:"flex", flexDirection:"column", alignItems: mine ? "flex-end" : "flex-start" }}>
+                  <div style={{ maxWidth:"80%", padding:"8px 12px", fontSize:13, color:COLORS.text, lineHeight:1.5, ...(mine ? isMineStyle : isTheirsStyle) }}>
+                    {msg.message}
+                  </div>
+                  <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtTime(msg.created_at)}</span>
+                </div>
+              );
+            })}
+            <div ref={bottomRef}/>
+          </div>
+
+          {/* Input */}
+          <div style={{ padding:"10px 12px", borderTop:`1px solid ${COLORS.border}`, display:"flex", gap:8, flexShrink:0 }}>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              placeholder="Escribe un mensaje..."
+              style={{ flex:1, padding:"8px 12px", borderRadius:20, border:`1px solid ${COLORS.border}`, background:COLORS.inputBg, color:COLORS.text, fontSize:13, fontFamily:"'Manrope', sans-serif", outline:"none" }}
+            />
+            <button onClick={handleSend} disabled={!input.trim() || sending} style={{
+              width:36, height:36, borderRadius:"50%", border:"none", flexShrink:0,
+              cursor:(!input.trim() || sending) ? "not-allowed" : "pointer",
+              background:(!input.trim() || sending) ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+              display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s",
+            }}>
+              <Send size={14} color="#FFF"/>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FAB */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          position:"fixed", bottom:24, right:24, width:56, height:56, borderRadius:"50%",
+          background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+          border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+          boxShadow:"0 4px 20px rgba(201,162,78,0.45)", zIndex:200, transition:"transform 0.15s",
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform="scale(1.08)"}
+        onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}
+      >
+        <MessageCircle size={24} color="#FFF"/>
+        {unread && <div style={{ position:"absolute", top:4, right:4, width:10, height:10, borderRadius:"50%", background:"#e74c3c", border:"2px solid #FFF" }}/>}
+      </button>
+    </>
+  );
+}
+
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -3381,6 +3530,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           )}
           {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
+        {profile?.role === "empleado" && userId && <SupportChatWidget userId={userId}/>}
       </div>
     );
   }
@@ -3415,6 +3565,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
+      {profile?.role === "empleado" && userId && <SupportChatWidget userId={userId}/>}
     </div>
   );
 }
@@ -3707,6 +3858,7 @@ export default function App() {
             departments={departments}
             departmentsList={departmentsList}
             onUpdateAdminProfile={updatedEmp => setAdminProfiles(prev => prev.map(p => p.id === updatedEmp.id ? updatedEmp : p))}
+            userId={session?.user?.id}
           />
         : <LoginScreen onLogin={() => {}} />
       }
