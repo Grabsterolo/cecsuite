@@ -1867,7 +1867,7 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
           fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto", flexShrink:0,
         }}>
           <option value="todos">Todos los departamentos</option>
-          {departments.map(d => <option key={d} value={d}>{d}</option>)}
+          {departmentsList.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select>
       </div>
 
