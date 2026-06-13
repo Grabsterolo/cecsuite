@@ -766,7 +766,7 @@ function calcWorkDays(start, end) {
 function fmtDate(d) { return d ? `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}` : "—"; }
 
 /* ── Calendar widget (shared) ── */
-function CalendarWidget({ startDate, endDate, onChange }) {
+function CalendarWidget({ startDate, endDate, onChange, minDate }) {
   const now = new Date();
   const [yr, setYr] = useState(startDate ? startDate.getFullYear() : now.getFullYear());
   const [mo, setMo] = useState(startDate ? startDate.getMonth() : now.getMonth());
@@ -775,6 +775,7 @@ function CalendarWidget({ startDate, endDate, onChange }) {
 
   function click(day) {
     const d = new Date(yr, mo, day);
+    if (minDate && d < minDate) return;
     if (!startDate || endDate)                     { onChange(d, null); }
     else if (d.getTime() === startDate.getTime())  { onChange(null, null); }
     else if (d < startDate)                        { onChange(d, null); }
@@ -807,11 +808,15 @@ function CalendarWidget({ startDate, endDate, onChange }) {
         {Array(first).fill(null).map((_,i) => <div key={`e${i}`}/>)}
         {Array(days).fill(null).map((_,i) => {
           const day=i+1, s=st(day), ep=s==="s"||s==="e";
+          const isPast = minDate && new Date(yr, mo, day) < minDate;
           return (
-            <button key={day} onClick={() => click(day)} style={{
-              height:36, border:"none", cursor:"pointer", borderRadius:6, fontSize:13,
+            <button key={day} onClick={() => click(day)} disabled={isPast} style={{
+              height:36, border:"none", borderRadius:6, fontSize:13,
+              cursor: isPast ? "default" : "pointer",
               background: ep?COLORS.gold:s==="r"?"rgba(201,162,78,0.18)":"transparent",
-              color: ep?"#FFF":COLORS.text, fontWeight: ep?700:400, transition:"background 0.1s",
+              color: isPast ? COLORS.border : ep?"#FFF":COLORS.text,
+              fontWeight: ep?700:400, transition:"background 0.1s",
+              opacity: isPast ? 0.4 : 1,
             }}>{day}</button>
           );
         })}
@@ -849,11 +854,14 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
   const wd = calcWorkDays(startDate, endDate);
   const toDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
 
+  const today = new Date(); today.setHours(0,0,0,0);
+  const isPastStart = startDate && startDate < today;
   const exceedsBalance = availableDays != null && endDate && wd > availableDays;
 
   async function submit() {
     setError(null);
     if (!startDate) return;
+    if (isPastStart) return;
     if (editData) { onSubmit({ tipo:"vacaciones", startDate, endDate, comment }); return; }
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -874,7 +882,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
 
   return (
     <ModalShell onClose={onClose} title={editData ? "Editar solicitud" : "Solicitud de Vacaciones"}>
-      <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} />
+      <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} minDate={today} />
       {startDate && (
         <div style={{ marginTop:12, padding:"10px 14px", background:COLORS.panelAlt, borderRadius:8, fontSize:12, color:COLORS.textMuted }}>
           <div><span style={{ fontWeight:600, color:COLORS.green }}>Inicio: </span>{fmtDate(startDate)}</div>
@@ -889,6 +897,11 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
           </>}
         </div>
       )}
+      {isPastStart && (
+        <div style={{ marginTop:8, fontSize:12, color:"#c0392b" }}>
+          No se pueden solicitar fechas en el pasado.
+        </div>
+      )}
       <div style={{ marginTop:14 }}>
         <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Comentario <span style={{ fontWeight:400 }}>(opcional)</span></label>
         <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Información adicional..." rows={2} style={taStyle}
@@ -897,7 +910,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
       {error && <p style={{ fontSize:12, color:"#e07070", margin:"12px 0 0" }}>{error}</p>}
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} disabled={loading || !!exceedsBalance} style={{ ...btnSubmitStyle, opacity:(startDate&&!loading&&!exceedsBalance)?1:0.5, cursor:(loading||exceedsBalance)?"not-allowed":"pointer" }}>
+        <button onClick={submit} disabled={loading || !!exceedsBalance || !!isPastStart} style={{ ...btnSubmitStyle, opacity:(startDate&&!loading&&!exceedsBalance&&!isPastStart)?1:0.5, cursor:(loading||exceedsBalance||isPastStart)?"not-allowed":"pointer" }}>
           {loading ? "Enviando..." : editData ? "Guardar cambios" : "Solicitar"}
         </button>
       </div>
@@ -915,10 +928,13 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
   const [error,     setError]     = useState(null);
 
   const workDays = calcWorkDays(startDate, endDate);
+  const todayP = new Date(); todayP.setHours(0,0,0,0);
+  const isPastStartP = startDate && startDate < todayP;
 
   async function submit() {
     setError(null);
     if (!tipoPermiso || !startDate) return;
+    if (isPastStartP) return;
     if (editData) { onSubmit({ tipo:"permiso", tipoPermiso, startDate, endDate, notes }); return; }
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -953,7 +969,7 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
         {TIPOS_PERMISO.map(t => <option key={t} value={t}>{t}</option>)}
       </select>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:8, fontWeight:600, letterSpacing:"0.02em" }}>Fechas</label>
-      <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} />
+      <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} minDate={todayP} />
       {startDate && (
         <div style={{ marginTop:10, padding:"10px 14px", background:COLORS.panelAlt, borderRadius:8, fontSize:12, color:COLORS.textMuted }}>
           <div><span style={{ fontWeight:600, color:COLORS.green }}>Inicio: </span>{fmtDate(startDate)}</div>
@@ -968,10 +984,15 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Información adicional o justificación..." rows={2} style={taStyle}
           onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
       </div>
+      {isPastStartP && (
+        <div style={{ marginTop:8, fontSize:12, color:"#c0392b" }}>
+          No se pueden solicitar fechas en el pasado.
+        </div>
+      )}
       {error && <p style={{ fontSize:12, color:"#e07070", margin:"12px 0 0" }}>{error}</p>}
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} disabled={loading} style={{ ...btnSubmitStyle, opacity:(tipoPermiso&&startDate&&!loading)?1:0.5, cursor:loading?"not-allowed":"pointer" }}>
+        <button onClick={submit} disabled={loading || !!isPastStartP} style={{ ...btnSubmitStyle, opacity:(tipoPermiso&&startDate&&!loading&&!isPastStartP)?1:0.5, cursor:(loading||isPastStartP)?"not-allowed":"pointer" }}>
           {loading ? "Enviando..." : editData ? "Guardar cambios" : "Solicitar"}
         </button>
       </div>
