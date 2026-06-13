@@ -1281,10 +1281,10 @@ function ReportPhoto({ path, size = 44, radius = 6 }) {
 }
 
 /* ── Item individual de solicitud ── */
-function SolicitudItem({ s }) {
+function SolicitudItem({ s, style }) {
   const dateStr = s.created_at ? fmtSupaDate(s.created_at.slice(0,10)) : "";
   return (
-    <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}` }}>
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}`, ...style }}>
       <div style={{ marginTop:2, flexShrink:0 }}><SolicitudIcon kind={s.kind} type={s.type} size={16} /></div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word", marginBottom:1 }}>{s.label}</div>
@@ -1619,18 +1619,19 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
           {statusOpts.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
       </div>
-      <Card>
-        <CardHeader title="Mis solicitudes" />
-        {allSolicitudes.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No tienes solicitudes. Crea una con el botón de arriba.</p>
-        ) : filtered.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes que coincidan con los filtros.</p>
-        ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {filtered.map(s => <SolicitudItem key={`${s.kind}-${s.id}`} s={s} />)}
-          </div>
-        )}
-      </Card>
+      {allSolicitudes.length === 0 ? (
+        <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No tienes solicitudes. Crea una con el botón de arriba.</p></Card>
+      ) : filtered.length === 0 ? (
+        <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes que coincidan con los filtros.</p></Card>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {filtered.map(s => (
+            <Card key={`${s.kind}-${s.id}`} style={{ padding:"14px 16px" }}>
+              <SolicitudItem s={s} style={{ border:"none", background:"transparent", padding:0, borderRadius:0 }} />
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
