@@ -230,7 +230,7 @@ const BIRTHDAYS = [
 ];
 
 /* ── Drawer móvil ── */
-function MobileDrawer({ open, onClose, active, setActive, onLogout, profile }) {
+function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0 }) {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -294,6 +294,14 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile }) {
                 transition:"background 0.15s, color 0.15s",
               }}>
                 <ClipboardCheck size={19} />Aprobaciones
+                {pendingApprovalCount > 0 && (
+                  <span style={{
+                    marginLeft:"auto", minWidth:20, height:20, borderRadius:10,
+                    background: active === "aprobaciones" ? "rgba(255,255,255,0.3)" : COLORS.gold,
+                    color:"#FFF", fontSize:11, fontWeight:700,
+                    display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px",
+                  }}>{pendingApprovalCount}</span>
+                )}
               </button>
             </>
           )}
@@ -314,7 +322,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile }) {
   );
 }
 
-function Sidebar({ active, setActive, onLogout, profile }) {
+function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0 }) {
   return (
     <div style={{
       width: 252,
@@ -382,6 +390,14 @@ function Sidebar({ active, setActive, onLogout, profile }) {
                   onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
                 >
                   <ClipboardCheck size={16} />Aprobaciones
+                  {pendingApprovalCount > 0 && (
+                    <span style={{
+                      marginLeft:"auto", minWidth:18, height:18, borderRadius:9,
+                      background: isActive ? "rgba(255,255,255,0.3)" : COLORS.gold,
+                      color:"#FFF", fontSize:10, fontWeight:700,
+                      display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
+                    }}>{pendingApprovalCount}</span>
+                  )}
                 </button>
               );
             })()}
@@ -1447,6 +1463,10 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones" }[active];
 
+  const pendingApprovalCount = (profile?.role === "admin" || profile?.role === "rrhh")
+    ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
+    : 0;
+
   const vacationRequests = allRequests.filter(r => r.type === "vacaciones");
   const allSolicitudes = [
     ...allRequests.map(r => ({
@@ -1511,7 +1531,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             <Menu size={22} />
           </button>
         </div>
-        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={setActive} onLogout={onLogout} profile={profile} />
+        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={setActive} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
         <div style={{ padding: "24px 16px 48px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             Viernes 12 de junio, 2026
@@ -1527,7 +1547,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
-      <Sidebar active={active} setActive={setActive} onLogout={onLogout} profile={profile} />
+      <Sidebar active={active} setActive={setActive} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 11, letterSpacing: "0.25em", color: COLORS.gold, marginBottom: 6, textTransform: "uppercase", fontWeight: 600 }}>
