@@ -1503,6 +1503,42 @@ function PlaceholderSection({ title }) {
 }
 
 function ProfileSection({ profile }) {
+  const [currentPwd,  setCurrentPwd]  = useState("");
+  const [newPwd,      setNewPwd]      = useState("");
+  const [confirmPwd,  setConfirmPwd]  = useState("");
+  const [pwdLoading,  setPwdLoading]  = useState(false);
+  const [pwdError,    setPwdError]    = useState(null);
+  const [pwdSuccess,  setPwdSuccess]  = useState(false);
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdSuccess(false);
+    if (!currentPwd || !newPwd || !confirmPwd) {
+      setPwdError("Por favor completa todos los campos.");
+      return;
+    }
+    if (newPwd.length < 8) {
+      setPwdError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      setPwdError("Las contraseñas no coinciden.");
+      return;
+    }
+    setPwdLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPwd });
+    setPwdLoading(false);
+    if (error) {
+      setPwdError(translateError(error.message));
+    } else {
+      setCurrentPwd("");
+      setNewPwd("");
+      setConfirmPwd("");
+      setPwdSuccess(true);
+    }
+  }
+
   if (!profile) {
     return (
       <Card>
@@ -1526,21 +1562,90 @@ function ProfileSection({ profile }) {
     </div>
   ) : null;
 
+  const inputStyle = {
+    width:"100%", padding:"9px 12px", borderRadius:8,
+    border:`1px solid ${COLORS.border}`, background:COLORS.inputBg,
+    color:COLORS.text, fontSize:13, fontFamily:"'Manrope', sans-serif",
+    outline:"none", boxSizing:"border-box",
+  };
+
   return (
-    <Card>
-      <CardHeader title="Mi perfil" />
-      {row("Nombre completo", profile.full_name)}
-      {row("Puesto", profile.position)}
-      {row("Departamento", profile.department)}
-      {row("Fecha de ingreso", fmtHireDate(profile.hire_date))}
-      {showRole && (
-        <div style={{ marginTop:14 }}>
-          <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:6, padding:"4px 10px" }}>
-            {profile.role === "admin" ? "Administrador" : "RRHH"}
-          </span>
-        </div>
-      )}
-    </Card>
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      <Card>
+        <CardHeader title="Mi perfil" />
+        {row("Nombre completo", profile.full_name)}
+        {row("Puesto", profile.position)}
+        {row("Departamento", profile.department)}
+        {row("Fecha de ingreso", fmtHireDate(profile.hire_date))}
+        {showRole && (
+          <div style={{ marginTop:14 }}>
+            <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:6, padding:"4px 10px" }}>
+              {profile.role === "admin" ? "Administrador" : "RRHH"}
+            </span>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Cambiar contraseña" />
+        <p style={{ fontSize:12, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif", marginTop:0, marginBottom:16, lineHeight:1.6 }}>
+          Por seguridad, te recomendamos usar una contraseña de al menos 8 caracteres que combine letras, números y símbolos.
+        </p>
+        <form onSubmit={handleChangePassword} style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          <div>
+            <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif", marginBottom:5 }}>Contraseña actual</label>
+            <input
+              type="password"
+              value={currentPwd}
+              onChange={e => setCurrentPwd(e.target.value)}
+              placeholder="••••••••"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif", marginBottom:5 }}>Nueva contraseña</label>
+            <input
+              type="password"
+              value={newPwd}
+              onChange={e => setNewPwd(e.target.value)}
+              placeholder="••••••••"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif", marginBottom:5 }}>Confirmar nueva contraseña</label>
+            <input
+              type="password"
+              value={confirmPwd}
+              onChange={e => setConfirmPwd(e.target.value)}
+              placeholder="••••••••"
+              style={inputStyle}
+            />
+          </div>
+          {pwdError && (
+            <p style={{ margin:0, fontSize:12, color:"#c0392b", fontFamily:"'Manrope', sans-serif" }}>{pwdError}</p>
+          )}
+          {pwdSuccess && (
+            <p style={{ margin:0, fontSize:12, color:"#27ae60", fontWeight:600, fontFamily:"'Manrope', sans-serif" }}>Contraseña actualizada correctamente.</p>
+          )}
+          <div style={{ display:"flex", justifyContent:"flex-end", marginTop:4 }}>
+            <button
+              type="submit"
+              disabled={pwdLoading}
+              style={{
+                background: pwdLoading ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                border:"none", borderRadius:8, padding:"9px 20px",
+                color:"#FFF", fontSize:13, fontWeight:700, cursor: pwdLoading ? "not-allowed" : "pointer",
+                fontFamily:"'Manrope', sans-serif", boxShadow: pwdLoading ? "none" : "0 4px 14px rgba(201,162,78,0.3)",
+                transition:"all 0.15s",
+              }}
+            >
+              {pwdLoading ? "Actualizando..." : "Actualizar contraseña"}
+            </button>
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 }
 
