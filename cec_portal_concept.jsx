@@ -721,7 +721,7 @@ function StatusBadge({ status }) {
   const s = styles[status] ?? { color: COLORS.textMuted, background: COLORS.panelAlt };
   const label = labels[status] ?? (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
   return (
-    <span style={{ fontSize:11, fontWeight:700, borderRadius:5, padding:"3px 9px", letterSpacing:"0.04em", whiteSpace:"nowrap", ...s }}>
+    <span style={{ fontSize:11, fontWeight:700, borderRadius:5, padding:"3px 9px", letterSpacing:"0.04em", whiteSpace:"nowrap", fontFamily:"'Manrope', sans-serif", ...s }}>
       {label}
     </span>
   );
@@ -733,6 +733,7 @@ function Tag({ label }) {
       fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
       textTransform: "uppercase", color: COLORS.gold,
       background: "rgba(201,162,78,0.1)", borderRadius: 4, padding: "2px 7px",
+      fontFamily: "'Manrope', sans-serif",
     }}>
       {label}
     </span>
@@ -1681,11 +1682,11 @@ function AnnouncementsSection({ announcements }) {
           <Card key={key}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
               <Tag label={a.tag || "Aviso"} />
-              <span style={{ fontSize:12, color:COLORS.textMuted }}>{fmtFull(a.publish_at)}</span>
+              <span style={{ fontSize:11, color:COLORS.textMuted, fontFamily:"'Manrope', sans-serif" }}>{fmtFull(a.publish_at)}</span>
             </div>
             <h3 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:20, fontWeight:600, color:COLORS.green, margin:"0 0 10px", lineHeight:1.3, wordBreak:"break-word" }}>{a.title}</h3>
             {isExpanded && a.body && (
-              <p style={{ fontSize:14, color:COLORS.text, lineHeight:1.7, margin:"0 0 8px", whiteSpace:"pre-wrap" }}>{a.body}</p>
+              <p style={{ fontSize:14, color:COLORS.text, lineHeight:1.7, margin:"0 0 8px", whiteSpace:"pre-wrap", fontFamily:"'Manrope', sans-serif" }}>{a.body}</p>
             )}
             {a.body && (
               <button
@@ -2231,14 +2232,14 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
                     width:44, height:44, borderRadius:12, flexShrink:0,
                     background:`linear-gradient(135deg, ${COLORS.green}, ${COLORS.greenSoft})`,
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    fontFamily:"'Cormorant Garamond', serif", fontSize:18, fontWeight:700, color:"#FFF",
+                    fontFamily:"'Manrope', sans-serif", fontSize:16, fontWeight:700, color:"#FFF",
                   }}>
                     {(emp.full_name ?? "?").split(/\s+/).slice(0,2).map(w => w[0]).join("").toUpperCase()}
                   </div>
                   {/* Info */}
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:2 }}>
-                      <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:19, fontWeight:600, color:COLORS.green, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%" }}>{emp.full_name ?? "—"}</span>
+                      <span style={{ fontFamily:"'Manrope', sans-serif", fontSize:15, fontWeight:700, color:COLORS.green, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%" }}>{emp.full_name ?? "—"}</span>
                       {showRole && (
                         <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:5, padding:"2px 8px" }}>
                           {emp.role === "admin" ? "Admin" : "RRHH"}
@@ -2615,7 +2616,7 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
                   )}
                 </div>
                 {isExpanded && a.body && (
-                  <div style={{ marginTop:10, fontSize:13, color:COLORS.text, lineHeight:1.65, whiteSpace:"pre-wrap", wordBreak:"break-word", background:COLORS.panelAlt, borderRadius:7, padding:"10px 12px" }}>
+                  <div style={{ marginTop:10, fontSize:13, color:COLORS.text, lineHeight:1.65, whiteSpace:"pre-wrap", wordBreak:"break-word", background:COLORS.panelAlt, borderRadius:7, padding:"10px 12px", fontFamily:"'Manrope', sans-serif" }}>
                     {a.body}
                   </div>
                 )}
