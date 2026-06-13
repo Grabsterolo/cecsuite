@@ -2582,7 +2582,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
 
   if (isMobile) {
     return (
-      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", overflowX: "hidden", ...dashboardInAnim }}>
+      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }}>
         {/* Header fijo móvil */}
         <div style={{
           position: "sticky", top: 0, zIndex: 50, width: "100%", boxSizing: "border-box",
