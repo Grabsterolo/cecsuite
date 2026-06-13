@@ -3413,6 +3413,7 @@ function AdminSupportChatWidget({ adminId }) {
   const [sending,      setSending]      = useState(false);
   const [badge,        setBadge]        = useState(0);
   const [deletingId,   setDeletingId]   = useState(null); // userId pending delete confirm
+  const [deleteError,  setDeleteError]  = useState(null);
   const bottomRef   = useRef(null);
   const viewRef     = useRef("list");
   const selectedRef = useRef(null);
@@ -3509,10 +3510,15 @@ function AdminSupportChatWidget({ adminId }) {
   }
 
   async function deleteConversation(userId) {
-    await supabase.from("support_messages").delete().eq("user_id", userId);
+    setDeleteError(null);
+    const { error } = await supabase.from("support_messages").delete().eq("user_id", userId);
+    if (error) {
+      setDeleteError("No se pudo eliminar. Verifica los permisos.");
+      return;
+    }
     setConversations(prev => prev ? prev.filter(c => c.userId !== userId) : prev);
     setDeletingId(null);
-    if (selectedConv?.userId === userId) { setView("list"); setSelectedConv(null); }
+    if (selectedConv?.userId === userId) { setView("list"); setSelectedConv(null); setChatMessages([]); }
   }
 
   // Realtime: all new employee messages
@@ -3598,12 +3604,15 @@ function AdminSupportChatWidget({ adminId }) {
           </div>
           {/* Inline delete confirm in chat view */}
           {view === "chat" && deletingId === selectedConv?.userId && (
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 16px", background:"rgba(192,57,43,0.06)", borderBottom:`1px solid rgba(192,57,43,0.15)`, flexShrink:0 }}>
-              <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar este chat?</span>
-              <div style={{ display:"flex", gap:6 }}>
-                <button onClick={() => deleteConversation(selectedConv.userId)} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Eliminar</button>
-                <button onClick={() => setDeletingId(null)} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Cancelar</button>
+            <div style={{ padding:"8px 16px", background:"rgba(192,57,43,0.06)", borderBottom:`1px solid rgba(192,57,43,0.15)`, flexShrink:0 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar este chat?</span>
+                <div style={{ display:"flex", gap:6 }}>
+                  <button onClick={() => deleteConversation(selectedConv.userId)} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Eliminar</button>
+                  <button onClick={() => { setDeletingId(null); setDeleteError(null); }} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Cancelar</button>
+                </div>
               </div>
+              {deleteError && <p style={{ fontSize:11, color:"#c0392b", margin:"5px 0 0", fontFamily:"'Manrope', sans-serif" }}>{deleteError}</p>}
             </div>
           )}
 
@@ -3617,12 +3626,15 @@ function AdminSupportChatWidget({ adminId }) {
               ) : conversations.map(conv => (
                 <div key={conv.userId} style={{ borderBottom:`1px solid ${COLORS.border}` }}>
                   {deletingId === conv.userId ? (
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", background:"rgba(192,57,43,0.05)" }}>
-                      <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar este chat?</span>
-                      <div style={{ display:"flex", gap:6 }}>
-                        <button onClick={() => deleteConversation(conv.userId)} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Eliminar</button>
-                        <button onClick={() => setDeletingId(null)} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Cancelar</button>
+                    <div style={{ padding:"10px 16px", background:"rgba(192,57,43,0.05)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar este chat?</span>
+                        <div style={{ display:"flex", gap:6 }}>
+                          <button onClick={() => deleteConversation(conv.userId)} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Eliminar</button>
+                          <button onClick={() => { setDeletingId(null); setDeleteError(null); }} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Cancelar</button>
+                        </div>
                       </div>
+                      {deleteError && <p style={{ fontSize:11, color:"#c0392b", margin:"5px 0 0", fontFamily:"'Manrope', sans-serif" }}>{deleteError}</p>}
                     </div>
                   ) : (
                     <div onClick={() => openConversation(conv)} style={{
