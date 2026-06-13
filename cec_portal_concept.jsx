@@ -2716,7 +2716,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     const isLoading = !!loading[key];
     const errMsg = errors[key];
     return (
-      <div key={key} style={{ padding:"14px 16px", borderBottom:`1px solid ${COLORS.border}` }}>
+      <Card key={key} style={{ padding:"14px 16px" }}>
         <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
@@ -2825,7 +2825,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
           );
         })()}
         {errMsg && <p style={{ fontSize:11, color:"#e07070", margin:"6px 0 0" }}>{errMsg}</p>}
-      </div>
+      </Card>
     );
   }
 
@@ -2836,12 +2836,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     background: active ? "rgba(201,162,78,0.13)" : "transparent",
     color: active ? COLORS.gold : COLORS.textMuted,
   });
-
-  const cardTitle = filterStatus === "pendiente"
-    ? `Pendientes (${filtered.length})`
-    : filterStatus === "resuelto"
-    ? `Resueltas (${filtered.length})`
-    : `Todas (${filtered.length})`;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -2885,18 +2879,15 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
           </select>
         </div>
       </div>
-      <Card>
-        <CardHeader title={cardTitle} />
-        <div style={{ margin:"4px -16px -16px" }}>
-          {allItems.length === 0 ? (
-            <p style={{ color:COLORS.textMuted, fontSize:14, margin:"0 16px 16px" }}>No hay solicitudes registradas.</p>
-          ) : filtered.length === 0 ? (
-            <p style={{ color:COLORS.textMuted, fontSize:14, margin:"0 16px 16px" }}>No hay solicitudes que coincidan con los filtros.</p>
-          ) : (
-            filtered.map(renderItem)
-          )}
+      {allItems.length === 0 ? (
+        <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes registradas.</p></Card>
+      ) : filtered.length === 0 ? (
+        <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes que coincidan con los filtros.</p></Card>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {filtered.map(renderItem)}
         </div>
-      </Card>
+      )}
     </div>
   );
 }
