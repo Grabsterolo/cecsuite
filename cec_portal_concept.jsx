@@ -220,17 +220,9 @@ function LoginScreen({ onLogin }) {
             Portal de Colaboradores
           </div>
         </div>
-        {/* Form area with brand mark */}
-        <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:24, position:"relative", ...anim(200) }}>
-            <svg viewBox="10 22 80 56" style={{ width:36, height:20, stroke:COLORS.gold, fill:"none", strokeWidth:3.5, opacity:0.8, flexShrink:0 }}>
-              <path d={INFINITY_PATH} strokeLinecap="round"/>
-            </svg>
-            <span style={{ fontSize:9, letterSpacing:"0.22em", color:COLORS.textMuted, textTransform:"uppercase", fontWeight:700 }}>Centro Europeo de Cirugía</span>
-          </div>
-          <div style={{ position:"relative" }}>
-            <LoginForm onLogin={onLogin} />
-          </div>
+        {/* Form area */}
+        <div style={{ flex: 1, padding: "28px 28px 48px" }}>
+          <LoginForm onLogin={onLogin} />
         </div>
       </div>
     );
@@ -308,8 +300,9 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
         boxShadow: "-6px 0 32px rgba(0,0,0,0.3)",
         transform: open ? "translateX(0)" : "translateX(100%)",
         transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        overflowY: "hidden",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexShrink: 0 }}>
           <Logo width={130} />
           <button onClick={onClose} style={{
             border: "none", background: "rgba(255,255,255,0.1)", color: "#FFF",
@@ -319,8 +312,8 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
             <X size={18} />
           </button>
         </div>
-        <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 16 }} />
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 16, flexShrink: 0 }} />
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", flex: 1, paddingBottom: 8 }}>
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = active === item.key;
@@ -408,7 +401,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
             </>
           )}
         </nav>
-        <div style={{ marginTop: "auto" }}>
+        <div style={{ flexShrink: 0, marginTop: 8 }}>
           <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 4px 14px" }} />
           <button onClick={() => { onClose(); onLogout(); }} style={{
             display: "flex", alignItems: "center", gap: 14, padding: "12px 14px",
@@ -2589,11 +2582,11 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
 
   if (isMobile) {
     return (
-      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }}>
+      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", overflowX: "hidden", ...dashboardInAnim }}>
         {/* Header fijo móvil */}
         <div style={{
-          position: "sticky", top: 0, zIndex: 50,
-          background: SIDEBAR_BG, padding: "12px 16px",
+          position: "sticky", top: 0, zIndex: 50, width: "100%", boxSizing: "border-box",
+          background: SIDEBAR_BG, padding: "10px 14px",
           display: "flex", alignItems: "center",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}>
