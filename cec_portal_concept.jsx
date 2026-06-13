@@ -109,7 +109,7 @@ function RotatingWord({ noAnim }) {
     : { animation: "wordOut 0.32s ease-in both" };
 
   return (
-    <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", columnGap:4, fontSize:13, color:COLORS.textMuted, marginBottom:28, lineHeight:1.6 }}>
+    <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", columnGap:4, fontSize:13, color:COLORS.textMuted, marginBottom:10, lineHeight:1.6 }}>
       <span>Accede a:</span>
       <span style={{ overflow:"hidden", display:"inline-block", height:"1.35em", verticalAlign:"text-bottom" }}>
         <span style={{ color:COLORS.gold, fontWeight:600, display:"block", ...wordAnim }}>
@@ -140,32 +140,32 @@ function LoginForm({ onLogin }) {
   return (
     <>
       <div style={{
-        width: 64, height: 3,
+        width: 100, height: 3,
         background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.goldSoft})`,
         borderRadius: 2, marginBottom: 20, transformOrigin: "left center",
         ...(noAnim ? {} : { animation: "goldLineGrow 0.65s ease-out both" }),
       }} />
-      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, marginBottom: 8, color: COLORS.green, lineHeight: 1.15, ...anim(80) }}>
+      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, marginBottom: 12, color: COLORS.green, lineHeight: 1.15, ...anim(80) }}>
         Te damos la bienvenida<br />al Portal CEC
       </h1>
-      <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 16, lineHeight: 1.6, ...anim(160) }}>
-        Ingresa con tu cuenta institucional para continuar.
+      <div style={anim(160)}><RotatingWord noAnim={noAnim} /></div>
+      <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 28, lineHeight: 1.6, ...anim(220) }}>
+        Ingresa con tu correo institucional para continuar.
       </p>
-      <RotatingWord noAnim={noAnim} />
-      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(220) }}>Correo corporativo</label>
+      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(280) }}>Correo corporativo</label>
       <input
         type="email" placeholder="nombre@cec.co.cr" value={emailValue}
         onChange={e => setEmailValue(e.target.value)}
-        style={{ ...inputStyle, marginBottom: 14, ...anim(260) }}
+        style={{ ...inputStyle, marginBottom: 14, ...anim(320) }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
         onBlur={e => e.target.style.borderColor = COLORS.border}
       />
-      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(300) }}>Contraseña</label>
+      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(360) }}>Contraseña</label>
       <input
         type="password" placeholder="••••••••" value={passwordValue}
         onChange={e => setPasswordValue(e.target.value)}
         onKeyDown={e => e.key === "Enter" && !loading && handleLogin()}
-        style={{ ...inputStyle, marginBottom: 24, ...anim(340) }}
+        style={{ ...inputStyle, marginBottom: 24, ...anim(400) }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
         onBlur={e => e.target.style.borderColor = COLORS.border}
       />
@@ -175,7 +175,7 @@ function LoginForm({ onLogin }) {
       <button
         type="button" onClick={handleLogin} disabled={loading}
         style={{
-          ...anim(400),
+          ...anim(460),
           width: "100%", background: `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
           border: "none", borderRadius: 8, padding: "13px 16px", color: "#FFF",
           fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
