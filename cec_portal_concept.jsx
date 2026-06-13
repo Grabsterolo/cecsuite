@@ -840,7 +840,7 @@ const btnCancelStyle = { flex:1, background:"transparent", border:`1.5px solid $
 const btnSubmitStyle = { flex:2, background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`, border:"none", borderRadius:8, padding:"11px 16px", color:"#FFF", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.4)" };
 
 /* ── Formulario vacaciones ── */
-function VacationForm({ onClose, onSubmit, editData, onNewRequest }) {
+function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays }) {
   const [startDate, setStartDate] = useState(editData?.startDate || null);
   const [endDate,   setEndDate]   = useState(editData?.endDate   || null);
   const [comment,   setComment]   = useState(editData?.comment   || "");
@@ -848,6 +848,8 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest }) {
   const [error,     setError]     = useState(null);
   const wd = calcWorkDays(startDate, endDate);
   const toDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
+
+  const exceedsBalance = availableDays != null && endDate && wd > availableDays;
 
   async function submit() {
     setError(null);
@@ -879,6 +881,11 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest }) {
           {endDate && <>
             <div style={{ marginTop:2 }}><span style={{ fontWeight:600, color:COLORS.green }}>Fin: </span>{fmtDate(endDate)}</div>
             <div style={{ marginTop:2 }}><span style={{ fontWeight:700, color:COLORS.gold }}>{wd} días hábiles</span></div>
+          {exceedsBalance && (
+            <div style={{ marginTop:8, fontSize:12, color:"#c0392b" }}>
+              No tienes suficientes días disponibles. Tienes <strong>{availableDays}</strong> días disponibles y estás solicitando <strong>{wd}</strong>.
+            </div>
+          )}
           </>}
         </div>
       )}
@@ -890,7 +897,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest }) {
       {error && <p style={{ fontSize:12, color:"#e07070", margin:"12px 0 0" }}>{error}</p>}
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} disabled={loading} style={{ ...btnSubmitStyle, opacity:(startDate&&!loading)?1:0.5, cursor:loading?"not-allowed":"pointer" }}>
+        <button onClick={submit} disabled={loading || !!exceedsBalance} style={{ ...btnSubmitStyle, opacity:(startDate&&!loading&&!exceedsBalance)?1:0.5, cursor:(loading||exceedsBalance)?"not-allowed":"pointer" }}>
           {loading ? "Enviando..." : editData ? "Guardar cambios" : "Solicitar"}
         </button>
       </div>
@@ -1074,7 +1081,7 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
 }
 
 /* ── Modal selector de tipo + routing ── */
-function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRequest, onNewReport }) {
+function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRequest, onNewReport, availableDays }) {
   const [tipo, setTipo] = useState(editData?.tipo || initialTipo || null);
 
   function handleSubmit(data) { onSubmit(data); onClose(); }
@@ -1112,7 +1119,7 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRe
     );
   }
 
-  if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest}/>;
+  if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest} availableDays={availableDays}/>;
   if (tipo === "permiso")    return <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest}/>;
   return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewReport={onNewReport}/>;
 }
@@ -1501,6 +1508,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
           initialTipo="vacaciones"
           onNewRequest={onNewRequest}
           onNewReport={() => {}}
+          availableDays={availableDays}
         />
       )}
 
