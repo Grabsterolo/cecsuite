@@ -6,6 +6,23 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
 
+function translateError(msg = "") {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login credentials") || m.includes("invalid credentials")) return "Correo o contraseña incorrectos.";
+  if (m.includes("email not confirmed")) return "El correo no ha sido confirmado. Revisa tu bandeja de entrada.";
+  if (m.includes("user already registered") || m.includes("already registered")) return "Este correo ya está registrado.";
+  if (m.includes("password should be at least")) return "La contraseña debe tener al menos 6 caracteres.";
+  if (m.includes("signups not allowed") || m.includes("signup is disabled")) return "El registro no está disponible en este momento.";
+  if (m.includes("too many requests") || m.includes("rate limit")) return "Demasiados intentos. Espera un momento e intenta de nuevo.";
+  if (m.includes("network") || m.includes("failed to fetch") || m.includes("fetch")) return "Error de conexión. Verifica tu internet.";
+  if (m.includes("jwt expired") || m.includes("session expired")) return "Tu sesión ha expirado. Vuelve a iniciar sesión.";
+  if (m.includes("row-level security") || m.includes("rls") || m.includes("policy")) return "No tienes permisos para realizar esta acción.";
+  if (m.includes("duplicate") || m.includes("unique")) return "Ya existe un registro con estos datos.";
+  if (m.includes("not found") || m.includes("no rows")) return "No se encontró el registro solicitado.";
+  if (m.includes("storage") || m.includes("upload")) return "Error al subir el archivo. Intenta de nuevo.";
+  return msg || "Ocurrió un error inesperado. Intenta de nuevo.";
+}
+
 const COLORS = {
   bg: "#FAFAF8",
   panel: "#FFFFFF",
@@ -151,7 +168,7 @@ function LoginForm({ onLogin }) {
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithPassword({ email: emailValue, password: passwordValue });
     setLoading(false);
-    if (authError) setError(authError.message);
+    if (authError) setError(translateError(authError.message));
   }
 
   return (
@@ -886,7 +903,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
       comment: comment.trim() || null,
     }).select().single();
     setLoading(false);
-    if (insertError) { setError(insertError.message); return; }
+    if (insertError) { setError(translateError(insertError.message)); return; }
     if (onNewRequest) onNewRequest(data);
     onClose();
   }
@@ -967,7 +984,7 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
       comment: notes.trim() || null,
     }).select().single();
     setLoading(false);
-    if (insertError) { setError(insertError.message); return; }
+    if (insertError) { setError(translateError(insertError.message)); return; }
     if (onNewRequest) onNewRequest(data);
     onClose();
   }
@@ -1053,7 +1070,7 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
       const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from("reports").upload(fileName, file);
-      if (uploadError) { setError(uploadError.message); setLoadingMsg(null); return; }
+      if (uploadError) { setError(translateError(uploadError.message)); setLoadingMsg(null); return; }
       const { data: urlData } = supabase.storage.from("reports").getPublicUrl(fileName);
       photo_url = urlData.publicUrl;
       setLoadingMsg("Enviando...");
@@ -1069,7 +1086,7 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
     }).select().single();
 
     setLoadingMsg(null);
-    if (insertError) { setError(insertError.message); return; }
+    if (insertError) { setError(translateError(insertError.message)); return; }
     if (onNewReport) onNewReport(data);
     onClose();
   }
@@ -1646,7 +1663,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       { auth: { persistSession: false, autoRefreshToken: false } }
     );
     const { data, error: signUpError } = await tempClient.auth.signUp({ email: email.trim(), password });
-    if (signUpError) { setError(signUpError.message); setLoading(false); return; }
+    if (signUpError) { setError(translateError(signUpError.message)); setLoading(false); return; }
     const userId = data?.user?.id;
     if (!userId) {
       setError("No se pudo obtener el ID del nuevo usuario. Es posible que el correo ya esté registrado.");
@@ -1845,7 +1862,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
     };
     const { error: updateError } = await supabase.from("profiles").update(updates).eq("id", emp.id);
     setLoading(false);
-    if (updateError) { setError(updateError.message); return; }
+    if (updateError) { setError(translateError(updateError.message)); return; }
     onSave({ ...emp, ...updates });
   }
 
@@ -2129,7 +2146,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
     }
     const { error: delError } = await supabase.from("documents").delete().eq("id", doc.id);
     setDeleting(prev => ({ ...prev, [doc.id]: false }));
-    if (delError) { setError(delError.message); return; }
+    if (delError) { setError(translateError(delError.message)); return; }
     onDeleteDocument(doc.id);
     setConfirmDel(null);
   }
@@ -2148,7 +2165,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
     const fileExt = file.name.split(".").pop();
     const fileName = `${Date.now()}-${file.name}`;
     const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
-    if (uploadError) { setError(uploadError.message); setStatus(null); return; }
+    if (uploadError) { setError(translateError(uploadError.message)); setStatus(null); return; }
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
     setStatus("saving");
     const { data, error: insertError } = await supabase.from("documents").insert({
@@ -2159,7 +2176,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
       uploaded_by: user.id,
     }).select().single();
     setStatus(null);
-    if (insertError) { setError(insertError.message); return; }
+    if (insertError) { setError(translateError(insertError.message)); return; }
     onNewDocument(data);
     setTitle(""); setCategory(""); setDeptTodos(true); setSelectedDepts([]); setFile(null);
     setSuccess(true);
@@ -2331,7 +2348,7 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
       created_by: user.id,
     }).select().single();
     setLoading(false);
-    if (insertError) { setError(insertError.message); return; }
+    if (insertError) { setError(translateError(insertError.message)); return; }
     onNewAnnouncement(data);
     setTitle(""); setTag(""); setBody(""); setAudienceTodos(true); setAudienceDepts([]); setPublishAt(nowLocal());
     setSuccess(true);
@@ -2491,7 +2508,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       reviewed_at: new Date().toISOString(),
     }).eq("id", item.id);
     setLoading(prev => ({ ...prev, [key]: null }));
-    if (error) { setErrors(prev => ({ ...prev, [key]: error.message })); return; }
+    if (error) { setErrors(prev => ({ ...prev, [key]: translateError(error.message) })); return; }
     if (item.kind === "request") onUpdateAdminRequest(item.id, { status: newStatus });
     else                          onUpdateAdminReport(item.id,  { status: newStatus });
   }
