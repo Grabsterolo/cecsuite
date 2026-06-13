@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -2125,12 +2125,22 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
   const [filterDept,  setFilterDept]  = useState("todos");
   const [editingEmp,  setEditingEmp]  = useState(null);
   const [savedEmpId,  setSavedEmpId]  = useState(null);
+  const [resetModal,        setResetModal]        = useState(null); // { emp, password }
+  const [resetLoading,      setResetLoading]      = useState(false);
+  const [resetError,        setResetError]        = useState(null);
+  const [resetSuccess,      setResetSuccess]      = useState(false);
+  const [copied,            setCopied]            = useState(false);
+  const [deactivateModal,   setDeactivateModal]   = useState(null); // emp
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
+  const [deactivateError,   setDeactivateError]   = useState(null);
 
-  const departments = [...new Set(adminProfiles.flatMap(p =>
+  const activeProfiles = adminProfiles.filter(p => p.role !== "inactivo");
+
+  const departments = [...new Set(activeProfiles.flatMap(p =>
     Array.isArray(p.departments) ? p.departments : (p.department ? [p.department] : [])
   ).filter(Boolean))].sort();
 
-  const filtered = adminProfiles.filter(p => {
+  const filtered = activeProfiles.filter(p => {
     const matchSearch = !search || (p.full_name ?? "").toLowerCase().includes(search.toLowerCase());
     const empDepts = Array.isArray(p.departments) ? p.departments : (p.department ? [p.department] : []);
     const matchDept   = filterDept === "todos" || empDepts.includes(filterDept);
@@ -2158,7 +2168,54 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
     return `${d} ${months[m-1]} ${y}`;
   }
 
+  function generatePassword() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  }
+
+  function openResetModal(emp) {
+    setResetModal({ emp, password: generatePassword() });
+    setResetError(null);
+    setResetSuccess(false);
+    setCopied(false);
+  }
+
+  async function handleResetPassword() {
+    if (!resetModal) return;
+    setResetLoading(true);
+    setResetError(null);
+    const { error } = await supabase.rpc("admin_reset_password", {
+      target_user_id: resetModal.emp.id,
+      new_password: resetModal.password,
+    });
+    setResetLoading(false);
+    if (error) { setResetError(translateError(error.message)); return; }
+    setResetSuccess(true);
+  }
+
+  async function handleDeactivate() {
+    if (!deactivateModal) return;
+    const emp = deactivateModal;
+    setDeactivateLoading(true);
+    setDeactivateError(null);
+    const newName = "[BAJA] " + (emp.full_name ?? "");
+    const { error } = await supabase.from("profiles").update({ role: "inactivo", full_name: newName }).eq("id", emp.id);
+    setDeactivateLoading(false);
+    if (error) { setDeactivateError(translateError(error.message)); return; }
+    onUpdateProfile({ ...emp, role: "inactivo", full_name: newName });
+    setDeactivateModal(null);
+  }
+
   const pendingTotal = adminRequests.filter(r => r.type === "vacaciones" && r.status === "pendiente").length;
+
+  const overlayStyle = { position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 };
+  const modalBoxStyle = { background:COLORS.panel, borderRadius:16, padding:28, width:"100%", maxWidth:420, boxShadow:"0 8px 32px rgba(31,74,64,0.18)", fontFamily:"'Manrope', sans-serif" };
+  const iconBtn = (extraStyle) => ({
+    border:`1.5px solid ${COLORS.border}`, background:"transparent",
+    cursor:"pointer", borderRadius:8,
+    width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center",
+    transition:"all 0.15s", ...extraStyle,
+  });
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -2170,11 +2227,88 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
           onSave={handleSaved}
         />
       )}
+
+      {/* Reset password modal */}
+      {resetModal && (
+        <div style={overlayStyle}>
+          <div style={modalBoxStyle}>
+            <h3 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:20, fontWeight:600, color:COLORS.green, margin:"0 0 14px" }}>Restablecer contraseña</h3>
+            <p style={{ fontSize:13, color:COLORS.text, margin:"0 0 12px" }}>
+              Nueva contraseña temporal para <strong>{resetModal.emp.full_name}</strong>:
+            </p>
+            {!resetSuccess ? (
+              <>
+                <div style={{ background:COLORS.panelAlt, borderRadius:8, padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, border:`1px solid ${COLORS.border}` }}>
+                  <span style={{ fontSize:16, fontWeight:700, letterSpacing:"0.08em", color:COLORS.text, fontFamily:"monospace" }}>{resetModal.password}</span>
+                  <button onClick={() => { navigator.clipboard.writeText(resetModal.password); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{
+                    border:`1px solid ${COLORS.border}`, background:"none", borderRadius:6, padding:"4px 10px",
+                    fontSize:11, fontWeight:600, cursor:"pointer", color: copied ? COLORS.greenSoft : COLORS.textMuted,
+                    fontFamily:"'Manrope', sans-serif", whiteSpace:"nowrap", flexShrink:0,
+                  }}>{copied ? "✓ Copiado" : "Copiar"}</button>
+                </div>
+                {resetError && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 10px" }}>{resetError}</p>}
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={handleResetPassword} disabled={resetLoading} style={{
+                    flex:2, padding:"9px 0", borderRadius:8, border:"none", cursor:resetLoading?"not-allowed":"pointer",
+                    background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                    color:"#FFF", fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:resetLoading?0.7:1,
+                  }}>{resetLoading ? "Procesando..." : "Confirmar y restablecer"}</button>
+                  <button onClick={() => setResetModal(null)} disabled={resetLoading} style={{
+                    flex:1, padding:"9px 0", borderRadius:8, border:`1px solid ${COLORS.border}`,
+                    background:"transparent", color:COLORS.textMuted, fontSize:13, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif", cursor:"pointer",
+                  }}>Cancelar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize:13, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 16px", lineHeight:1.5 }}>
+                  ✓ Contraseña restablecida correctamente. Comparte la nueva contraseña con el empleado.
+                </p>
+                <button onClick={() => setResetModal(null)} style={{
+                  width:"100%", padding:"9px 0", borderRadius:8, border:`1px solid ${COLORS.border}`,
+                  background:"transparent", color:COLORS.textMuted, fontSize:13, fontWeight:600,
+                  fontFamily:"'Manrope', sans-serif", cursor:"pointer",
+                }}>Cerrar</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Deactivation modal */}
+      {deactivateModal && (
+        <div style={overlayStyle}>
+          <div style={modalBoxStyle}>
+            <h3 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:20, fontWeight:600, color:"#c0392b", margin:"0 0 14px" }}>Dar de baja</h3>
+            <p style={{ fontSize:13, color:COLORS.text, margin:"0 0 8px" }}>
+              ¿Estás seguro de que deseas dar de baja a <strong>{deactivateModal.full_name}</strong>?
+            </p>
+            <p style={{ fontSize:12, color:COLORS.textMuted, margin:"0 0 16px", lineHeight:1.5, background:"rgba(192,57,43,0.06)", borderRadius:7, padding:"10px 12px", border:"1px solid rgba(192,57,43,0.15)" }}>
+              Esta acción eliminará su acceso al portal. Sus datos históricos (solicitudes, reportes) se conservarán.
+            </p>
+            {deactivateError && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 10px" }}>{deactivateError}</p>}
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={handleDeactivate} disabled={deactivateLoading} style={{
+                flex:2, padding:"9px 0", borderRadius:8, border:"none", cursor:deactivateLoading?"not-allowed":"pointer",
+                background:"rgba(192,57,43,0.12)", color:"#c0392b",
+                fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:deactivateLoading?0.7:1,
+              }}>{deactivateLoading ? "Procesando..." : "Confirmar baja"}</button>
+              <button onClick={() => setDeactivateModal(null)} disabled={deactivateLoading} style={{
+                flex:1, padding:"9px 0", borderRadius:8, border:`1px solid ${COLORS.border}`,
+                background:"transparent", color:COLORS.textMuted, fontSize:13, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif", cursor:"pointer",
+              }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Resumen rápido */}
       <Card>
         <div style={{ display:"flex", gap:0 }}>
           <div style={{ flex:1, textAlign:"center", padding:"12px 8px" }}>
-            <div style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:36, fontWeight:700, color:COLORS.green, lineHeight:1 }}>{adminProfiles.length}</div>
+            <div style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:36, fontWeight:700, color:COLORS.green, lineHeight:1 }}>{activeProfiles.length}</div>
             <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:4, fontWeight:600 }}>Colaboradores</div>
           </div>
           <div style={{ width:1, background:COLORS.border, margin:"8px 0" }}/>
@@ -2267,17 +2401,41 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => setEditingEmp(emp)} title="Editar empleado" style={{
-                    border:`1.5px solid ${COLORS.border}`, background:COLORS.inputBg,
-                    color:COLORS.textMuted, cursor:"pointer", borderRadius:8,
-                    width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center",
-                    flexShrink:0, transition:"all 0.15s",
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor=COLORS.gold; e.currentTarget.style.color=COLORS.gold; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor=COLORS.border; e.currentTarget.style.color=COLORS.textMuted; }}
-                  >
-                    <Edit2 size={14}/>
-                  </button>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6, flexShrink:0 }}>
+                    <button onClick={() => setEditingEmp(emp)} title="Editar empleado" style={{
+                      border:`1.5px solid ${COLORS.border}`, background:COLORS.inputBg,
+                      color:COLORS.textMuted, cursor:"pointer", borderRadius:8,
+                      width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center",
+                      flexShrink:0, transition:"all 0.15s",
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor=COLORS.gold; e.currentTarget.style.color=COLORS.gold; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor=COLORS.border; e.currentTarget.style.color=COLORS.textMuted; }}
+                    >
+                      <Edit2 size={14}/>
+                    </button>
+                    <button onClick={() => openResetModal(emp)} title="Restablecer contraseña" style={{
+                      border:`1.5px solid ${COLORS.primary}`, background:"transparent",
+                      color:COLORS.primary, cursor:"pointer", borderRadius:8,
+                      width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center",
+                      flexShrink:0, transition:"all 0.15s",
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.background="rgba(31,74,64,0.08)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background="transparent"; }}
+                    >
+                      <KeyRound size={14}/>
+                    </button>
+                    <button onClick={() => setDeactivateModal(emp)} title="Dar de baja" style={{
+                      border:"1.5px solid #c0392b", background:"transparent",
+                      color:"#c0392b", cursor:"pointer", borderRadius:8,
+                      width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center",
+                      flexShrink:0, transition:"all 0.15s",
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.background="rgba(192,57,43,0.08)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background="transparent"; }}
+                    >
+                      <UserX size={14}/>
+                    </button>
+                  </div>
                 </div>
               </Card>
             );
@@ -3210,6 +3368,29 @@ export default function App() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.bg, fontFamily: "'Manrope', sans-serif", color: COLORS.textMuted, fontSize: 14 }}>
         Cargando...
+      </div>
+    );
+  }
+
+  if (session && profile?.role === "inactivo") {
+    return (
+      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:COLORS.bg, fontFamily:"'Manrope', sans-serif" }}>
+        <style>{FONTS}</style>
+        <div style={{ textAlign:"center", padding:32, maxWidth:400 }}>
+          <p style={{ color:"#c0392b", fontSize:15, fontWeight:700, marginBottom:8 }}>Tu cuenta ha sido desactivada.</p>
+          <p style={{ color:COLORS.textMuted, fontSize:13, marginBottom:24 }}>Contacta a administración para más información.</p>
+          <button onClick={() => supabase.auth.signOut()} style={{
+            background:"transparent", border:`1.5px solid ${COLORS.border}`,
+            color:COLORS.textMuted, cursor:"pointer", borderRadius:8,
+            padding:"8px 20px", fontSize:13, fontFamily:"'Manrope', sans-serif",
+            transition:"all 0.15s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor=COLORS.primary; e.currentTarget.style.color=COLORS.primary; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor=COLORS.border; e.currentTarget.style.color=COLORS.textMuted; }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     );
   }
