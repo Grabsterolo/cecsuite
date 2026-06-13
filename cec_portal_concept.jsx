@@ -95,8 +95,13 @@ function useIsMobile() {
 
 function PasswordInput({ value, onChange, placeholder, disabled, style, onFocus, onBlur, onKeyDown }) {
   const [show, setShow] = useState(false);
+  const {
+    margin, marginTop, marginBottom, marginLeft, marginRight,
+    animation, transition: _transition, ...inputStyle
+  } = style || {};
+  const wrapperExtra = { margin, marginTop, marginBottom, marginLeft, marginRight, animation };
   return (
-    <div style={{ position:"relative", display:"flex", alignItems:"center" }}>
+    <div style={{ position:"relative", display:"flex", alignItems:"stretch", ...wrapperExtra }}>
       <input
         type={show ? "text" : "password"}
         value={value}
@@ -106,7 +111,7 @@ function PasswordInput({ value, onChange, placeholder, disabled, style, onFocus,
         onFocus={onFocus}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        style={{ ...style, paddingRight:36, width:"100%", boxSizing:"border-box" }}
+        style={{ ...inputStyle, paddingRight:38, width:"100%", boxSizing:"border-box" }}
       />
       <button
         type="button"
@@ -114,7 +119,8 @@ function PasswordInput({ value, onChange, placeholder, disabled, style, onFocus,
         onMouseDown={e => e.preventDefault()}
         onClick={() => setShow(s => !s)}
         style={{
-          position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+          position:"absolute", right:10, top:0, bottom:0,
+          margin:"auto", height:"fit-content",
           background:"none", border:"none", cursor:"pointer", padding:0,
           color:COLORS.textMuted, display:"flex", alignItems:"center", lineHeight:1,
         }}
