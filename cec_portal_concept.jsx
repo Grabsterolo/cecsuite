@@ -346,7 +346,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
                 background: active === "alta-empleado" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
                 transition:"background 0.15s, color 0.15s",
               }}>
-                <UserPlus size={19} />Dar de alta empleado
+                <UserPlus size={19} />Gestión de empleados
               </button>
             </>
           )}
@@ -524,7 +524,7 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
                   onMouseEnter={e => { if (!isA) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
                   onMouseLeave={e => { if (!isA) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
                 >
-                  <UserPlus size={16} />Dar de alta empleado
+                  <UserPlus size={16} />Gestión de empleados
                 </button>
               );
             })()}
@@ -2218,7 +2218,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Dar de alta empleado" }[active];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[active];
 
   const pendingApprovalCount = (profile?.role === "admin" || profile?.role === "rrhh")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
