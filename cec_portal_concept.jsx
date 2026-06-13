@@ -45,6 +45,20 @@ const FONTS = `
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes glowOrbit1 {
+  0%   { transform: translate(0px,   0px); }
+  25%  { transform: translate(60px, -80px); }
+  50%  { transform: translate(120px, 20px); }
+  75%  { transform: translate(40px,  90px); }
+  100% { transform: translate(0px,   0px); }
+}
+@keyframes glowOrbit2 {
+  0%   { transform: translate(0px,  0px); }
+  30%  { transform: translate(-80px, 60px); }
+  60%  { transform: translate(-40px,-90px); }
+  80%  { transform: translate(30px, -30px); }
+  100% { transform: translate(0px,  0px); }
+}
 @keyframes goldLineGrow {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
@@ -284,8 +298,12 @@ function LoginScreen({ onLogin }) {
           </div>
         </div>
         {/* Form area */}
-        <div style={{ flex: 1, padding: "28px 28px 48px" }}>
-          <LoginForm onLogin={onLogin} />
+        <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position:"absolute", width:300, height:300, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.gold}14 0%, transparent 70%)`, filter:"blur(80px)", top:"-10%", right:"-15%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit1 32s ease-in-out infinite" }} />
+          <div style={{ position:"absolute", width:260, height:260, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.green}10 0%, transparent 70%)`, filter:"blur(100px)", bottom:"0%", left:"-10%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit2 41s ease-in-out infinite" }} />
+          <div style={{ position:"relative", zIndex:1 }}>
+            <LoginForm onLogin={onLogin} />
+          </div>
         </div>
       </div>
     );
@@ -309,7 +327,10 @@ function LoginScreen({ onLogin }) {
 
       {/* ── Panel derecho — formulario ── */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF", position: "relative", overflow: "hidden" }}>
-        <div style={{ width: "100%", maxWidth: 360, position: "relative" }}>
+        {/* Ambient glow blobs */}
+        <div style={{ position:"absolute", width:420, height:420, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.gold}18 0%, transparent 70%)`, filter:"blur(90px)", top:"5%", right:"-10%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit1 32s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:340, height:340, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.green}14 0%, transparent 70%)`, filter:"blur(110px)", bottom:"8%", left:"-8%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit2 41s ease-in-out infinite" }} />
+        <div style={{ width: "100%", maxWidth: 360, position: "relative", zIndex: 1 }}>
           <LoginForm onLogin={onLogin} />
         </div>
       </div>
