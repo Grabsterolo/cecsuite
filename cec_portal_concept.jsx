@@ -299,8 +299,8 @@ function LoginScreen({ onLogin }) {
         </div>
         {/* Form area */}
         <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
-          <div style={{ position:"absolute", width:300, height:300, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.gold}14 0%, transparent 70%)`, filter:"blur(80px)", top:"-10%", right:"-15%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit1 32s ease-in-out infinite" }} />
-          <div style={{ position:"absolute", width:260, height:260, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.green}10 0%, transparent 70%)`, filter:"blur(100px)", bottom:"0%", left:"-10%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit2 41s ease-in-out infinite" }} />
+          <div style={{ position:"absolute", width:360, height:360, borderRadius:"50%", background:"radial-gradient(circle, rgba(201,162,78,0.20) 0%, transparent 65%)", filter:"blur(60px)", top:"-10%", right:"-15%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit1 32s ease-in-out infinite" }} />
+          <div style={{ position:"absolute", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(31,74,64,0.13) 0%, transparent 65%)", filter:"blur(70px)", bottom:"0%", left:"-10%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit2 41s ease-in-out infinite" }} />
           <div style={{ position:"relative", zIndex:1 }}>
             <LoginForm onLogin={onLogin} />
           </div>
@@ -328,8 +328,8 @@ function LoginScreen({ onLogin }) {
       {/* ── Panel derecho — formulario ── */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF", position: "relative", overflow: "hidden" }}>
         {/* Ambient glow blobs */}
-        <div style={{ position:"absolute", width:420, height:420, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.gold}18 0%, transparent 70%)`, filter:"blur(90px)", top:"5%", right:"-10%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit1 32s ease-in-out infinite" }} />
-        <div style={{ position:"absolute", width:340, height:340, borderRadius:"50%", background:`radial-gradient(circle, ${COLORS.green}14 0%, transparent 70%)`, filter:"blur(110px)", bottom:"8%", left:"-8%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit2 41s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:500, height:500, borderRadius:"50%", background:"radial-gradient(circle, rgba(201,162,78,0.22) 0%, transparent 65%)", filter:"blur(70px)", top:"0%", right:"-15%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit1 32s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:420, height:420, borderRadius:"50%", background:"radial-gradient(circle, rgba(31,74,64,0.15) 0%, transparent 65%)", filter:"blur(80px)", bottom:"5%", left:"-12%", pointerEvents:"none", zIndex:0, animation: noAnim ? "none" : "glowOrbit2 41s ease-in-out infinite" }} />
         <div style={{ width: "100%", maxWidth: 360, position: "relative", zIndex: 1 }}>
           <LoginForm onLogin={onLogin} />
         </div>
