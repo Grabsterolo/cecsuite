@@ -2370,6 +2370,13 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   );
 }
 
+function buildAudienceFilter(column, userDepartments) {
+  const depts = userDepartments || [];
+  const escaped = depts.map(d => `"${d}"`).join(",");
+  if (escaped) return `${column}.cs.{todos},${column}.ov.{${escaped}}`;
+  return `${column}.cs.{todos}`;
+}
+
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
   const [profile, setProfile] = useState(null);
@@ -2418,18 +2425,18 @@ export default function App() {
   }, [session]);
 
   useEffect(() => {
-    if (!profile?.department) return;
+    if (!profile) return;
     supabase
       .from("announcements")
       .select("*")
       .lte("publish_at", new Date().toISOString())
-      .or(`audience.eq.todos,audience.eq.${profile.department}`)
+      .or(buildAudienceFilter("audience_list", profile.departments))
       .order("publish_at", { ascending: false })
       .then(({ data }) => { if (data) setAnnouncements(data); });
     supabase
       .from("documents")
       .select("*")
-      .or(`department.is.null,department.eq.${profile.department}`)
+      .or(buildAudienceFilter("departments", profile.departments))
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setDocuments(data); });
     supabase.rpc("get_birthdays").then(({ data }) => {
