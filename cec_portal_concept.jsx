@@ -1999,7 +1999,8 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       setError("No se pudo obtener el ID del nuevo usuario. Es posible que el correo ya esté registrado.");
       setLoading(false); return;
     }
-    const { error: profileError } = await supabase.from("profiles").update({
+    const { error: profileError } = await supabase.from("profiles").upsert({
+      id:                    userId,
       full_name:             fullName.trim(),
       position:              position.trim() || null,
       departments:           selectedDepts,
@@ -2008,7 +2009,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       role,
       vacation_balance:      vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
       vacation_days_per_year: vacPerYear !== "" ? Number(vacPerYear) : VAC_TOTAL,
-    }).eq("id", userId);
+    }, { onConflict: "id" });
     setLoading(false);
     if (profileError) {
       setPartialErr(`El usuario fue creado en autenticación (ID: ${userId}) pero no se pudo actualizar el perfil: ${profileError.message}`);
@@ -3255,6 +3256,17 @@ function BirthdayConfetti() {
   );
 }
 
+function fmtChatTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (msgDay.getTime() === today.getTime())
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
 function SupportChatWidget({ userId }) {
   const [open,     setOpen]     = useState(false);
   const [messages, setMessages] = useState(null); // null = not yet loaded
@@ -3262,12 +3274,8 @@ function SupportChatWidget({ userId }) {
   const [sending,  setSending]  = useState(false);
   const [unread,   setUnread]   = useState(false);
   const bottomRef = useRef(null);
-
-  function fmtTime(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-  }
+  const openRef2  = useRef(false);
+  useEffect(() => { openRef2.current = open; }, [open]);
 
   // Load messages on first open
   useEffect(() => {
@@ -3289,12 +3297,12 @@ function SupportChatWidget({ userId }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Realtime: admin replies
+  // Realtime: admin replies — channel stable for widget lifetime (openRef2 avoids dep on `open`)
   useEffect(() => {
     const ch = supabase.channel("support-emp-" + userId)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
         if (row.sender_id === userId) return; // own message, already added optimistically
-        if (open) {
+        if (openRef2.current) {
           setMessages(prev => prev ? (prev.some(m => m.id === row.id) ? prev : [...prev, row]) : [row]);
           supabase.from("support_messages").update({ read_by_employee: true }).eq("id", row.id);
         } else {
@@ -3303,7 +3311,7 @@ function SupportChatWidget({ userId }) {
       })
       .subscribe();
     return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
-  }, [userId, open]);
+  }, [userId]);
 
   async function handleSend() {
     const text = input.trim();
@@ -3357,7 +3365,7 @@ function SupportChatWidget({ userId }) {
                   <div style={{ maxWidth:"80%", padding:"8px 12px", fontSize:13, color:COLORS.text, lineHeight:1.5, ...(mine ? isMineStyle : isTheirsStyle) }}>
                     {msg.message}
                   </div>
-                  <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtTime(msg.created_at)}</span>
+                  <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtChatTime(msg.created_at)}</span>
                 </div>
               );
             })}
@@ -3420,20 +3428,10 @@ function AdminSupportChatWidget({ adminId }) {
   const selectedRef      = useRef(null);
   const openRef          = useRef(false);
   const pendingFetchsRef = useRef(new Set());
+  const loadingConvRef   = useRef(null);
   useEffect(() => { viewRef.current     = view; },         [view]);
   useEffect(() => { selectedRef.current = selectedConv; }, [selectedConv]);
   useEffect(() => { openRef.current     = open; },         [open]);
-
-  function fmtTime(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    const today = new Date(); today.setHours(0,0,0,0);
-    const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    if (msgDay.getTime() === today.getTime())
-      return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-    const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-    return `${d.getDate()} ${months[d.getMonth()]}`;
-  }
 
   function buildConversations(data) {
     const map = {};
@@ -3456,18 +3454,15 @@ function AdminSupportChatWidget({ adminId }) {
     });
   }
 
-  // Initial badge on mount (before panel opens)
+  // Single source of truth for badge: derive from conversations when loaded, query DB before first open
   useEffect(() => {
+    if (conversations !== null) {
+      setBadge(conversations.filter(c => c.hasUnread).length);
+      return;
+    }
     supabase.from("support_messages").select("user_id").eq("read_by_admin", false).neq("sender_id", adminId)
-      .then(({ data }) => {
-        if (data) setBadge(new Set(data.map(m => m.user_id)).size);
-      });
-  }, [adminId]);
-
-  // Derive badge from conversations once loaded
-  useEffect(() => {
-    if (conversations) setBadge(conversations.filter(c => c.hasUnread).length);
-  }, [conversations]);
+      .then(({ data }) => { if (data) setBadge(new Set(data.map(m => m.user_id)).size); });
+  }, [conversations, adminId]);
 
   // Load conversations on first open
   useEffect(() => {
@@ -3487,8 +3482,10 @@ function AdminSupportChatWidget({ adminId }) {
     setSelectedConv(conv);
     setView("chat");
     setChatMessages([]);
+    loadingConvRef.current = conv.userId;
     const { data } = await supabase.from("support_messages").select("*")
       .eq("user_id", conv.userId).order("created_at", { ascending: true });
+    if (loadingConvRef.current !== conv.userId) return; // admin switched conversation before fetch resolved
     setChatMessages(data || []);
     await supabase.from("support_messages").update({ read_by_admin: true })
       .eq("user_id", conv.userId).eq("read_by_admin", false);
@@ -3662,7 +3659,7 @@ function AdminSupportChatWidget({ adminId }) {
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
                           <span style={{ fontSize:13, fontWeight: conv.hasUnread ? 700 : 600, color:COLORS.text }}>{conv.full_name}</span>
-                          <span style={{ fontSize:10, color:COLORS.textMuted, flexShrink:0 }}>{fmtTime(conv.lastTime)}</span>
+                          <span style={{ fontSize:10, color:COLORS.textMuted, flexShrink:0 }}>{fmtChatTime(conv.lastTime)}</span>
                         </div>
                         <span style={{ fontSize:12, color: conv.hasUnread ? COLORS.text : COLORS.textMuted, display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                           {conv.lastMessage}
@@ -3701,7 +3698,7 @@ function AdminSupportChatWidget({ adminId }) {
                       }}>
                         {msg.message}
                       </div>
-                      <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtTime(msg.created_at)}</span>
+                      <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtChatTime(msg.created_at)}</span>
                     </div>
                   );
                 })}
@@ -3953,7 +3950,7 @@ function playNotificationPing() {
         osc.stop(ctx.currentTime + delay + 0.17);
       });
     };
-    ctx.state === "suspended" ? ctx.resume().then(go) : go();
+    ctx.state === "suspended" ? ctx.resume().then(go).catch(() => {}) : go();
   } catch (_) {}
 }
 
