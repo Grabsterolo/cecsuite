@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck,
+  Home, ChevronRight, ChevronLeft, Download, Clock, CheckCircle2, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, Megaphone,
 } from "lucide-react";
 import { supabase } from "./src/lib/supabase";
 
@@ -303,6 +303,17 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
                   }}>{pendingApprovalCount}</span>
                 )}
               </button>
+              <button onClick={() => { setActive("comunicados-admin"); onClose(); }} style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"12px 14px", borderRadius:10, border:"none",
+                cursor:"pointer", textAlign:"left", fontSize:15, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif",
+                color: active === "comunicados-admin" ? "#FFF" : COLORS.sidebarMuted,
+                background: active === "comunicados-admin" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition:"background 0.15s, color 0.15s",
+              }}>
+                <Megaphone size={19} />Gestionar comunicados
+              </button>
             </>
           )}
         </nav>
@@ -398,6 +409,28 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
                       display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
                     }}>{pendingApprovalCount}</span>
                   )}
+                </button>
+              );
+            })()}
+            {(() => {
+              const isActive2 = active === "comunicados-admin";
+              return (
+                <button
+                  onClick={() => setActive("comunicados-admin")}
+                  style={{
+                    display:"flex", alignItems:"center", gap:12,
+                    padding:"10px 14px", borderRadius:8, border:"none",
+                    cursor:"pointer", textAlign:"left",
+                    fontSize:14, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif",
+                    color: isActive2 ? "#FFFFFF" : COLORS.sidebarMuted,
+                    background: isActive2 ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                    transition:"background 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!isActive2) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
+                  onMouseLeave={e => { if (!isActive2) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
+                >
+                  <Megaphone size={16} />Gestionar comunicados
                 </button>
               );
             })()}
@@ -1326,6 +1359,137 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
+function GestionComunicadosSection({ adminAnnouncements = [], departments = [], onNewAnnouncement }) {
+  const nowLocal = () => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return d.toISOString().slice(0, 16);
+  };
+  const [title,     setTitle]     = useState("");
+  const [tag,       setTag]       = useState("");
+  const [body,      setBody]      = useState("");
+  const [audience,  setAudience]  = useState("todos");
+  const [publishAt, setPublishAt] = useState(nowLocal);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
+  const [success,   setSuccess]   = useState(false);
+
+  async function handlePublish() {
+    setError(null);
+    setSuccess(false);
+    if (!title.trim() || !body.trim()) { setError("El título y el contenido son obligatorios."); return; }
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error: insertError } = await supabase.from("announcements").insert({
+      title: title.trim(),
+      tag:   tag.trim() || null,
+      body:  body.trim(),
+      audience,
+      publish_at: new Date(publishAt).toISOString(),
+      created_by: user.id,
+    }).select().single();
+    setLoading(false);
+    if (insertError) { setError(insertError.message); return; }
+    onNewAnnouncement(data);
+    setTitle(""); setTag(""); setBody(""); setAudience("todos"); setPublishAt(nowLocal());
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 4000);
+  }
+
+  const fieldLabel = (text) => (
+    <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>{text}</label>
+  );
+  const dateInputStyle = { ...inputStyle, fontSize:14, padding:"10px 14px" };
+
+  function fmtPublishAt(str) {
+    if (!str) return "—";
+    const d = new Date(str);
+    const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+
+  const now = new Date();
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      {/* Formulario */}
+      <Card>
+        <CardHeader title="Nuevo comunicado" />
+        {fieldLabel("Título")}
+        <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título del comunicado" style={{ ...dateInputStyle, marginBottom:14, display:"block" }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div>
+            {fieldLabel("Etiqueta")}
+            <input type="text" value={tag} onChange={e => setTag(e.target.value)} placeholder="Ej. General, Operaciones" style={dateInputStyle}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          </div>
+          <div>
+            {fieldLabel("Audiencia")}
+            <select value={audience} onChange={e => setAudience(e.target.value)} style={{
+              width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`,
+              borderRadius:8, padding:"11px 14px", color:COLORS.text,
+              fontSize:14, outline:"none", boxSizing:"border-box",
+              fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto",
+            }}>
+              <option value="todos">Todos</option>
+              {departments.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+        </div>
+        {fieldLabel("Contenido")}
+        <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Escribe el contenido del comunicado..." rows={4} style={{ ...taStyle, marginBottom:14 }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        {fieldLabel("Fecha y hora de publicación")}
+        <input type="datetime-local" value={publishAt} onChange={e => setPublishAt(e.target.value)} style={{ ...dateInputStyle, marginBottom:16, display:"block" }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        {error   && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
+        {success && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 12px" }}>✓ Comunicado publicado correctamente.</p>}
+        <button onClick={handlePublish} disabled={loading} style={{
+          ...btnSubmitStyle, width:"100%", opacity: loading ? 0.75 : 1, cursor: loading ? "not-allowed" : "pointer",
+        }}>
+          {loading ? "Publicando..." : "Publicar comunicado"}
+        </button>
+      </Card>
+
+      {/* Lista */}
+      <Card>
+        <CardHeader title="Comunicados creados" />
+        {adminAnnouncements.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay comunicados creados.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {adminAnnouncements.map((a, i) => {
+              const isScheduled = a.publish_at && new Date(a.publish_at) > now;
+              return (
+                <div key={a.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}`, display:"flex", gap:12, alignItems:"flex-start" }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4 }}>{a.title}</div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
+                      {a.tag && <Tag label={a.tag} />}
+                      <span style={{ fontSize:11, color:COLORS.textMuted }}>
+                        Audiencia: <strong>{a.audience === "todos" ? "Todos" : a.audience}</strong>
+                      </span>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:11, color:COLORS.textMuted }}>{fmtPublishAt(a.publish_at)}</span>
+                      {isScheduled && (
+                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", padding:"2px 7px", borderRadius:4, background:"rgba(100,140,220,0.12)", color:"#5a7ec7" }}>
+                          PROGRAMADO
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport }) {
   const [errors,  setErrors]  = useState({});
   const [loading, setLoading] = useState({});
@@ -1455,13 +1619,13 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, departments = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones" }[active];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados" }[active];
 
   const pendingApprovalCount = (profile?.role === "admin" || profile?.role === "rrhh")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
@@ -1539,7 +1703,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1557,7 +1721,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : active === "perfil" ? <ProfileSection profile={profile} /> : active === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : active === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departments={departments} onNewAnnouncement={onNewAnnouncement} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1571,14 +1735,16 @@ export default function App() {
   const [documents, setDocuments] = useState([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState([]);
   const [reports, setReports] = useState([]);
-  const [adminRequests, setAdminRequests] = useState([]);
-  const [adminReports,  setAdminReports]  = useState([]);
+  const [adminRequests,      setAdminRequests]      = useState([]);
+  const [adminReports,       setAdminReports]        = useState([]);
+  const [adminAnnouncements, setAdminAnnouncements]  = useState([]);
+  const [departments,        setDepartments]         = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setDepartments([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1648,6 +1814,14 @@ export default function App() {
         console.log("[admin] reports data:", data, "error:", error);
         if (data) setAdminReports(data);
       });
+    supabase.from("announcements").select("*").order("publish_at", { ascending: false })
+      .then(({ data }) => { if (data) setAdminAnnouncements(data); });
+    supabase.from("profiles").select("department")
+      .then(({ data }) => {
+        if (!data) return;
+        const unique = [...new Set(data.map(p => p.department).filter(Boolean))].sort();
+        setDepartments(unique);
+      });
   }, [profile]);
 
   if (session === undefined) {
@@ -1676,6 +1850,9 @@ export default function App() {
             adminReports={adminReports}
             onUpdateAdminRequest={(id, changes) => setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
             onUpdateAdminReport={(id, changes)  => setAdminReports(prev  => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
+            adminAnnouncements={adminAnnouncements}
+            onNewAnnouncement={a => setAdminAnnouncements(prev => [a, ...prev])}
+            departments={departments}
           />
         : <LoginScreen onLogin={() => {}} />
       }
