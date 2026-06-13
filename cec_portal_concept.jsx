@@ -3527,6 +3527,23 @@ export default function App() {
   }, [profile]);
 
   // ── Realtime subscriptions ──
+  function playNotificationPing() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [[660, 0], [880, 0.18]].forEach(([freq, delay]) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = "sine"; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.16);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.17);
+      });
+    } catch (_) { /* browser blocked audio — ignore silently */ }
+  }
+
   useEffect(() => {
     if (!profile || !session?.user) return;
 
@@ -3592,6 +3609,7 @@ export default function App() {
     // ── admin: all requests & reports ──
     if (isAdmin) {
       ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "requests" }, ({ new: row }) => {
+        if (row.status === "pendiente" && row.user_id !== userId) playNotificationPing();
         supabase.from("requests").select("*, profiles!requests_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").eq("id", row.id).single()
           .then(({ data }) => { if (data) setAdminRequests(prev => prev.some(r => r.id === data.id) ? prev : [data, ...prev]); });
       });
@@ -3599,6 +3617,7 @@ export default function App() {
         setAdminRequests(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
       });
       ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "reports" }, ({ new: row }) => {
+        if (row.status === "pendiente" && row.user_id !== userId) playNotificationPing();
         supabase.from("reports").select("*, profiles!reports_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").eq("id", row.id).single()
           .then(({ data }) => { if (data) setAdminReports(prev => prev.some(r => r.id === data.id) ? prev : [data, ...prev]); });
       });
