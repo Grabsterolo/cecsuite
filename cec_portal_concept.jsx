@@ -1282,67 +1282,28 @@ function ReportPhoto({ path, size = 44, radius = 6 }) {
 
 /* ── Item individual de solicitud ── */
 function SolicitudItem({ s }) {
-  const isMobile = useIsMobile();
-  const createdStr = s.created_at ? fmtSupaDate(s.created_at.slice(0,10)) : "";
-  const hasDates = s.kind === "request" && s.start_date;
-  let dateRangeStr = "";
-  if (hasDates) {
-    const sameDay = !s.end_date || s.start_date === s.end_date;
-    dateRangeStr = sameDay ? fmtSupaDate(s.start_date) : `${fmtSupaDate(s.start_date)} — ${fmtSupaDate(s.end_date)}`;
-    if (s.days_requested) dateRangeStr += ` · ${s.days_requested} días`;
-  }
-  const resolverColor = (s.status === "aprobado" || s.status === "atendido") ? COLORS.green : s.status === "rechazado" ? "#c0392b" : COLORS.textMuted;
-  const resolverLabel = { aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" }[s.status] ?? s.status;
-
+  const dateStr = s.created_at ? fmtSupaDate(s.created_at.slice(0,10)) : "";
   return (
-    <div style={{ padding:"12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}` }}>
-      <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 8 : 16, alignItems:"flex-start" }}>
-        {/* Left column */}
-        <div style={{ flex: isMobile ? "none" : "0 0 65%", minWidth:0, display:"flex", flexDirection:"column", gap:4 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <SolicitudIcon kind={s.kind} type={s.type} size={15} />
-            <span style={{ fontSize:13, fontWeight:700, color:COLORS.text, wordBreak:"break-word" }}>{s.label}</span>
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}` }}>
+      <div style={{ marginTop:2, flexShrink:0 }}><SolicitudIcon kind={s.kind} type={s.type} size={16} /></div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word", marginBottom:1 }}>{s.label}</div>
+        {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>}
+        {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
+        {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
+        {s.reviewerName && s.status !== "pendiente" && (
+          <div style={{ fontSize:11, marginTop:3, color: s.status === "aprobado" ? COLORS.green : s.status === "atendido" ? COLORS.green : s.status === "rechazado" ? "#c0392b" : COLORS.textMuted, fontWeight:500 }}>
+            {{ aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" }[s.status] ?? s.status} por {s.reviewerName}
           </div>
-          {s.kind === "report" && s.subtitle && (
-            <div style={{ fontSize:12, color:COLORS.textMuted, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>
-          )}
-          {s.kind === "report" && s.location && (
-            <div style={{ fontSize:11, color:COLORS.textMuted }}>📍 {s.location}</div>
-          )}
-          {s.kind === "report" && s.photo_url && (
-            <div style={{ marginTop:2 }}><ReportPhoto path={s.photo_url} size={44} radius={6} /></div>
-          )}
-          {s.kind === "request" && s.comment && (
-            <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, wordBreak:"break-word" }}>
-              <span style={{ fontWeight:600 }}>Nota:</span> {s.comment}
-            </div>
-          )}
-        </div>
-        {/* Right column */}
-        <div style={{ flex: isMobile ? "none" : "0 0 35%", display:"flex", flexDirection:"column", alignItems: isMobile ? "flex-start" : "flex-end", gap:4, minWidth:0 }}>
-          {createdStr && (
-            <div style={{ fontSize:11, color:COLORS.textMuted, textAlign: isMobile ? "left" : "right" }}>
-              <span style={{ fontWeight:600 }}>Solicitado:</span> {createdStr}
-            </div>
-          )}
-          {hasDates && dateRangeStr && (
-            <div style={{ fontSize:11, color:COLORS.textMuted, textAlign: isMobile ? "left" : "right" }}>
-              <span style={{ fontWeight:600 }}>Fecha del evento:</span> {dateRangeStr}
-            </div>
-          )}
-          <div style={{ marginTop:2 }}><StatusBadge status={s.status} /></div>
-          {s.reviewerName && s.status !== "pendiente" && (
-            <div style={{ fontSize:11, color:resolverColor, fontWeight:500, textAlign: isMobile ? "left" : "right" }}>
-              {resolverLabel} por {s.reviewerName}
-            </div>
-          )}
-          {s.resolution_note && (s.status === "atendido" || s.status === "descartado") && (
-            <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, textAlign: isMobile ? "left" : "right" }}>
-              <span style={{ fontWeight:600 }}>Nota:</span> {s.resolution_note}
-            </div>
-          )}
-        </div>
+        )}
+        {s.resolution_note && (s.status === "atendido" || s.status === "descartado") && (
+          <div style={{ fontSize:11, marginTop:3, color:COLORS.textMuted, lineHeight:1.5 }}>
+            <span style={{ fontWeight:600 }}>Nota:</span> {s.resolution_note}
+          </div>
+        )}
       </div>
+      {s.photo_url && <ReportPhoto path={s.photo_url} size={44} radius={6} />}
+      <div style={{ flexShrink:0, marginTop:1 }}><StatusBadge status={s.status} /></div>
     </div>
   );
 }
@@ -2653,7 +2614,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   const [filterSearch, setFilterSearch]   = useState("");
   const [filterType,   setFilterType]     = useState("todos");
   const [filterStatus, setFilterStatus]   = useState("pendiente");
-  const isMobile = useIsMobile();
 
   const allItems = [
     ...adminRequests.map(r => ({
@@ -2661,9 +2621,9 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       employeeName: r.profiles?.full_name ?? "—",
       department:   r.profiles?.department ?? "",
       label:   r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
-      start_date: r.start_date || null,
-      end_date: r.end_date || null,
-      days_requested: r.days_requested ?? null,
+      subtitle: r.start_date
+        ? `${fmtSupaDate(r.start_date)}${r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""} · ${r.days_requested ?? 0} días`
+        : "",
       comment: r.comment || null,
       status: r.status, created_at: r.created_at,
       reviewerName: r.reviewer?.full_name || null,
@@ -2722,143 +2682,115 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     const isPending = item.status === "pendiente";
     const isLoading = !!loading[key];
     const errMsg = errors[key];
-
-    const hasDates = item.kind === "request" && item.start_date;
-    let dateRangeStr = "";
-    if (hasDates) {
-      const sameDay = !item.end_date || item.start_date === item.end_date;
-      dateRangeStr = sameDay ? fmtSupaDate(item.start_date) : `${fmtSupaDate(item.start_date)} — ${fmtSupaDate(item.end_date)}`;
-      if (item.days_requested) dateRangeStr += ` · ${item.days_requested} días`;
-    }
-    const createdStr = item.created_at ? fmtSupaDate(item.created_at.slice(0,10)) : "";
-    const resolverColor = (item.status === "aprobado" || item.status === "atendido") ? COLORS.green : item.status === "rechazado" ? "#c0392b" : COLORS.textMuted;
-    const resolverLabel = { aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" }[item.status] ?? item.status;
-    const action = pendingAction[key];
-
     return (
       <div key={key} style={{ padding:"14px 16px", borderBottom:`1px solid ${COLORS.border}` }}>
-        <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 10 : 16, alignItems:"flex-start" }}>
-          {/* Left column */}
-          <div style={{ flex: isMobile ? "none" : "0 0 65%", minWidth:0, display:"flex", flexDirection:"column", gap:5 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
               <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>{item.employeeName}</span>
               {item.department && <span style={{ fontSize:11, color:COLORS.textMuted }}>· {item.department}</span>}
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <SolicitudIcon kind={item.kind} type={item.type} size={15} />
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
+              <SolicitudIcon kind={item.kind} type={item.type} size={16} />
               <span style={{ fontSize:13, fontWeight:600, color:COLORS.text, wordBreak:"break-word" }}>{item.label}</span>
             </div>
-            {item.kind === "report" && item.subtitle && (
-              <div style={{ fontSize:12, color:COLORS.textMuted, lineHeight:1.5, wordBreak:"break-word" }}>{item.subtitle}</div>
-            )}
-            {item.kind === "report" && item.location && (
-              <div style={{ fontSize:11, color:COLORS.textMuted }}>📍 {item.location}</div>
-            )}
-            {item.kind === "report" && item.photo_url && (
-              <div style={{ marginTop:2 }}><ReportPhoto path={item.photo_url} size={48} radius={7} /></div>
-            )}
-            {item.kind === "request" && item.comment && (
-              <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, wordBreak:"break-word" }}>
-                <span style={{ fontWeight:600 }}>Nota:</span> {item.comment}
-              </div>
-            )}
-          </div>
-          {/* Right column */}
-          <div style={{ flex: isMobile ? "none" : "0 0 35%", display:"flex", flexDirection:"column", alignItems: isMobile ? "flex-start" : "flex-end", gap:5, minWidth:0 }}>
-            {createdStr && (
-              <div style={{ fontSize:11, color:COLORS.textMuted, textAlign: isMobile ? "left" : "right" }}>
-                <span style={{ fontWeight:600 }}>Solicitado:</span> {createdStr}
-              </div>
-            )}
-            {hasDates && dateRangeStr && (
-              <div style={{ fontSize:11, color:COLORS.textMuted, textAlign: isMobile ? "left" : "right" }}>
-                <span style={{ fontWeight:600 }}>Fecha del evento:</span> {dateRangeStr}
-              </div>
-            )}
-            <div style={{ marginTop:2 }}><StatusBadge status={item.status} /></div>
-            {item.reviewerName && !isPending && (
-              <div style={{ fontSize:11, color:resolverColor, fontWeight:600, textAlign: isMobile ? "left" : "right" }}>
-                {resolverLabel} por {item.reviewerName}
+            {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}>{item.subtitle}</div>}
+            {item.comment && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}><span style={{ fontWeight:600 }}>Nota:</span> {item.comment}</div>}
+            {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
+            <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
+            {item.reviewerName && item.status !== "pendiente" && (
+              <div style={{ fontSize:11, marginTop:4, color: item.status === "aprobado" ? COLORS.green : item.status === "atendido" ? COLORS.green : item.status === "rechazado" ? "#c0392b" : COLORS.textMuted, fontWeight:600 }}>
+                {{ aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" }[item.status] ?? item.status} por {item.reviewerName}
               </div>
             )}
             {item.resolution_note && (item.status === "atendido" || item.status === "descartado") && (
-              <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, textAlign: isMobile ? "left" : "right" }}>
+              <div style={{ fontSize:11, marginTop:3, color:COLORS.textMuted, lineHeight:1.5 }}>
                 <span style={{ fontWeight:600 }}>Nota:</span> {item.resolution_note}
               </div>
             )}
-            {/* Action buttons — pending requests */}
-            {isPending && item.kind === "request" && (
-              <div style={{ display:"flex", flexDirection:"column", gap:6, alignItems: isMobile ? "stretch" : "flex-end", marginTop:4, width: isMobile ? "100%" : "auto" }}>
-                <button onClick={() => handleAction(item, "aprobado")} disabled={isLoading} style={{
-                  padding:"6px 18px", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
-                  background:"rgba(44,99,86,0.12)", color:COLORS.greenSoft,
-                  fontSize:12, fontWeight:700, fontFamily:"'Manrope', sans-serif",
-                  opacity:isLoading?0.6:1, transition:"background 0.15s", whiteSpace:"nowrap",
-                }}
-                  onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.22)"; }}
-                  onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.12)"; }}
-                >{loading[key] === "aprobado" ? "Aprobando..." : "Aprobar"}</button>
-                <button onClick={() => handleAction(item, "rechazado")} disabled={isLoading} style={{
-                  padding:"6px 18px", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
-                  background:"rgba(192,57,43,0.1)", color:"#c0392b",
-                  fontSize:12, fontWeight:700, fontFamily:"'Manrope', sans-serif",
-                  opacity:isLoading?0.6:1, transition:"background 0.15s", whiteSpace:"nowrap",
-                }}
-                  onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(192,57,43,0.2)"; }}
-                  onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(192,57,43,0.1)"; }}
-                >{loading[key] === "rechazado" ? "Rechazando..." : "Rechazar"}</button>
-              </div>
-            )}
-            {/* Action buttons — pending reports (before confirm flow) */}
-            {isPending && item.kind === "report" && !action && (
-              <div style={{ display:"flex", flexDirection:"column", gap:6, alignItems: isMobile ? "stretch" : "flex-end", marginTop:4, width: isMobile ? "100%" : "auto" }}>
-                <button onClick={() => { setPendingAction(p => ({ ...p, [key]:"atendido" })); setNoteText(p => ({ ...p, [key]:"" })); }} disabled={isLoading} style={{
-                  padding:"6px 18px", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
-                  background:"rgba(44,99,86,0.12)", color:COLORS.greenSoft, fontSize:12, fontWeight:700,
-                  fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1, transition:"background 0.15s", whiteSpace:"nowrap",
-                }}
-                  onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.22)"; }}
-                  onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.12)"; }}
-                >Marcar como atendido</button>
-                <button onClick={() => { setPendingAction(p => ({ ...p, [key]:"descartado" })); setNoteText(p => ({ ...p, [key]:"" })); }} disabled={isLoading} style={{
-                  padding:"6px 18px", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
-                  background:COLORS.panelAlt, color:COLORS.textMuted, fontSize:12, fontWeight:600,
-                  fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1, transition:"background 0.15s", whiteSpace:"nowrap",
-                }}
-                  onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background=COLORS.border; }}
-                  onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background=COLORS.panelAlt; }}
-                >Descartar</button>
-              </div>
-            )}
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8, flexShrink:0 }}>
+            {item.photo_url && <ReportPhoto path={item.photo_url} size={48} radius={7} />}
+            <StatusBadge status={item.status} />
           </div>
         </div>
-        {/* Confirm area — full width below both columns */}
-        {isPending && item.kind === "report" && action && (
-          <div style={{ marginTop:12 }}>
-            <textarea
-              value={noteText[key] ?? ""}
-              onChange={e => setNoteText(p => ({ ...p, [key]: e.target.value }))}
-              rows={2} style={{ ...taStyle, width:"100%", fontSize:12, marginBottom:8 }}
-              placeholder={action === "atendido" ? "Nota de resolución (opcional) — ej. Se reemplazó el equipo dañado" : "Motivo (opcional)"}
-              onFocus={e => e.target.style.borderColor=COLORS.gold}
-              onBlur={e => e.target.style.borderColor=COLORS.border}
-              autoFocus
-            />
-            <div style={{ display:"flex", gap:8 }}>
-              <button onClick={() => handleAction(item, action, noteText[key])} disabled={isLoading} style={{
-                flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
-                background: action==="atendido" ? "rgba(44,99,86,0.12)" : COLORS.panelAlt,
-                color: action==="atendido" ? COLORS.greenSoft : COLORS.textMuted,
-                fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1,
-              }}>{isLoading ? "Guardando..." : "Confirmar"}</button>
-              <button onClick={() => setPendingAction(p => ({ ...p, [key]:null }))} disabled={isLoading} style={{
-                flex:1, padding:"7px 0", borderRadius:7, border:`1px solid ${COLORS.border}`,
-                background:"transparent", color:COLORS.textMuted, fontSize:13, fontWeight:600,
-                fontFamily:"'Manrope', sans-serif", cursor:"pointer",
-              }}>Cancelar</button>
-            </div>
+        {isPending && item.kind === "request" && (
+          <div style={{ display:"flex", gap:8, marginTop:10 }}>
+            <button onClick={() => handleAction(item, "aprobado")} disabled={isLoading} style={{
+              flex:1, padding:"7px 0", borderRadius:7, border:"none",
+              cursor:isLoading?"not-allowed":"pointer",
+              background:"rgba(44,99,86,0.12)", color:COLORS.greenSoft,
+              fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif",
+              opacity:isLoading?0.6:1, transition:"background 0.15s",
+            }}
+              onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.22)"; }}
+              onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.12)"; }}
+            >{loading[key] === "aprobado" ? "Aprobando..." : "Aprobar"}</button>
+            <button onClick={() => handleAction(item, "rechazado")} disabled={isLoading} style={{
+              flex:1, padding:"7px 0", borderRadius:7, border:"none",
+              cursor:isLoading?"not-allowed":"pointer",
+              background:"rgba(192,57,43,0.1)", color:"#c0392b",
+              fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif",
+              opacity:isLoading?0.6:1, transition:"background 0.15s",
+            }}
+              onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(192,57,43,0.2)"; }}
+              onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(192,57,43,0.1)"; }}
+            >{loading[key] === "rechazado" ? "Rechazando..." : "Rechazar"}</button>
           </div>
         )}
+        {isPending && item.kind === "report" && (() => {
+          const action = pendingAction[key];
+          return (
+            <>
+              {!action && (
+                <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                  <button onClick={() => { setPendingAction(p => ({ ...p, [key]:"atendido" })); setNoteText(p => ({ ...p, [key]:"" })); }} disabled={isLoading} style={{
+                    flex:2, padding:"7px 0", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
+                    background:"rgba(44,99,86,0.12)", color:COLORS.greenSoft, fontSize:13, fontWeight:700,
+                    fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1, transition:"background 0.15s",
+                  }}
+                    onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.22)"; }}
+                    onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.12)"; }}
+                  >Marcar como atendido</button>
+                  <button onClick={() => { setPendingAction(p => ({ ...p, [key]:"descartado" })); setNoteText(p => ({ ...p, [key]:"" })); }} disabled={isLoading} style={{
+                    flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
+                    background:COLORS.panelAlt, color:COLORS.textMuted, fontSize:13, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1, transition:"background 0.15s",
+                  }}
+                    onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background=COLORS.border; }}
+                    onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background=COLORS.panelAlt; }}
+                  >Descartar</button>
+                </div>
+              )}
+              {action && (
+                <div style={{ marginTop:10 }}>
+                  <textarea
+                    value={noteText[key] ?? ""}
+                    onChange={e => setNoteText(p => ({ ...p, [key]: e.target.value }))}
+                    rows={2} style={{ ...taStyle, width:"100%", fontSize:12, marginBottom:8 }}
+                    placeholder={action === "atendido" ? "Nota de resolución (opcional) — ej. Se reemplazó el equipo dañado" : "Motivo (opcional)"}
+                    onFocus={e => e.target.style.borderColor=COLORS.gold}
+                    onBlur={e => e.target.style.borderColor=COLORS.border}
+                    autoFocus
+                  />
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={() => handleAction(item, action, noteText[key])} disabled={isLoading} style={{
+                      flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
+                      background: action==="atendido" ? "rgba(44,99,86,0.12)" : COLORS.panelAlt,
+                      color: action==="atendido" ? COLORS.greenSoft : COLORS.textMuted,
+                      fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1,
+                    }}>{isLoading ? "Guardando..." : "Confirmar"}</button>
+                    <button onClick={() => setPendingAction(p => ({ ...p, [key]:null }))} disabled={isLoading} style={{
+                      flex:1, padding:"7px 0", borderRadius:7, border:`1px solid ${COLORS.border}`,
+                      background:"transparent", color:COLORS.textMuted, fontSize:13, fontWeight:600,
+                      fontFamily:"'Manrope', sans-serif", cursor:"pointer",
+                    }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
         {errMsg && <p style={{ fontSize:11, color:"#e07070", margin:"6px 0 0" }}>{errMsg}</p>}
       </div>
     );
@@ -3014,10 +2946,9 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
     ...allRequests.map(r => ({
       id: r.id, kind: "request", type: r.type,
       label: r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
-      start_date: r.start_date || null,
-      end_date: r.end_date || null,
-      days_requested: r.days_requested ?? null,
-      comment: r.comment || null,
+      subtitle: r.start_date
+        ? `${fmtSupaShort(r.start_date)} → ${fmtSupaShort(r.end_date)} · ${r.days_requested ?? 0} días`
+        : (r.comment || ""),
       status: r.status, created_at: r.created_at,
       reviewerName: r.reviewer?.full_name || null,
       reviewed_at: r.reviewed_at || null,
