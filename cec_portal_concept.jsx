@@ -746,7 +746,7 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [] }) {
+function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [], upcomingBirthdays = [] }) {
   const [modal, setModal] = useState(null); // null | "new-vac" | "new-sol" | solicitud-object(edit)
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
 
@@ -890,19 +890,23 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
       {/* Cumpleaños */}
       <Card>
         <CardHeader title="Próximos cumpleaños" />
-        <div style={{ display: "flex", flexDirection: "column", fontSize: 13 }}>
-          {BIRTHDAYS.map((b) => (
-            <div key={b.name} style={{
-              display: "flex", alignItems: "center", gap: 10,
-              color: COLORS.text, padding: "9px 0",
-              borderBottom: `1px solid ${COLORS.border}`,
-            }}>
-              <Cake size={16} color={COLORS.gold} />
-              {b.name}
-              <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>{b.date}</span>
-            </div>
-          ))}
-        </div>
+        {upcomingBirthdays.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No hay cumpleaños próximos.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", fontSize: 13 }}>
+            {upcomingBirthdays.slice(0, 3).map((b) => (
+              <div key={b.full_name} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                color: COLORS.text, padding: "9px 0",
+                borderBottom: `1px solid ${COLORS.border}`,
+              }}>
+                <Cake size={16} color={COLORS.gold} />
+                {b.full_name}
+                <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>{b.date}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
     </div>
@@ -1231,7 +1235,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
-function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, announcements = [], documents = [] }) {
+function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, announcements = [], documents = [], upcomingBirthdays = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -1298,7 +1302,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1316,7 +1320,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1328,12 +1332,13 @@ export default function App() {
   const [vacationRequests, setVacationRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [upcomingBirthdays, setUpcomingBirthdays] = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setVacationRequests([]); setAnnouncements([]); setDocuments([]); }
+      if (!s) { setProfile(null); setVacationRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1370,6 +1375,19 @@ export default function App() {
       .or(`department.is.null,department.eq.${profile.department}`)
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setDocuments(data); });
+    supabase.rpc("get_birthdays").then(({ data }) => {
+      if (!data) return;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const processed = data.map(p => {
+        const bd = new Date(p.birth_date + "T12:00:00");
+        let next = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
+        if (next < today) next = new Date(today.getFullYear() + 1, bd.getMonth(), bd.getDate());
+        const shortDate = `${next.getDate()} ${MONTH_NAMES[next.getMonth()].slice(0,3).toLowerCase()}`;
+        return { full_name: p.full_name, date: shortDate, _next: next };
+      });
+      processed.sort((a, b) => a._next - b._next);
+      setUpcomingBirthdays(processed.slice(0, 5).map(({ full_name, date }) => ({ full_name, date })));
+    });
   }, [profile]);
 
   if (session === undefined) {
@@ -1384,7 +1402,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} onNewVacationRequest={r => setVacationRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} onNewVacationRequest={r => setVacationRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
