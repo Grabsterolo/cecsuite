@@ -53,8 +53,8 @@ const FONTS = `
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes confettiFall {
-  0%   { opacity: 0.9; transform: translateY(-10px) rotate(0deg); }
-  85%  { opacity: 0.7; }
+  0%   { opacity: 0.4; transform: translateY(-10px) rotate(0deg); }
+  85%  { opacity: 0.25; }
   100% { opacity: 0;   transform: translateY(100vh) rotate(540deg); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2683,7 +2683,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
             <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 10px" }}>
               <Cake size={18} color={COLORS.gold} />
               <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, color: COLORS.gold }}>
-                ¡Feliz cumpleaños, {firstName}!
+                ¡Feliz cumpleaños!
               </span>
             </div>
           )}
@@ -2715,7 +2715,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
               <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 10px" }}>
                 <Cake size={20} color={COLORS.gold} />
                 <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 26, fontWeight: 600, color: COLORS.gold }}>
-                  ¡Feliz cumpleaños, {firstName}!
+                  ¡Feliz cumpleaños!
                 </span>
               </div>
             )}
