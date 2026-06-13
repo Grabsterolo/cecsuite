@@ -565,15 +565,37 @@ function VacationForm({ onClose, onSubmit, editData }) {
 }
 
 /* ── Formulario permiso ── */
-function PermisoForm({ onClose, onSubmit, editData }) {
+function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
   const [tipoPermiso, setTipoPermiso] = useState(editData?.tipoPermiso || "");
   const [startDate, setStartDate] = useState(editData?.startDate || null);
   const [endDate,   setEndDate]   = useState(editData?.endDate   || null);
-  const [notes, setNotes] = useState(editData?.notes || "");
+  const [notes,     setNotes]     = useState(editData?.notes || "");
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
 
-  function submit() {
+  const workDays = calcWorkDays(startDate, endDate);
+
+  async function submit() {
+    setError(null);
     if (!tipoPermiso || !startDate) return;
-    onSubmit({ tipo:"permiso", tipoPermiso, startDate, endDate, notes });
+    if (editData) { onSubmit({ tipo:"permiso", tipoPermiso, startDate, endDate, notes }); return; }
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const toDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
+    const { data, error: insertError } = await supabase.from("requests").insert({
+      user_id: user?.id,
+      type: "permiso",
+      category: tipoPermiso,
+      status: "pendiente",
+      start_date: toDate(startDate),
+      end_date: toDate(endDate),
+      days_requested: workDays,
+      comment: notes.trim() || null,
+    }).select().single();
+    setLoading(false);
+    if (insertError) { setError(insertError.message); return; }
+    if (onNewRequest) onNewRequest(data);
+    onClose();
   }
 
   return (
@@ -594,7 +616,10 @@ function PermisoForm({ onClose, onSubmit, editData }) {
       {startDate && (
         <div style={{ marginTop:10, padding:"10px 14px", background:COLORS.panelAlt, borderRadius:8, fontSize:12, color:COLORS.textMuted }}>
           <div><span style={{ fontWeight:600, color:COLORS.green }}>Inicio: </span>{fmtDate(startDate)}</div>
-          {endDate && <div style={{ marginTop:2 }}><span style={{ fontWeight:600, color:COLORS.green }}>Fin: </span>{fmtDate(endDate)}</div>}
+          {endDate && <>
+            <div style={{ marginTop:2 }}><span style={{ fontWeight:600, color:COLORS.green }}>Fin: </span>{fmtDate(endDate)}</div>
+            <div style={{ marginTop:2 }}><span style={{ fontWeight:700, color:COLORS.gold }}>{workDays} días hábiles</span></div>
+          </>}
         </div>
       )}
       <div style={{ marginTop:14 }}>
@@ -602,9 +627,12 @@ function PermisoForm({ onClose, onSubmit, editData }) {
         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Información adicional o justificación..." rows={2} style={taStyle}
           onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
       </div>
+      {error && <p style={{ fontSize:12, color:"#e07070", margin:"12px 0 0" }}>{error}</p>}
       <div style={{ display:"flex", gap:10, marginTop:20 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
-        <button onClick={submit} style={{ ...btnSubmitStyle, opacity:(tipoPermiso&&startDate)?1:0.5 }}>{editData ? "Guardar cambios" : "Solicitar"}</button>
+        <button onClick={submit} disabled={loading} style={{ ...btnSubmitStyle, opacity:(tipoPermiso&&startDate&&!loading)?1:0.5, cursor:loading?"not-allowed":"pointer" }}>
+          {loading ? "Enviando..." : editData ? "Guardar cambios" : "Solicitar"}
+        </button>
       </div>
     </ModalShell>
   );
@@ -654,7 +682,7 @@ function ReporteForm({ onClose, onSubmit, editData }) {
 }
 
 /* ── Modal selector de tipo + routing ── */
-function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo }) {
+function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo, onNewRequest }) {
   const [tipo, setTipo] = useState(editData?.tipo || initialTipo || null);
 
   function handleSubmit(data) { onSubmit(data); onClose(); }
@@ -693,7 +721,7 @@ function CrearSolicitudModal({ onClose, onSubmit, editData, initialTipo }) {
   }
 
   if (tipo === "vacaciones") return <VacationForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
-  if (tipo === "permiso")    return <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
+  if (tipo === "permiso")    return <PermisoForm  onClose={onClose} onSubmit={handleSubmit} editData={editData} onNewRequest={onNewRequest}/>;
   return <ReporteForm onClose={onClose} onSubmit={handleSubmit} editData={editData}/>;
 }
 
@@ -746,7 +774,7 @@ const verTodosStyle = {
   fontFamily: "'Manrope', sans-serif", padding: 0,
 };
 
-function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [], upcomingBirthdays = [] }) {
+function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUpdate, vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest }) {
   const [modal, setModal] = useState(null); // null | "new-vac" | "new-sol" | solicitud-object(edit)
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
 
@@ -762,7 +790,7 @@ function DashboardHome({ isMobile, setActive, solicitudes, onAdd, onDelete, onUp
         <VacationForm onClose={() => setModal(null)} onSubmit={handleSubmit} editData={null} />
       )}
       {modal === "new-sol" && (
-        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={data => { onAdd(data); setModal(null); }} editData={null} />
+        <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={data => { onAdd(data); setModal(null); }} editData={null} onNewRequest={onNewRequest} />
       )}
       {modal && typeof modal === "object" && (
         <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={handleSubmit} editData={modal} />
@@ -1235,7 +1263,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   );
 }
 
-function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, announcements = [], documents = [], upcomingBirthdays = [] }) {
+function Dashboard({ onLogout, profile, vacationRequests, onNewRequest, announcements = [], documents = [], upcomingBirthdays = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -1302,7 +1330,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, 
           <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 22px", color: COLORS.green }}>
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
-          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+          {active === "inicio" ? <DashboardHome isMobile={true} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
@@ -1320,7 +1348,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, 
             {active === "inicio" ? greeting : sectionTitle}
           </h1>
         </div>
-        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewVacationRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
+        {active === "inicio" ? <DashboardHome isMobile={false} setActive={setActive} {...solProps} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} /> : active === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : active === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : active === "documentos" ? <DocumentsSection documents={documents} /> : active === "solicitudes" ? <SolicitudesSection {...solProps} /> : active === "perfil" ? <ProfileSection profile={profile} /> : <PlaceholderSection title={sectionTitle} />}
       </div>
     </div>
   );
@@ -1329,7 +1357,7 @@ function Dashboard({ onLogout, profile, vacationRequests, onNewVacationRequest, 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
   const [profile, setProfile] = useState(null);
-  const [vacationRequests, setVacationRequests] = useState([]);
+  const [allRequests, setAllRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState([]);
@@ -1338,7 +1366,7 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setVacationRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1355,9 +1383,8 @@ export default function App() {
       .from("requests")
       .select("*")
       .eq("user_id", session.user.id)
-      .eq("type", "vacaciones")
       .order("created_at", { ascending: false })
-      .then(({ data }) => { if (data) setVacationRequests(data); });
+      .then(({ data }) => { if (data) setAllRequests(data); });
   }, [session]);
 
   useEffect(() => {
@@ -1402,7 +1429,7 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={vacationRequests} onNewVacationRequest={r => setVacationRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} />
+        ? <Dashboard onLogout={() => supabase.auth.signOut()} profile={profile} vacationRequests={allRequests.filter(r => r.type === "vacaciones")} onNewRequest={r => setAllRequests(prev => [r, ...prev])} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} />
         : <LoginScreen onLogin={() => {}} />
       }
     </div>
