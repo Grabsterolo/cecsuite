@@ -3412,6 +3412,7 @@ function AdminSupportChatWidget({ adminId }) {
   const [input,        setInput]        = useState("");
   const [sending,      setSending]      = useState(false);
   const [badge,        setBadge]        = useState(0);
+  const [deletingId,   setDeletingId]   = useState(null); // userId pending delete confirm
   const bottomRef   = useRef(null);
   const viewRef     = useRef("list");
   const selectedRef = useRef(null);
@@ -3507,6 +3508,13 @@ function AdminSupportChatWidget({ adminId }) {
     setSending(false);
   }
 
+  async function deleteConversation(userId) {
+    await supabase.from("support_messages").delete().eq("user_id", userId);
+    setConversations(prev => prev ? prev.filter(c => c.userId !== userId) : prev);
+    setDeletingId(null);
+    if (selectedConv?.userId === userId) { setView("list"); setSelectedConv(null); }
+  }
+
   // Realtime: all new employee messages
   useEffect(() => {
     const ch = supabase.channel("support-admin-" + adminId)
@@ -3566,7 +3574,7 @@ function AdminSupportChatWidget({ adminId }) {
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 16px", borderBottom:`1px solid ${COLORS.border}`, flexShrink:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               {view === "chat" && (
-                <button onClick={() => { setView("list"); setSelectedConv(null); }} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:"0 4px 0 0" }}>
+                <button onClick={() => { setView("list"); setSelectedConv(null); setDeletingId(null); }} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:"0 4px 0 0" }}>
                   <ChevronLeft size={18}/>
                 </button>
               )}
@@ -3574,10 +3582,30 @@ function AdminSupportChatWidget({ adminId }) {
                 {view === "list" ? "Soporte" : (selectedConv?.full_name || "Chat")}
               </span>
             </div>
-            <button onClick={() => setOpen(false)} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4 }}>
-              <X size={16}/>
-            </button>
+            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+              {view === "chat" && selectedConv && (
+                <button onClick={() => setDeletingId(selectedConv.userId)} title="Eliminar chat" style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4, transition:"color 0.12s" }}
+                  onMouseEnter={e => e.currentTarget.style.color="#c0392b"}
+                  onMouseLeave={e => e.currentTarget.style.color=COLORS.textMuted}
+                >
+                  <Trash2 size={15}/>
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4 }}>
+                <X size={16}/>
+              </button>
+            </div>
           </div>
+          {/* Inline delete confirm in chat view */}
+          {view === "chat" && deletingId === selectedConv?.userId && (
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 16px", background:"rgba(192,57,43,0.06)", borderBottom:`1px solid rgba(192,57,43,0.15)`, flexShrink:0 }}>
+              <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar este chat?</span>
+              <div style={{ display:"flex", gap:6 }}>
+                <button onClick={() => deleteConversation(selectedConv.userId)} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Eliminar</button>
+                <button onClick={() => setDeletingId(null)} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Cancelar</button>
+              </div>
+            </div>
+          )}
 
           {/* LIST view */}
           {view === "list" && (
@@ -3587,28 +3615,48 @@ function AdminSupportChatWidget({ adminId }) {
               ) : conversations.length === 0 ? (
                 <p style={{ color:COLORS.textMuted, fontSize:13, textAlign:"center", margin:"32px 20px" }}>No hay conversaciones de soporte.</p>
               ) : conversations.map(conv => (
-                <div key={conv.userId} onClick={() => openConversation(conv)} style={{
-                  display:"flex", alignItems:"center", gap:10, padding:"11px 16px",
-                  cursor:"pointer", borderBottom:`1px solid ${COLORS.border}`,
-                  background: conv.hasUnread ? "rgba(201,162,78,0.06)" : "transparent",
-                  transition:"background 0.12s",
-                }}
-                  onMouseEnter={e => e.currentTarget.style.background="rgba(31,74,64,0.05)"}
-                  onMouseLeave={e => e.currentTarget.style.background= conv.hasUnread ? "rgba(201,162,78,0.06)" : "transparent"}
-                >
-                  <div style={{ width:36, height:36, borderRadius:"50%", background:COLORS.panelAlt, border:`1px solid ${COLORS.border}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:14, fontWeight:700, color:COLORS.textMuted }}>
-                    {(conv.full_name || "E")[0].toUpperCase()}
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
-                      <span style={{ fontSize:13, fontWeight: conv.hasUnread ? 700 : 600, color:COLORS.text }}>{conv.full_name}</span>
-                      <span style={{ fontSize:10, color:COLORS.textMuted, flexShrink:0 }}>{fmtTime(conv.lastTime)}</span>
+                <div key={conv.userId} style={{ borderBottom:`1px solid ${COLORS.border}` }}>
+                  {deletingId === conv.userId ? (
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", background:"rgba(192,57,43,0.05)" }}>
+                      <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar este chat?</span>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button onClick={() => deleteConversation(conv.userId)} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Eliminar</button>
+                        <button onClick={() => setDeletingId(null)} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Cancelar</button>
+                      </div>
                     </div>
-                    <span style={{ fontSize:12, color: conv.hasUnread ? COLORS.text : COLORS.textMuted, display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {conv.lastMessage}
-                    </span>
-                  </div>
-                  {conv.hasUnread && <div style={{ width:8, height:8, borderRadius:"50%", background:COLORS.gold, flexShrink:0 }}/>}
+                  ) : (
+                    <div onClick={() => openConversation(conv)} style={{
+                      display:"flex", alignItems:"center", gap:10, padding:"11px 16px",
+                      cursor:"pointer",
+                      background: conv.hasUnread ? "rgba(201,162,78,0.06)" : "transparent",
+                      transition:"background 0.12s",
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.background="rgba(31,74,64,0.05)"}
+                      onMouseLeave={e => e.currentTarget.style.background= conv.hasUnread ? "rgba(201,162,78,0.06)" : "transparent"}
+                    >
+                      <div style={{ width:36, height:36, borderRadius:"50%", background:COLORS.panelAlt, border:`1px solid ${COLORS.border}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:14, fontWeight:700, color:COLORS.textMuted }}>
+                        {(conv.full_name || "E")[0].toUpperCase()}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
+                          <span style={{ fontSize:13, fontWeight: conv.hasUnread ? 700 : 600, color:COLORS.text }}>{conv.full_name}</span>
+                          <span style={{ fontSize:10, color:COLORS.textMuted, flexShrink:0 }}>{fmtTime(conv.lastTime)}</span>
+                        </div>
+                        <span style={{ fontSize:12, color: conv.hasUnread ? COLORS.text : COLORS.textMuted, display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                          {conv.lastMessage}
+                        </span>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); setDeletingId(conv.userId); }}
+                        title="Eliminar chat"
+                        style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, padding:4, display:"flex", flexShrink:0, transition:"color 0.12s" }}
+                        onMouseEnter={e => e.currentTarget.style.color="#c0392b"}
+                        onMouseLeave={e => e.currentTarget.style.color=COLORS.textMuted}
+                      >
+                        <Trash2 size={14}/>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
