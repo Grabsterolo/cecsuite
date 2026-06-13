@@ -711,12 +711,15 @@ function fmtSupaShort(str) {
 
 function StatusBadge({ status }) {
   const styles = {
-    pendiente: { color: COLORS.gold,    background: "rgba(201,162,78,0.12)" },
-    aprobado:  { color: "#2C6356",      background: "rgba(44,99,86,0.1)"    },
-    rechazado: { color: "#c0392b",      background: "rgba(192,57,43,0.1)"   },
+    pendiente:   { color: COLORS.gold,        background: "rgba(201,162,78,0.12)"  },
+    aprobado:    { color: "#2C6356",           background: "rgba(44,99,86,0.1)"     },
+    rechazado:   { color: "#c0392b",           background: "rgba(192,57,43,0.1)"    },
+    atendido:    { color: "#2C6356",           background: "rgba(44,99,86,0.1)"     },
+    descartado:  { color: COLORS.textMuted,    background: COLORS.panelAlt          },
   };
+  const labels = { pendiente:"Pendiente", aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" };
   const s = styles[status] ?? { color: COLORS.textMuted, background: COLORS.panelAlt };
-  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : "—";
+  const label = labels[status] ?? (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
   return (
     <span style={{ fontSize:11, fontWeight:700, borderRadius:5, padding:"3px 9px", letterSpacing:"0.04em", whiteSpace:"nowrap", ...s }}>
       {label}
@@ -1259,7 +1262,7 @@ function ReportPhoto({ path, size = 44, radius = 6 }) {
 function SolicitudItem({ s }) {
   const isReport = s.kind === "report";
   const icon = isReport
-    ? <AlertTriangle size={15} color={s.status === "pendiente" ? COLORS.gold : s.status === "aprobado" ? COLORS.greenSoft : "#c0392b"} />
+    ? <AlertTriangle size={15} color={s.status === "pendiente" ? COLORS.gold : s.status === "atendido" ? COLORS.greenSoft : COLORS.textMuted} />
     : s.status === "aprobado" ? <CheckCircle2 size={15} color={COLORS.greenSoft} />
     : <Clock size={15} color={s.status === "pendiente" ? COLORS.gold : COLORS.textMuted} />;
   const dateStr = s.created_at ? fmtSupaDate(s.created_at.slice(0,10)) : "";
@@ -1272,8 +1275,13 @@ function SolicitudItem({ s }) {
         {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
         {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
         {s.reviewerName && s.status !== "pendiente" && (
-          <div style={{ fontSize:11, marginTop:3, color: s.status === "aprobado" ? COLORS.green : "#c0392b", fontWeight:500 }}>
-            {s.status === "aprobado" ? "Aprobado" : "Rechazado"} por {s.reviewerName}
+          <div style={{ fontSize:11, marginTop:3, color: s.status === "aprobado" ? COLORS.green : s.status === "atendido" ? COLORS.green : s.status === "rechazado" ? "#c0392b" : COLORS.textMuted, fontWeight:500 }}>
+            {{ aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" }[s.status] ?? s.status} por {s.reviewerName}
+          </div>
+        )}
+        {s.resolution_note && (s.status === "atendido" || s.status === "descartado") && (
+          <div style={{ fontSize:11, marginTop:3, color:COLORS.textMuted, lineHeight:1.5 }}>
+            <span style={{ fontWeight:600 }}>Nota:</span> {s.resolution_note}
           </div>
         )}
       </div>
@@ -2529,8 +2537,10 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
 }
 
 function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, reviewerName }) {
-  const [errors,  setErrors]  = useState({});
-  const [loading, setLoading] = useState({});
+  const [errors,        setErrors]        = useState({});
+  const [loading,       setLoading]       = useState({});
+  const [pendingAction, setPendingAction] = useState({}); // key -> "atendido"|"descartado"|null
+  const [noteText,      setNoteText]      = useState({}); // key -> string
 
   const allItems = [
     ...adminRequests.map(r => ({
@@ -2555,27 +2565,28 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       photo_url: r.photo_url,
       status: r.status, created_at: r.created_at,
       reviewerName: r.reviewer?.full_name || null,
+      resolution_note: r.resolution_note || null,
     })),
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const pendientes = allItems.filter(i => i.status === "pendiente");
   const resueltos  = allItems.filter(i => i.status !== "pendiente");
 
-  async function handleAction(item, newStatus) {
+  async function handleAction(item, newStatus, resolutionNote = null) {
     const key = `${item.kind}-${item.id}`;
     setLoading(prev => ({ ...prev, [key]: newStatus }));
     setErrors(prev => ({ ...prev, [key]: null }));
     const { data: { user } } = await supabase.auth.getUser();
     const table = item.kind === "request" ? "requests" : "reports";
-    const { error } = await supabase.from(table).update({
-      status: newStatus,
-      reviewed_by: user.id,
-      reviewed_at: new Date().toISOString(),
-    }).eq("id", item.id);
+    const updates = { status: newStatus, reviewed_by: user.id, reviewed_at: new Date().toISOString() };
+    if (item.kind === "report") updates.resolution_note = resolutionNote || null;
+    const { error } = await supabase.from(table).update(updates).eq("id", item.id);
     setLoading(prev => ({ ...prev, [key]: null }));
     if (error) { setErrors(prev => ({ ...prev, [key]: translateError(error.message) })); return; }
+    setPendingAction(prev => ({ ...prev, [key]: null }));
+    setNoteText(prev => ({ ...prev, [key]: "" }));
     if (item.kind === "request") onUpdateAdminRequest(item.id, { status: newStatus, reviewer: { full_name: reviewerName } });
-    else                          onUpdateAdminReport(item.id,  { status: newStatus, reviewer: { full_name: reviewerName } });
+    else                          onUpdateAdminReport(item.id,  { status: newStatus, reviewer: { full_name: reviewerName }, resolution_note: resolutionNote || null });
   }
 
   function renderItem(item) {
@@ -2597,8 +2608,13 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
             {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
             <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
             {item.reviewerName && item.status !== "pendiente" && (
-              <div style={{ fontSize:11, marginTop:4, color: item.status === "aprobado" ? COLORS.green : "#c0392b", fontWeight:600 }}>
-                {item.status === "aprobado" ? "Aprobado" : "Rechazado"} por {item.reviewerName}
+              <div style={{ fontSize:11, marginTop:4, color: item.status === "aprobado" ? COLORS.green : item.status === "atendido" ? COLORS.green : item.status === "rechazado" ? "#c0392b" : COLORS.textMuted, fontWeight:600 }}>
+                {{ aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" }[item.status] ?? item.status} por {item.reviewerName}
+              </div>
+            )}
+            {item.resolution_note && (item.status === "atendido" || item.status === "descartado") && (
+              <div style={{ fontSize:11, marginTop:3, color:COLORS.textMuted, lineHeight:1.5 }}>
+                <span style={{ fontWeight:600 }}>Nota:</span> {item.resolution_note}
               </div>
             )}
           </div>
@@ -2607,7 +2623,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
             <StatusBadge status={item.status} />
           </div>
         </div>
-        {isPending && (
+        {isPending && item.kind === "request" && (
           <div style={{ display:"flex", gap:8, marginTop:10 }}>
             <button onClick={() => handleAction(item, "aprobado")} disabled={isLoading} style={{
               flex:1, padding:"7px 0", borderRadius:7, border:"none",
@@ -2631,6 +2647,59 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
             >{loading[key] === "rechazado" ? "Rechazando..." : "Rechazar"}</button>
           </div>
         )}
+        {isPending && item.kind === "report" && (() => {
+          const action = pendingAction[key];
+          return (
+            <>
+              {!action && (
+                <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                  <button onClick={() => { setPendingAction(p => ({ ...p, [key]:"atendido" })); setNoteText(p => ({ ...p, [key]:"" })); }} disabled={isLoading} style={{
+                    flex:2, padding:"7px 0", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
+                    background:"rgba(44,99,86,0.12)", color:COLORS.greenSoft, fontSize:13, fontWeight:700,
+                    fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1, transition:"background 0.15s",
+                  }}
+                    onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.22)"; }}
+                    onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background="rgba(44,99,86,0.12)"; }}
+                  >Marcar como atendido</button>
+                  <button onClick={() => { setPendingAction(p => ({ ...p, [key]:"descartado" })); setNoteText(p => ({ ...p, [key]:"" })); }} disabled={isLoading} style={{
+                    flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
+                    background:COLORS.panelAlt, color:COLORS.textMuted, fontSize:13, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1, transition:"background 0.15s",
+                  }}
+                    onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background=COLORS.border; }}
+                    onMouseLeave={e => { if (!isLoading) e.currentTarget.style.background=COLORS.panelAlt; }}
+                  >Descartar</button>
+                </div>
+              )}
+              {action && (
+                <div style={{ marginTop:10 }}>
+                  <textarea
+                    value={noteText[key] ?? ""}
+                    onChange={e => setNoteText(p => ({ ...p, [key]: e.target.value }))}
+                    rows={2} style={{ ...taStyle, width:"100%", fontSize:12, marginBottom:8 }}
+                    placeholder={action === "atendido" ? "Nota de resolución (opcional) — ej. Se reemplazó el equipo dañado" : "Motivo (opcional)"}
+                    onFocus={e => e.target.style.borderColor=COLORS.gold}
+                    onBlur={e => e.target.style.borderColor=COLORS.border}
+                    autoFocus
+                  />
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={() => handleAction(item, action, noteText[key])} disabled={isLoading} style={{
+                      flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:isLoading?"not-allowed":"pointer",
+                      background: action==="atendido" ? "rgba(44,99,86,0.12)" : COLORS.panelAlt,
+                      color: action==="atendido" ? COLORS.greenSoft : COLORS.textMuted,
+                      fontSize:13, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:isLoading?0.6:1,
+                    }}>{isLoading ? "Guardando..." : "Confirmar"}</button>
+                    <button onClick={() => setPendingAction(p => ({ ...p, [key]:null }))} disabled={isLoading} style={{
+                      flex:1, padding:"7px 0", borderRadius:7, border:`1px solid ${COLORS.border}`,
+                      background:"transparent", color:COLORS.textMuted, fontSize:13, fontWeight:600,
+                      fontFamily:"'Manrope', sans-serif", cursor:"pointer",
+                    }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
         {errMsg && <p style={{ fontSize:11, color:"#e07070", margin:"6px 0 0" }}>{errMsg}</p>}
       </div>
     );
@@ -2754,6 +2823,8 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
       location: r.location,
       photo_url: r.photo_url,
       status: r.status, created_at: r.created_at,
+      resolution_note: r.resolution_note || null,
+      reviewerName: r.reviewer?.full_name || null,
     })),
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -2917,7 +2988,7 @@ export default function App() {
       .then(({ data }) => { if (data) setAllRequests(data); });
     supabase
       .from("reports")
-      .select("*")
+      .select("*, reviewer:profiles!reviewed_by(full_name)")
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setReports(data); });
