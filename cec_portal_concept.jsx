@@ -2582,7 +2582,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
 
   if (isMobile) {
     return (
-      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }}>
+      <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
         {/* Header fijo móvil */}
         <div style={{
           position: "sticky", top: 0, zIndex: 50, width: "100%", boxSizing: "border-box",
@@ -2608,17 +2608,15 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             {todayStr}
           </div>
-          <div style={sectionAnim} onAnimationEnd={() => { if (sectionPhase === "in") setSectionPhase(null); }}>
-            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 6px", color: COLORS.green }}>
-              {displayActive === "inicio" ? greeting : sectionTitle}
-            </h1>
-            {displayActive === "inicio" && (
-              <p style={{ fontSize: 13, color: COLORS.textMuted, margin: "0 0 20px", lineHeight: 1.55, fontStyle: "italic" }}>
-                {dailyMessage}
-              </p>
-            )}
-            {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
-          </div>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 600, margin: "0 0 6px", color: COLORS.green }}>
+            {displayActive === "inicio" ? greeting : sectionTitle}
+          </h1>
+          {displayActive === "inicio" && (
+            <p style={{ fontSize: 13, color: COLORS.textMuted, margin: "0 0 20px", lineHeight: 1.55, fontStyle: "italic" }}>
+              {dailyMessage}
+            </p>
+          )}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
     );
