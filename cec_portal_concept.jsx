@@ -3403,6 +3403,285 @@ function SupportChatWidget({ userId }) {
   );
 }
 
+function AdminSupportChatWidget({ adminId }) {
+  const [open,         setOpen]         = useState(false);
+  const [view,         setView]         = useState("list"); // "list" | "chat"
+  const [conversations,setConversations]= useState(null);  // null = not loaded
+  const [selectedConv, setSelectedConv] = useState(null);  // { userId, full_name, hasUnread }
+  const [chatMessages, setChatMessages] = useState([]);
+  const [input,        setInput]        = useState("");
+  const [sending,      setSending]      = useState(false);
+  const [badge,        setBadge]        = useState(0);
+  const bottomRef   = useRef(null);
+  const viewRef     = useRef("list");
+  const selectedRef = useRef(null);
+  const openRef     = useRef(false);
+  useEffect(() => { viewRef.current     = view; },         [view]);
+  useEffect(() => { selectedRef.current = selectedConv; }, [selectedConv]);
+  useEffect(() => { openRef.current     = open; },         [open]);
+
+  function fmtTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (msgDay.getTime() === today.getTime())
+      return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    return `${d.getDate()} ${months[d.getMonth()]}`;
+  }
+
+  function buildConversations(data) {
+    const map = {};
+    for (const msg of data) {
+      const uid = msg.user_id;
+      if (!map[uid]) {
+        map[uid] = {
+          userId: uid,
+          full_name: msg.profiles?.full_name || "Empleado",
+          lastMessage: msg.message,
+          lastTime: msg.created_at,
+          hasUnread: false,
+        };
+      }
+      if (!msg.read_by_admin && msg.sender_id !== adminId) map[uid].hasUnread = true;
+    }
+    return Object.values(map).sort((a, b) => {
+      if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
+      return new Date(b.lastTime) - new Date(a.lastTime);
+    });
+  }
+
+  // Initial badge on mount (before panel opens)
+  useEffect(() => {
+    supabase.from("support_messages").select("user_id").eq("read_by_admin", false).neq("sender_id", adminId)
+      .then(({ data }) => {
+        if (data) setBadge(new Set(data.map(m => m.user_id)).size);
+      });
+  }, [adminId]);
+
+  // Derive badge from conversations once loaded
+  useEffect(() => {
+    if (conversations) setBadge(conversations.filter(c => c.hasUnread).length);
+  }, [conversations]);
+
+  // Load conversations on first open
+  useEffect(() => {
+    if (!open || conversations !== null) return;
+    supabase.from("support_messages")
+      .select("*, profiles!support_messages_user_id_fkey(full_name)")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setConversations(buildConversations(data || [])));
+  }, [open]);
+
+  // Auto-scroll in chat
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  async function openConversation(conv) {
+    setSelectedConv(conv);
+    setView("chat");
+    setChatMessages([]);
+    const { data } = await supabase.from("support_messages").select("*")
+      .eq("user_id", conv.userId).order("created_at", { ascending: true });
+    setChatMessages(data || []);
+    await supabase.from("support_messages").update({ read_by_admin: true })
+      .eq("user_id", conv.userId).eq("read_by_admin", false);
+    setConversations(prev => prev ? prev.map(c =>
+      c.userId === conv.userId ? { ...c, hasUnread: false } : c
+    ).sort((a, b) => {
+      if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
+      return new Date(b.lastTime) - new Date(a.lastTime);
+    }) : prev);
+  }
+
+  async function handleSend() {
+    const text = input.trim();
+    if (!text || sending || !selectedConv) return;
+    setSending(true);
+    const optimistic = { id:"opt-"+Date.now(), user_id:selectedConv.userId, sender_id:adminId, message:text, created_at:new Date().toISOString() };
+    setChatMessages(prev => [...prev, optimistic]);
+    setInput("");
+    await supabase.from("support_messages").insert({ user_id:selectedConv.userId, sender_id:adminId, message:text, read_by_admin:true, read_by_employee:false });
+    setSending(false);
+  }
+
+  // Realtime: all new employee messages
+  useEffect(() => {
+    const ch = supabase.channel("support-admin-" + adminId)
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"support_messages" }, ({ new: row }) => {
+        if (row.sender_id === adminId) return;
+        playNotificationPing();
+        const inThisChat = openRef.current && viewRef.current === "chat" && selectedRef.current?.userId === row.user_id;
+        if (inThisChat) {
+          setChatMessages(prev => prev.some(m => m.id === row.id) ? prev : [...prev, row]);
+          supabase.from("support_messages").update({ read_by_admin:true }).eq("id", row.id);
+        }
+        // Update conversations list
+        setConversations(prev => {
+          if (!prev) return prev;
+          const exists = prev.some(c => c.userId === row.user_id);
+          let next;
+          if (exists) {
+            next = prev.map(c => c.userId === row.user_id
+              ? { ...c, lastMessage: row.message, lastTime: row.created_at, hasUnread: inThisChat ? false : true }
+              : c);
+          } else {
+            // New conversation — fetch name async, placeholder for now
+            supabase.from("profiles").select("full_name").eq("id", row.user_id).single()
+              .then(({ data }) => {
+                setConversations(p => p ? [...(p.filter(c => c.userId !== row.user_id)), {
+                  userId: row.user_id, full_name: data?.full_name || "Empleado",
+                  lastMessage: row.message, lastTime: row.created_at, hasUnread: !inThisChat,
+                }].sort((a, b) => {
+                  if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
+                  return new Date(b.lastTime) - new Date(a.lastTime);
+                }) : p);
+              });
+            return prev;
+          }
+          return next.sort((a, b) => {
+            if (a.hasUnread !== b.hasUnread) return a.hasUnread ? -1 : 1;
+            return new Date(b.lastTime) - new Date(a.lastTime);
+          });
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [adminId]);
+
+  const panelStyle = {
+    position:"fixed", bottom:90, right:24, width:340, height:440,
+    background:COLORS.panel, borderRadius:16, border:`1px solid ${COLORS.border}`,
+    boxShadow:"0 8px 32px rgba(0,0,0,0.14)", display:"flex", flexDirection:"column",
+    zIndex:200, fontFamily:"'Manrope', sans-serif", animation:"sectionIn 0.2s ease-out both",
+  };
+
+  return (
+    <>
+      {open && (
+        <div style={panelStyle}>
+          {/* Header */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 16px", borderBottom:`1px solid ${COLORS.border}`, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              {view === "chat" && (
+                <button onClick={() => { setView("list"); setSelectedConv(null); }} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:"0 4px 0 0" }}>
+                  <ChevronLeft size={18}/>
+                </button>
+              )}
+              <span style={{ fontSize:14, fontWeight:700, color:COLORS.green }}>
+                {view === "list" ? "Soporte" : (selectedConv?.full_name || "Chat")}
+              </span>
+            </div>
+            <button onClick={() => setOpen(false)} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4 }}>
+              <X size={16}/>
+            </button>
+          </div>
+
+          {/* LIST view */}
+          {view === "list" && (
+            <div style={{ flex:1, overflowY:"auto" }}>
+              {conversations === null ? (
+                <p style={{ color:COLORS.textMuted, fontSize:12, textAlign:"center", marginTop:24 }}>Cargando...</p>
+              ) : conversations.length === 0 ? (
+                <p style={{ color:COLORS.textMuted, fontSize:13, textAlign:"center", margin:"32px 20px" }}>No hay conversaciones de soporte.</p>
+              ) : conversations.map(conv => (
+                <div key={conv.userId} onClick={() => openConversation(conv)} style={{
+                  display:"flex", alignItems:"center", gap:10, padding:"11px 16px",
+                  cursor:"pointer", borderBottom:`1px solid ${COLORS.border}`,
+                  background: conv.hasUnread ? "rgba(201,162,78,0.06)" : "transparent",
+                  transition:"background 0.12s",
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background="rgba(31,74,64,0.05)"}
+                  onMouseLeave={e => e.currentTarget.style.background= conv.hasUnread ? "rgba(201,162,78,0.06)" : "transparent"}
+                >
+                  <div style={{ width:36, height:36, borderRadius:"50%", background:COLORS.panelAlt, border:`1px solid ${COLORS.border}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:14, fontWeight:700, color:COLORS.textMuted }}>
+                    {(conv.full_name || "E")[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
+                      <span style={{ fontSize:13, fontWeight: conv.hasUnread ? 700 : 600, color:COLORS.text }}>{conv.full_name}</span>
+                      <span style={{ fontSize:10, color:COLORS.textMuted, flexShrink:0 }}>{fmtTime(conv.lastTime)}</span>
+                    </div>
+                    <span style={{ fontSize:12, color: conv.hasUnread ? COLORS.text : COLORS.textMuted, display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {conv.lastMessage}
+                    </span>
+                  </div>
+                  {conv.hasUnread && <div style={{ width:8, height:8, borderRadius:"50%", background:COLORS.gold, flexShrink:0 }}/>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* CHAT view */}
+          {view === "chat" && (
+            <>
+              <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+                {chatMessages.length === 0 ? (
+                  <p style={{ color:COLORS.textMuted, fontSize:12, textAlign:"center", marginTop:24 }}>Sin mensajes aún.</p>
+                ) : chatMessages.map((msg, i) => {
+                  const mine = msg.sender_id === adminId;
+                  return (
+                    <div key={msg.id || i} style={{ display:"flex", flexDirection:"column", alignItems: mine ? "flex-end" : "flex-start" }}>
+                      <div style={{ maxWidth:"80%", padding:"8px 12px", fontSize:13, color:COLORS.text, lineHeight:1.5,
+                        background: mine ? "rgba(201,162,78,0.15)" : COLORS.panelAlt,
+                        border: mine ? "1px solid rgba(201,162,78,0.3)" : `1px solid ${COLORS.border}`,
+                        borderRadius: mine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                      }}>
+                        {msg.message}
+                      </div>
+                      <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtTime(msg.created_at)}</span>
+                    </div>
+                  );
+                })}
+                <div ref={bottomRef}/>
+              </div>
+              <div style={{ padding:"10px 12px", borderTop:`1px solid ${COLORS.border}`, display:"flex", gap:8, flexShrink:0 }}>
+                <input
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder="Responder..."
+                  style={{ flex:1, padding:"8px 12px", borderRadius:20, border:`1px solid ${COLORS.border}`, background:COLORS.inputBg, color:COLORS.text, fontSize:13, fontFamily:"'Manrope', sans-serif", outline:"none" }}
+                />
+                <button onClick={handleSend} disabled={!input.trim() || sending} style={{
+                  width:36, height:36, borderRadius:"50%", border:"none", flexShrink:0,
+                  cursor:(!input.trim() || sending) ? "not-allowed" : "pointer",
+                  background:(!input.trim() || sending) ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                  display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s",
+                }}>
+                  <Send size={14} color="#FFF"/>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* FAB */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          position:"fixed", bottom:24, right:24, width:56, height:56, borderRadius:"50%",
+          background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+          border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+          boxShadow:"0 4px 20px rgba(201,162,78,0.45)", zIndex:200, transition:"transform 0.15s",
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform="scale(1.08)"}
+        onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}
+      >
+        <MessageCircle size={24} color="#FFF"/>
+        {badge > 0 && (
+          <div style={{ position:"absolute", top:2, right:2, minWidth:18, height:18, borderRadius:9, background:"#e74c3c", border:"2px solid #FFF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"#FFF", padding:"0 3px" }}>
+            {badge}
+          </div>
+        )}
+      </button>
+    </>
+  );
+}
+
 function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -3531,6 +3810,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
+      {(profile?.role === "admin" || profile?.role === "rrhh") && userId && <AdminSupportChatWidget adminId={userId}/>}
       </div>
     );
   }
@@ -3566,6 +3846,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
+      {(profile?.role === "admin" || profile?.role === "rrhh") && userId && <AdminSupportChatWidget adminId={userId}/>}
     </div>
   );
 }
@@ -3585,6 +3866,25 @@ function _getAudioCtx() {
 }
 function _unlockAudio() {
   try { const ctx = _getAudioCtx(); if (ctx.state === "suspended") ctx.resume(); } catch (_) {}
+}
+function playNotificationPing() {
+  try {
+    const ctx = _getAudioCtx();
+    const go = () => {
+      [[660, 0], [880, 0.18]].forEach(([freq, delay]) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = "sine"; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.16);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.17);
+      });
+    };
+    ctx.state === "suspended" ? ctx.resume().then(go) : go();
+  } catch (_) {}
 }
 
 export default function App() {
@@ -3694,26 +3994,6 @@ export default function App() {
   }, []);
 
   // ── Realtime subscriptions ──
-  function playNotificationPing() {
-    try {
-      const ctx = _getAudioCtx();
-      const go = () => {
-        [[660, 0], [880, 0.18]].forEach(([freq, delay]) => {
-          const osc  = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain); gain.connect(ctx.destination);
-          osc.type = "sine"; osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-          gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.01);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.16);
-          osc.start(ctx.currentTime + delay);
-          osc.stop(ctx.currentTime + delay + 0.17);
-        });
-      };
-      ctx.state === "suspended" ? ctx.resume().then(go) : go();
-    } catch (_) {}
-  }
-
   useEffect(() => {
     if (!profile || !session?.user) return;
 
