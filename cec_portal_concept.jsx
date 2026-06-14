@@ -2092,6 +2092,15 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     const { data: afterRestore } = await supabase.auth.getSession();
     console.log('[AltaEmpleado] Sesión DESPUÉS de setSession:', afterRestore?.session?.user?.id);
 
+    // ── Diagnóstico RLS ──
+    const { data: { session: diagSession } } = await supabase.auth.getSession();
+    console.log('[AltaEmpleado] Sesión activa (uid):', diagSession?.user?.id);
+    const { data: myProfile } = await supabase.from("profiles").select("id, role").eq("id", diagSession?.user?.id ?? "").single();
+    console.log('[AltaEmpleado] Mi perfil (admin):', myProfile);
+    const { data: isAdminCheck } = await supabase.rpc("is_admin").catch(() => ({ data: null }));
+    console.log('[AltaEmpleado] is_admin() resultado:', isAdminCheck);
+    // ────────────────────
+
     const { error: profileError } = await supabase.from("profiles").upsert({
       id:                    userId,
       full_name:             fullName.trim(),
@@ -2105,7 +2114,14 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     }, { onConflict: "id" });
     setLoading(false);
     if (profileError) {
-      setPartialErr(`El usuario fue creado en autenticación (ID: ${userId}) pero no se pudo actualizar el perfil: ${profileError.message}`);
+      console.log('[AltaEmpleado] Error completo del update:', JSON.stringify(profileError, null, 2));
+      setPartialErr(
+        `El usuario fue creado en autenticación (ID: ${userId}) pero no se pudo actualizar el perfil.\n` +
+        `message: ${profileError.message}\n` +
+        `code: ${profileError.code ?? "—"}\n` +
+        `details: ${profileError.details ?? "—"}\n` +
+        `hint: ${profileError.hint ?? "—"}`
+      );
       return;
     }
     const savedEmail = email.trim();
