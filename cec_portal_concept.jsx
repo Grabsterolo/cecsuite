@@ -1706,10 +1706,17 @@ function ProfileSection({ profile }) {
         <CardHeader title="Mi perfil" />
         {row("Nombre completo", profile.full_name)}
         {row("Puesto", profile.position)}
-        {profile.department && (
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-            <span style={{ fontSize:13, color:COLORS.textMuted, fontWeight:600 }}>Departamento</span>
-            <DeptTag dept={profile.department} />
+        {((Array.isArray(profile.departments) && profile.departments.length > 0) || profile.department) && (
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, padding:"11px 0", borderBottom:`1px solid ${COLORS.border}`, flexWrap:"wrap" }}>
+            <span style={{ fontSize:13, color:COLORS.textMuted, fontWeight:600 }}>
+              {Array.isArray(profile.departments) && profile.departments.length > 1 ? "Departamentos" : "Departamento"}
+            </span>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4, justifyContent:"flex-end" }}>
+              {Array.isArray(profile.departments) && profile.departments.length > 0
+                ? profile.departments.map(d => <DeptTag key={d} dept={d} />)
+                : <DeptTag dept={profile.department} />
+              }
+            </div>
           </div>
         )}
         {row("Fecha de ingreso", fmtHireDate(profile.hire_date))}
