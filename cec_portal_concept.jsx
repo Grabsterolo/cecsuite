@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, CheckCircle2, XCircle,
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -88,6 +88,14 @@ const FONTS = `
   0%   { opacity: 0.4; transform: translateY(-10px) rotate(0deg); }
   85%  { opacity: 0.25; }
   100% { opacity: 0;   transform: translateY(100vh) rotate(540deg); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(32px); }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
@@ -203,6 +211,55 @@ function RotatingWord({ noAnim }) {
           {ROTATING_WORDS[noAnim ? 0 : idx]}
         </span>
       </span>
+    </div>
+  );
+}
+
+function Toast({ id, msg, accent, iconType, onDismiss }) {
+  const [leaving, setLeaving] = useState(false);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
+  useEffect(() => {
+    const remove = () => { setLeaving(true); setTimeout(() => onDismissRef.current(id), 260); };
+    const t = setTimeout(remove, 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  function handleClose() { setLeaving(true); setTimeout(() => onDismissRef.current(id), 260); }
+
+  const Icon = iconType === "check" ? CheckCircle2 : XCircle;
+  return (
+    <div style={{
+      display:"flex", alignItems:"flex-start", gap:10,
+      background:COLORS.panel,
+      borderRadius:10,
+      border:`1px solid ${accent}28`,
+      borderLeft:`4px solid ${accent}`,
+      padding:"12px 12px 12px 14px",
+      boxShadow:"0 4px 22px rgba(0,0,0,0.11)",
+      minWidth:270, maxWidth:360,
+      fontFamily:"'Manrope', sans-serif",
+      animation: leaving ? "toastOut 0.26s ease-in both" : "toastIn 0.26s ease-out both",
+    }}>
+      <Icon size={17} color={accent} style={{ flexShrink:0, marginTop:1 }}/>
+      <span style={{ fontSize:13, color:COLORS.text, flex:1, lineHeight:1.5 }}>{msg}</span>
+      <button onClick={handleClose} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, padding:"0 0 0 6px", lineHeight:1, flexShrink:0, display:"flex", alignItems:"center" }}>
+        <X size={13}/>
+      </button>
+    </div>
+  );
+}
+
+function ToastContainer({ toasts, onDismiss }) {
+  if (!toasts.length) return null;
+  return (
+    <div style={{ position:"fixed", top:20, right:20, zIndex:400, display:"flex", flexDirection:"column", gap:8, pointerEvents:"none" }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{ pointerEvents:"auto" }}>
+          <Toast {...t} onDismiss={onDismiss}/>
+        </div>
+      ))}
     </div>
   );
 }
@@ -3969,6 +4026,9 @@ export default function App() {
   const [adminProfiles,      setAdminProfiles]       = useState([]);
   const [departments,        setDepartments]         = useState([]);
   const [departmentsList,    setDepartmentsList]     = useState([]);
+  const [toasts,             setToasts]              = useState([]);
+
+  function dismissToast(id) { setToasts(prev => prev.filter(t => t.id !== id)); }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
@@ -4079,6 +4139,17 @@ export default function App() {
 
     const ch = supabase.channel("portal-realtime-" + userId);
 
+    // addToast only fires for non-admin employees; setToasts is always stable
+    function addToast(msg, accent, iconType) {
+      if (isAdmin) return;
+      const id = crypto.randomUUID();
+      setToasts(prev => {
+        const next = [...prev, { id, msg, accent, iconType }];
+        return next.length > 3 ? next.slice(next.length - 3) : next;
+      });
+      playNotificationPing();
+    }
+
     // ── announcements ──
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "announcements" }, ({ new: row }) => {
       if (new Date(row.publish_at) > new Date()) return;
@@ -4116,10 +4187,30 @@ export default function App() {
     });
 
     // ── employee's own requests: status updates ──
-    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests", filter: `user_id=eq.${userId}` }, ({ new: row, old: oldRow }) => {
+      // oldRow.status is present when status actually changed (Supabase includes changed columns in old)
+      const prevWasPending = !oldRow?.status || oldRow.status === "pendiente";
+      if (prevWasPending && row.status !== "pendiente") {
+        const label = row.type === "vacaciones" ? "Vacaciones" : (row.category || "Permiso");
+        if (row.status === "aprobado") {
+          addToast(`Tu solicitud de ${label} fue aprobada.`, COLORS.green, "check");
+        } else if (row.status === "rechazado") {
+          addToast(`Tu solicitud de ${label} fue rechazada.`, "#c0392b", "x");
+        }
+      }
       setAllRequests(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
     });
-    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "reports", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "reports", filter: `user_id=eq.${userId}` }, ({ new: row, old: oldRow }) => {
+      const prevWasPending = !oldRow?.status || oldRow.status === "pendiente";
+      if (prevWasPending && row.status !== "pendiente") {
+        const label = row.category || "incidencia";
+        if (row.status === "atendido") {
+          const note = row.resolution_note ? `: ${row.resolution_note}` : ".";
+          addToast(`Tu reporte de ${label} fue atendido${note}`, COLORS.green, "check");
+        } else if (row.status === "descartado") {
+          addToast(`Tu reporte de ${label} fue descartado.`, COLORS.textMuted, "x");
+        }
+      }
       setReports(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
     });
 
@@ -4181,8 +4272,9 @@ export default function App() {
   return (
     <div>
       <style>{FONTS}</style>
-      {session
-        ? <Dashboard
+      {session ? (
+        <>
+          <Dashboard
             onLogout={() => supabase.auth.signOut()}
             profile={profile}
             allRequests={allRequests}
@@ -4207,8 +4299,11 @@ export default function App() {
             onUpdateAdminProfile={updatedEmp => setAdminProfiles(prev => prev.map(p => p.id === updatedEmp.id ? updatedEmp : p))}
             userId={session?.user?.id}
           />
-        : <LoginScreen onLogin={() => {}} />
-      }
+          <ToastContainer toasts={toasts} onDismiss={dismissToast}/>
+        </>
+      ) : (
+        <LoginScreen onLogin={() => {}} />
+      )}
     </div>
   );
 }
