@@ -456,7 +456,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
               </button>
             );
           })}
-          {(profile?.role === "admin" || profile?.role === "rrhh") && (
+          {(profile?.role === "admin") && (
             <>
               <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"10px 4px 6px" }} />
               <div style={{ fontSize:10, letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", fontWeight:700, padding:"0 14px 4px" }}>Administración</div>
@@ -595,7 +595,7 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
             </button>
           );
         })}
-        {(profile?.role === "admin" || profile?.role === "rrhh") && (
+        {(profile?.role === "admin") && (
           <>
             <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"10px 4px 6px" }} />
             <div style={{ fontSize:10, letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", fontWeight:700, padding:"0 14px 4px" }}>Administración</div>
@@ -1685,7 +1685,7 @@ function ProfileSection({ profile }) {
     return `${d} de ${months[m - 1]} de ${y}`;
   }
 
-  const showRole = profile.role === "admin" || profile.role === "rrhh";
+  const showRole = profile.role === "admin";
   const row = (label, value) => value ? (
     <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 0", borderBottom:`1px solid ${COLORS.border}` }}>
       <span style={{ fontSize:13, color:COLORS.textMuted, fontWeight:600 }}>{label}</span>
@@ -2274,7 +2274,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
           {fl("Rol")}
           <select value={role} onChange={e => setRole(e.target.value)} style={selStyle}>
             <option value="empleado" style={{ color:"#1F4A40" }}>Empleado</option>
-            <option value="rrhh"     style={{ color:"#1F4A40" }}>RRHH</option>
+
             <option value="admin"    style={{ color:"#1F4A40" }}>Admin</option>
           </select>
         </div>
@@ -2381,7 +2381,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
           {fl("Rol")}
           <select value={role} onChange={e => setRole(e.target.value)} style={selStyle}>
             <option value="empleado" style={{ color:"#1F4A40" }}>Empleado</option>
-            <option value="rrhh"     style={{ color:"#1F4A40" }}>RRHH</option>
+
             <option value="admin"    style={{ color:"#1F4A40" }}>Admin</option>
           </select>
         </div>
@@ -2677,7 +2677,7 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
             const available = Math.max(0, total - approved);
             const usedPct   = Math.min(100, Math.round((approved / total) * 100));
             const pendPct   = Math.min(100 - usedPct, Math.round((pending / total) * 100));
-            const showRole  = emp.role === "admin" || emp.role === "rrhh";
+            const showRole  = emp.role === "admin";
             return (
               <Card key={emp.id}>
                 {savedEmpId === emp.id && (
@@ -4247,7 +4247,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
 
   const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", "calendario-equipo": "Calendario de equipo", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[displayActive];
 
-  const pendingApprovalCount = (profile?.role === "admin" || profile?.role === "rrhh")
+  const pendingApprovalCount = (profile?.role === "admin")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
     : 0;
 
@@ -4349,8 +4349,8 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
           )}
           {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
-        {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
-      {(profile?.role === "admin" || profile?.role === "rrhh") && userId && <AdminSupportChatWidget adminId={userId}/>}
+        {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
+      {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
       </div>
     );
   }
@@ -4385,8 +4385,8 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
           {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
-      {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
-      {(profile?.role === "admin" || profile?.role === "rrhh") && userId && <AdminSupportChatWidget adminId={userId}/>}
+      {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
+      {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
     </div>
   );
 }
@@ -4516,7 +4516,7 @@ export default function App() {
 
   useEffect(() => {
     if (!profile) return;
-    if (profile.role !== "admin" && profile.role !== "rrhh") return;
+    if (profile.role !== "admin") return;
     supabase.from("requests").select("*, profiles!requests_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setAdminRequests(data); });
     supabase.from("reports").select("*, profiles!reports_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").order("created_at", { ascending: false })
@@ -4548,7 +4548,7 @@ export default function App() {
     if (!profile || !session?.user) return;
 
     const userId    = session.user.id;
-    const isAdmin   = profile.role === "admin" || profile.role === "rrhh";
+    const isAdmin   = profile.role === "admin";
     const userDepts = Array.isArray(profile.departments) ? profile.departments : [];
 
     function audienceMatch(list) {
