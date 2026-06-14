@@ -1137,8 +1137,8 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
         fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto",
         transition:"border-color 0.2s",
       }}>
-        <option value="" disabled>Selecciona un tipo…</option>
-        {TIPOS_PERMISO.map(t => <option key={t} value={t}>{t}</option>)}
+        <option value="" disabled style={{ color:"#1F4A40" }}>Selecciona un tipo…</option>
+        {TIPOS_PERMISO.map(t => <option key={t} value={t} style={{ color:"#1F4A40" }}>{t}</option>)}
       </select>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:8, fontWeight:600, letterSpacing:"0.02em" }}>Fechas</label>
       <CalendarWidget startDate={startDate} endDate={endDate} onChange={(s,e) => { setStartDate(s); setEndDate(e); }} minDate={todayP} />
@@ -1256,8 +1256,8 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
         fontSize:14, outline:"none", boxSizing:"border-box", marginBottom:14,
         fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto", transition:"border-color 0.2s",
       }}>
-        <option value="" disabled>Selecciona una categoría…</option>
-        {TIPOS_REPORTE.map(t => <option key={t} value={t}>{t}</option>)}
+        <option value="" disabled style={{ color:"#1F4A40" }}>Selecciona una categoría…</option>
+        {TIPOS_REPORTE.map(t => <option key={t} value={t} style={{ color:"#1F4A40" }}>{t}</option>)}
       </select>
       <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Descripción</label>
       <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe la situación con el mayor detalle posible..." rows={4} style={{ ...taStyle, marginBottom:14 }}
@@ -1818,7 +1818,7 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
             fontFamily:"'Manrope', sans-serif", cursor:"pointer", outline:"none",
           }}
         >
-          {statusOpts.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          {statusOpts.map(opt => <option key={opt.value} value={opt.value} style={{ color:"#1F4A40" }}>{opt.label}</option>)}
         </select>
       </div>
       {allSolicitudes.length === 0 ? (
@@ -2152,9 +2152,9 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
         <div>
           {fl("Rol")}
           <select value={role} onChange={e => setRole(e.target.value)} style={selStyle}>
-            <option value="empleado">Empleado</option>
-            <option value="rrhh">RRHH</option>
-            <option value="admin">Admin</option>
+            <option value="empleado" style={{ color:"#1F4A40" }}>Empleado</option>
+            <option value="rrhh"     style={{ color:"#1F4A40" }}>RRHH</option>
+            <option value="admin"    style={{ color:"#1F4A40" }}>Admin</option>
           </select>
         </div>
         <div>
@@ -2259,9 +2259,9 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
         <div>
           {fl("Rol")}
           <select value={role} onChange={e => setRole(e.target.value)} style={selStyle}>
-            <option value="empleado">Empleado</option>
-            <option value="rrhh">RRHH</option>
-            <option value="admin">Admin</option>
+            <option value="empleado" style={{ color:"#1F4A40" }}>Empleado</option>
+            <option value="rrhh"     style={{ color:"#1F4A40" }}>RRHH</option>
+            <option value="admin"    style={{ color:"#1F4A40" }}>Admin</option>
           </select>
         </div>
       </div>
@@ -2540,8 +2540,8 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
           padding:"9px 12px", color:COLORS.text, fontSize:13, outline:"none",
           fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto", flexShrink:0,
         }}>
-          <option value="todos">Todos los departamentos</option>
-          {departmentsList.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+          <option value="todos" style={{ color:"#1F4A40" }}>Todos los departamentos</option>
+          {departmentsList.map(d => <option key={d.id} value={d.name} style={{ color:"#1F4A40" }}>{d.name}</option>)}
         </select>
       </div>
 
@@ -3231,9 +3231,9 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
               fontFamily:"'Manrope', sans-serif", cursor:"pointer", outline:"none",
             }}
           >
-            <option value="pendiente">Pendientes</option>
-            <option value="resuelto">Resueltos</option>
-            <option value="todos">Todos</option>
+            <option value="pendiente" style={{ color:"#1F4A40" }}>Pendientes</option>
+            <option value="resuelto"  style={{ color:"#1F4A40" }}>Resueltos</option>
+            <option value="todos"     style={{ color:"#1F4A40" }}>Todos</option>
           </select>
         </div>
       </div>
