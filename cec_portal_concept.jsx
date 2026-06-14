@@ -4626,6 +4626,9 @@ export default function App() {
       ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests" }, ({ new: row }) => {
         setAdminRequests(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
       });
+      ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "requests" }, ({ old: row }) => {
+        setAdminRequests(prev => prev.filter(r => r.id !== row.id));
+      });
       ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "reports" }, ({ new: row }) => {
         if (row.status === "pendiente" && row.user_id !== userId) playNotificationPing();
         supabase.from("reports").select("*, profiles!reports_user_id_fkey(full_name, department), reviewer:profiles!reviewed_by(full_name)").eq("id", row.id).single()
@@ -4633,6 +4636,9 @@ export default function App() {
       });
       ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "reports" }, ({ new: row }) => {
         setAdminReports(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
+      });
+      ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "reports" }, ({ old: row }) => {
+        setAdminReports(prev => prev.filter(r => r.id !== row.id));
       });
     }
 
