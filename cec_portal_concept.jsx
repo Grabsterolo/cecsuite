@@ -991,15 +991,33 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
   const isPastStart = startDate && startDate < today;
   const exceedsBalance = availableDays != null && endDate && wd > availableDays;
   const rangeEnd = endDate || startDate;
-  const overlapping = startDate && rangeEnd
+
+  // Convert a local Date object to "YYYY-MM-DD" without timezone drift
+  const toYMD = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
+  const startStr = startDate ? toYMD(startDate) : null;
+  const endStr   = rangeEnd  ? toYMD(rangeEnd)  : null;
+
+  const overlapping = startStr && endStr
     ? existingRequests.filter(r => {
         if (r.status !== "pendiente" && r.status !== "aprobado") return false;
         if (editData && r.id === editData.id) return false;
-        const rs = new Date(r.start_date + "T12:00:00");
-        const re = r.end_date ? new Date(r.end_date + "T12:00:00") : rs;
-        return startDate <= re && rangeEnd >= rs;
+        // slice(0,10) handles both "YYYY-MM-DD" and "YYYY-MM-DDTHH:..." formats from Supabase
+        const rs = (r.start_date || "").slice(0, 10);
+        const re = (r.end_date   || r.start_date || "").slice(0, 10);
+        if (!rs) return false;
+        // YYYY-MM-DD string comparison is safe (lexicographic = chronological)
+        const overlaps = startStr <= re && endStr >= rs;
+        console.log("[VacationOverlap] checking r:", { id: r.id, start: rs, end: re, status: r.status }, "| user:", { start: startStr, end: endStr }, "| overlaps:", overlaps);
+        return overlaps;
       })
     : [];
+
+  if (startStr) {
+    console.log("[VacationOverlap] existingRequests full:", existingRequests.map(r => ({ id: r.id, start_date: r.start_date, end_date: r.end_date, status: r.status })));
+    console.log("[VacationOverlap] filtered (pendiente|aprobado):", existingRequests.filter(r => r.status === "pendiente" || r.status === "aprobado").map(r => ({ id: r.id, start_date: r.start_date, end_date: r.end_date, status: r.status })));
+    console.log("[VacationOverlap] selected:", { start: startStr, end: endStr });
+    console.log("[VacationOverlap] overlapping result:", overlapping.map(r => ({ id: r.id, start_date: r.start_date, end_date: r.end_date, status: r.status })));
+  }
 
   async function submit() {
     setError(null);
