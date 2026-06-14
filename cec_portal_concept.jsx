@@ -39,6 +39,37 @@ const COLORS = {
   sidebarMuted: "rgba(255,255,255,0.55)",
 };
 
+const DEPT_COLORS = {
+  "Administración":           "#C9A24E",
+  "Enfermería":               "#7FA98C",
+  "Recepción":                "#7B93AE",
+  "Admisión":                 "#C98B6B",
+  "Cirugía":                  "#4A7C7A",
+  "Doctores":                 "#9B7EBD",
+  "Medicina Estética":        "#D49AA3",
+  "Estética":                 "#E0B07D",
+  "Consulta Médica":          "#6B8CAE",
+  "Mercadeo":                 "#D4B86A",
+  "Limpieza / Mantenimiento": "#A89B8C",
+  "Contact Center":           "#9FA8C9",
+};
+function getDepartmentColor(name) { return DEPT_COLORS[name] || "#C9A24E"; }
+function getDepartmentTextColor(name) {
+  const hex = getDepartmentColor(name).replace("#", "");
+  const r = parseInt(hex.slice(0,2),16)/255, g = parseInt(hex.slice(2,4),16)/255, b = parseInt(hex.slice(4,6),16)/255;
+  const lin = ch => ch <= 0.03928 ? ch/12.92 : ((ch+0.055)/1.055)**2.4;
+  const lum = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  return lum > 0.35 ? "#1F4A40" : "#FFFFFF";
+}
+function DeptTag({ dept }) {
+  const bg = getDepartmentColor(dept), color = getDepartmentTextColor(dept);
+  return (
+    <span style={{ background:bg, color, borderRadius:4, fontSize:10, fontWeight:700,
+      letterSpacing:"0.04em", textTransform:"uppercase", padding:"2px 7px",
+      display:"inline-block", whiteSpace:"nowrap" }}>{dept}</span>
+  );
+}
+
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 * { -webkit-tap-highlight-color: transparent; }
@@ -1675,7 +1706,12 @@ function ProfileSection({ profile }) {
         <CardHeader title="Mi perfil" />
         {row("Nombre completo", profile.full_name)}
         {row("Puesto", profile.position)}
-        {row("Departamento", profile.department)}
+        {profile.department && (
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+            <span style={{ fontSize:13, color:COLORS.textMuted, fontWeight:600 }}>Departamento</span>
+            <DeptTag dept={profile.department} />
+          </div>
+        )}
         {row("Fecha de ingreso", fmtHireDate(profile.hire_date))}
         {showRole && (
           <div style={{ marginTop:14 }}>
@@ -2583,9 +2619,17 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize:12, color:COLORS.textMuted, marginBottom:6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {[emp.position, Array.isArray(emp.departments) ? emp.departments.join(", ") : emp.department].filter(Boolean).join(" · ") || "—"}
-                      {emp.hire_date ? <span style={{ marginLeft:8 }}>· Ingreso: {fmtHireDate(emp.hire_date)}</span> : null}
+                    <div style={{ marginBottom:6 }}>
+                      {emp.position && (
+                        <div style={{ fontSize:12, color:COLORS.textMuted, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                          {emp.position}{emp.hire_date ? <span style={{ marginLeft:8 }}>· Ingreso: {fmtHireDate(emp.hire_date)}</span> : null}
+                        </div>
+                      )}
+                      <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                        {(Array.isArray(emp.departments) ? emp.departments : [emp.department].filter(Boolean)).map((dept, di) => (
+                          <DeptTag key={di} dept={dept} />
+                        ))}
+                      </div>
                     </div>
                     {/* Barra de vacaciones */}
                     <div>
@@ -2793,7 +2837,14 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
                       <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{doc.title}</div>
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                         {doc.category && <Tag label={doc.category} />}
-                        <span style={{ fontSize:11, color:COLORS.textMuted }}>{Array.isArray(doc.departments) ? (doc.departments.length === 0 ? "Todos los departamentos" : doc.departments.join(", ")) : (doc.department || "Todos los departamentos")}</span>
+                        {Array.isArray(doc.departments) ? (
+                          doc.departments.length === 0
+                            ? <span style={{ fontSize:11, color:COLORS.textMuted }}>Todos los departamentos</span>
+                            : doc.departments.map((d, di) => <DeptTag key={di} dept={d} />)
+                        ) : doc.department
+                          ? <DeptTag dept={doc.department} />
+                          : <span style={{ fontSize:11, color:COLORS.textMuted }}>Todos los departamentos</span>
+                        }
                         <span style={{ fontSize:11, color:COLORS.textMuted }}>· {fmtDate(doc.created_at)}</span>
                       </div>
                     </div>
@@ -2961,9 +3012,19 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
                 <div style={{ fontSize:14, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{a.title}</div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
                   {a.tag && <Tag label={a.tag} />}
-                  <span style={{ fontSize:11, color:COLORS.textMuted }}>
-                    Audiencia: <strong>{Array.isArray(a.audience_list) ? (a.audience_list.includes("todos") ? "Todos los departamentos" : a.audience_list.join(", ")) : (a.audience === "todos" ? "Todos los departamentos" : (a.audience || "—"))}</strong>
-                  </span>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                    <span style={{ fontSize:11, color:COLORS.textMuted }}>Audiencia:</span>
+                    {Array.isArray(a.audience_list) && a.audience_list.includes("todos")
+                      ? <span style={{ fontSize:11, fontWeight:700, color:COLORS.textMuted }}>Todos los departamentos</span>
+                      : Array.isArray(a.audience_list)
+                        ? a.audience_list.map((d, di) => <DeptTag key={di} dept={d} />)
+                        : a.audience === "todos"
+                          ? <span style={{ fontSize:11, fontWeight:700, color:COLORS.textMuted }}>Todos los departamentos</span>
+                          : a.audience
+                            ? <DeptTag dept={a.audience} />
+                            : <span style={{ fontSize:11, color:COLORS.textMuted }}>—</span>
+                    }
+                  </div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                   <span style={{ fontSize:11, color:COLORS.textMuted }}>{fmtPublishAt(a.publish_at)}</span>
@@ -3031,12 +3092,6 @@ function TeamCalendarSection({ teamVacations = [] }) {
     });
   }
 
-  function getInitials(name) {
-    if (!name) return "?";
-    const parts = name.trim().split(/\s+/);
-    return parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2);
-  }
-
   function navMonth(delta) {
     let nm = mo + delta, ny = yr;
     if (nm < 0) { nm = 11; ny--; }
@@ -3045,15 +3100,23 @@ function TeamCalendarSection({ teamVacations = [] }) {
   }
 
   const todayYMD = toYMD(now.getFullYear(), now.getMonth(), now.getDate());
+  const getFirstName = name => (name || "?").trim().split(/\s+/)[0];
+  function getInitials(name) {
+    if (!name) return "?";
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2);
+  }
 
-  // vacationers in the whole visible month (for empty-month message)
+  // vacationers in the whole visible month (for empty-month message + legend)
   const monthStart = toYMD(yr, mo, 1);
   const monthEnd   = toYMD(yr, mo, daysInMonth);
-  const anyThisMonth = teamVacations.some(r => {
+  const monthVacationers = teamVacations.filter(r => {
     const rs = (r.start_date || "").slice(0, 10);
     const re = (r.end_date   || r.start_date || "").slice(0, 10);
     return rs && rs <= monthEnd && re >= monthStart;
   });
+  const anyThisMonth = monthVacationers.length > 0;
+  const legendDepts = [...new Set(monthVacationers.map(r => r.profiles?.department).filter(Boolean))].sort();
 
   const selectedVacationers = selectedDay
     ? teamVacations.filter(r => {
@@ -3101,7 +3164,7 @@ function TeamCalendarSection({ teamVacations = [] }) {
                 key={i}
                 onClick={() => !isOverflow && hasVac && setSelectedDay(isSelected ? null : ymd)}
                 style={{
-                  minHeight:54,
+                  aspectRatio:"1/1",
                   borderRadius:8,
                   padding:"4px 3px 3px",
                   background: isSelected
@@ -3117,42 +3180,47 @@ function TeamCalendarSection({ teamVacations = [] }) {
                   cursor: !isOverflow && hasVac ? "pointer" : "default",
                   opacity: isOverflow ? 0.3 : 1,
                   display:"flex", flexDirection:"column", alignItems:"center", gap:2,
+                  overflow:"hidden",
                   transition:"background 0.1s",
                 }}
               >
                 <span style={{
                   fontSize:11, fontWeight: isToday ? 700 : 500,
                   color: isToday ? COLORS.gold : COLORS.text,
-                  lineHeight:1,
+                  lineHeight:1, flexShrink:0,
                 }}>
                   {cell.d}
                 </span>
 
                 {/* Vacation indicators */}
                 {hasVac && !isOverflow && (
-                  <div style={{ display:"flex", flexDirection:"column", gap:2, width:"100%" }}>
-                    {vacers.slice(0, 2).map((r, vi) => (
-                      <div key={vi} style={{
-                        background: COLORS.gold,
-                        color:"#fff",
-                        borderRadius:4,
-                        fontSize:9,
-                        fontWeight:700,
-                        padding:"1px 3px",
-                        textAlign:"center",
-                        overflow:"hidden",
-                        whiteSpace:"nowrap",
-                        textOverflow:"ellipsis",
-                        lineHeight:1.4,
-                      }}>
-                        {getInitials(r.profiles?.full_name)}
-                      </div>
-                    ))}
+                  <div style={{ display:"flex", flexDirection:"column", gap:1, width:"100%", overflow:"hidden" }}>
+                    {vacers.slice(0, 2).map((r, vi) => {
+                      const dept = r.profiles?.department;
+                      return (
+                        <div key={vi} style={{
+                          background: getDepartmentColor(dept),
+                          color: getDepartmentTextColor(dept),
+                          borderRadius:3,
+                          fontSize:9,
+                          fontWeight:700,
+                          padding:"1px 3px",
+                          overflow:"hidden",
+                          whiteSpace:"nowrap",
+                          textOverflow:"ellipsis",
+                          lineHeight:1.4,
+                          width:"100%",
+                          boxSizing:"border-box",
+                        }}>
+                          {getFirstName(r.profiles?.full_name)}
+                        </div>
+                      );
+                    })}
                     {vacers.length > 2 && (
                       <div style={{
-                        background: COLORS.greenSoft,
-                        color:"#fff",
-                        borderRadius:4,
+                        background:"rgba(31,74,64,0.15)",
+                        color:COLORS.green,
+                        borderRadius:3,
                         fontSize:9,
                         fontWeight:700,
                         padding:"1px 3px",
@@ -3191,8 +3259,9 @@ function TeamCalendarSection({ teamVacations = [] }) {
               }}>
                 <div style={{
                   width:32, height:32, borderRadius:16,
-                  background:`linear-gradient(135deg,${COLORS.goldSoft},${COLORS.gold})`,
-                  color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
+                  background: getDepartmentColor(r.profiles?.department),
+                  color: getDepartmentTextColor(r.profiles?.department),
+                  display:"flex", alignItems:"center", justifyContent:"center",
                   fontSize:12, fontWeight:700, flexShrink:0,
                 }}>
                   {getInitials(r.profiles?.full_name)}
@@ -3200,9 +3269,9 @@ function TeamCalendarSection({ teamVacations = [] }) {
                 <div>
                   <div style={{ fontSize:13, fontWeight:600, color:COLORS.text }}>{r.profiles?.full_name || "—"}</div>
                   {r.profiles?.department && (
-                    <div style={{ fontSize:11, color:COLORS.textMuted }}>{r.profiles.department}</div>
+                    <div style={{ marginTop:3 }}><DeptTag dept={r.profiles.department} /></div>
                   )}
-                  <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:1 }}>
+                  <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:4 }}>
                     {fmtSupaDate(r.start_date)} → {fmtSupaDate(r.end_date || r.start_date)}
                   </div>
                 </div>
@@ -3213,19 +3282,23 @@ function TeamCalendarSection({ teamVacations = [] }) {
       )}
 
       {/* Legend */}
-      <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"0 2px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:COLORS.textMuted }}>
-          <div style={{ width:20, height:14, borderRadius:3, background:COLORS.gold }}/>
-          Vacaciones aprobadas
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:COLORS.textMuted }}>
-          <div style={{ width:20, height:14, borderRadius:3, background:COLORS.greenSoft }}/>
-          +N personas adicionales
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:COLORS.textMuted }}>
-          <div style={{ width:20, height:14, borderRadius:3, border:`1.5px solid ${COLORS.gold}` }}/>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", padding:"0 2px", alignItems:"center" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:COLORS.textMuted }}>
+          <div style={{ width:16, height:16, borderRadius:3, border:`1.5px solid ${COLORS.gold}` }}/>
           Hoy
         </div>
+        {legendDepts.map(dept => (
+          <div key={dept} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:COLORS.textMuted }}>
+            <div style={{ width:16, height:16, borderRadius:3, background:getDepartmentColor(dept) }}/>
+            {dept}
+          </div>
+        ))}
+        {legendDepts.length === 0 && anyThisMonth && (
+          <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:COLORS.textMuted }}>
+            <div style={{ width:16, height:16, borderRadius:3, background:COLORS.gold }}/>
+            Vacaciones aprobadas
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3313,7 +3386,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
               <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>{item.employeeName}</span>
-              {item.department && <span style={{ fontSize:11, color:COLORS.textMuted }}>· {item.department}</span>}
+              {item.department && <DeptTag dept={item.department} />}
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
               <SolicitudIcon kind={item.kind} type={item.type} size={16} />
@@ -4433,6 +4506,18 @@ export default function App() {
         setAdminReports(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
       });
     }
+
+    // ── team vacation calendar: refresh when any vacation changes approval ──
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests" }, ({ new: row }) => {
+      if (row.type === "vacaciones") {
+        supabase
+          .from("requests")
+          .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department)")
+          .eq("type", "vacaciones")
+          .eq("status", "aprobado")
+          .then(({ data }) => { if (data) setTeamVacations(data); });
+      }
+    });
 
     ch.subscribe();
     return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
