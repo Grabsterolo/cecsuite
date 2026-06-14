@@ -3685,6 +3685,7 @@ function SupportChatWidget({ userId }) {
   useEffect(() => {
     const ch = supabase.channel("support-emp-" + userId)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
+        console.log("[SupportChat:emp] INSERT recibido", { id: row.id, sender_id: row.sender_id, message: row.message });
         if (row.sender_id === userId) {
           // Replace the oldest pending optimistic message with the real DB row so its id matches future UPDATE events
           setMessages(prev => {
@@ -3699,6 +3700,7 @@ function SupportChatWidget({ userId }) {
           setMessages(prev => prev ? (prev.some(m => m.id === row.id) ? prev : [...prev, row]) : [row]);
           supabase.from("support_messages").update({ read_by_employee: true }).eq("id", row.id);
         } else {
+          playNotificationPing();
           setUnread(true);
         }
       })
@@ -3936,6 +3938,7 @@ function AdminSupportChatWidget({ adminId }) {
         }
       })
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"support_messages" }, ({ new: row }) => {
+        console.log("[SupportChat:admin] INSERT recibido", { id: row.id, sender_id: row.sender_id, user_id: row.user_id, message: row.message });
         if (row.sender_id === adminId) return;
         playNotificationPing();
         const inThisChat = openRef.current && viewRef.current === "chat" && selectedRef.current?.userId === row.user_id;
@@ -3943,9 +3946,12 @@ function AdminSupportChatWidget({ adminId }) {
           setChatMessages(prev => prev.some(m => m.id === row.id) ? prev : [...prev, row]);
           supabase.from("support_messages").update({ read_by_admin:true }).eq("id", row.id);
         }
-        // Update conversations list
+        // Update conversations list; if not yet loaded, just increment badge directly
         setConversations(prev => {
-          if (!prev) return prev;
+          if (!prev) {
+            setBadge(n => n + 1);
+            return prev;
+          }
           const exists = prev.some(c => c.userId === row.user_id);
           let next;
           if (exists) {
