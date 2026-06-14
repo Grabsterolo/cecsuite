@@ -869,6 +869,14 @@ function calcWorkDays(start, end) {
   while (d <= end) { if (d.getDay() !== 0 && d.getDay() !== 6) n++; d.setDate(d.getDate()+1); }
   return n;
 }
+function getEffectiveDays(r) {
+  if (r.days_requested) return r.days_requested;
+  if (!r.start_date) return 0;
+  return calcWorkDays(
+    new Date(r.start_date + 'T12:00:00'),
+    new Date((r.end_date || r.start_date) + 'T12:00:00')
+  );
+}
 function fmtDate(d) { return d ? `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}` : "—"; }
 
 /* ── Calendar widget (shared) ── */
@@ -1007,17 +1015,9 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
         if (!rs) return false;
         // YYYY-MM-DD string comparison is safe (lexicographic = chronological)
         const overlaps = startStr <= re && endStr >= rs;
-        console.log("[VacationOverlap] checking r:", { id: r.id, start: rs, end: re, status: r.status }, "| user:", { start: startStr, end: endStr }, "| overlaps:", overlaps);
         return overlaps;
       })
     : [];
-
-  if (startStr) {
-    console.log("[VacationOverlap] existingRequests full:", existingRequests.map(r => ({ id: r.id, start_date: r.start_date, end_date: r.end_date, status: r.status })));
-    console.log("[VacationOverlap] filtered (pendiente|aprobado):", existingRequests.filter(r => r.status === "pendiente" || r.status === "aprobado").map(r => ({ id: r.id, start_date: r.start_date, end_date: r.end_date, status: r.status })));
-    console.log("[VacationOverlap] selected:", { start: startStr, end: endStr });
-    console.log("[VacationOverlap] overlapping result:", overlapping.map(r => ({ id: r.id, start_date: r.start_date, end_date: r.end_date, status: r.status })));
-  }
 
   async function submit() {
     setError(null);
@@ -1025,6 +1025,8 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
     if (isPastStart) return;
     if (overlapping.length > 0) return;
     if (editData) { onSubmit({ tipo:"vacaciones", startDate, endDate, comment }); return; }
+    const effectiveEnd = endDate || startDate;
+    const daysRequested = calcWorkDays(startDate, effectiveEnd);
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error: insertError } = await supabase.from("requests").insert({
@@ -1032,8 +1034,8 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
       type: "vacaciones",
       status: "pendiente",
       start_date: toDate(startDate),
-      end_date: toDate(endDate || startDate),
-      days_requested: wd,
+      end_date: toDate(effectiveEnd),
+      days_requested: daysRequested,
       comment: comment.trim() || null,
     }).select().single();
     setLoading(false);
@@ -1104,6 +1106,8 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
     if (!tipoPermiso || !startDate) return;
     if (isPastStartP) return;
     if (editData) { onSubmit({ tipo:"permiso", tipoPermiso, startDate, endDate, notes }); return; }
+    const effectiveEnd = endDate || startDate;
+    const daysRequested = calcWorkDays(startDate, effectiveEnd);
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     const toDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
@@ -1113,8 +1117,8 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
       category: tipoPermiso,
       status: "pendiente",
       start_date: toDate(startDate),
-      end_date: toDate(endDate || startDate),
-      days_requested: workDays,
+      end_date: toDate(effectiveEnd),
+      days_requested: daysRequested,
       comment: notes.trim() || null,
     }).select().single();
     setLoading(false);
@@ -1902,8 +1906,8 @@ function AnnouncementsSection({ announcements }) {
 
 function VacationSection({ profile, vacationRequests, onNewRequest }) {
   const vacationBalance = profile?.vacation_balance ?? VAC_TOTAL;
-  const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
-  const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + getEffectiveDays(r), 0);
+  const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + getEffectiveDays(r), 0);
   const availableDays = Math.max(0, vacationBalance - approvedDays);
   const [showModal, setShowModal] = useState(false);
 
@@ -1968,7 +1972,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
                     {fmtSupaDate(r.start_date)}{r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""}
                   </div>
                   <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>
-                    {r.days_requested ?? "—"} días hábiles
+                    {getEffectiveDays(r) || "—"} días hábiles
                   </div>
                   {r.reviewer?.full_name && r.status !== "pendiente" && (
                     <div style={{ fontSize:11, marginTop:3, color: r.status === "aprobado" ? COLORS.green : "#c0392b", fontWeight:500 }}>
@@ -2354,8 +2358,8 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
 
   function getVacStats(userId) {
     const reqs = adminRequests.filter(r => r.user_id === userId && r.type === "vacaciones");
-    const approved = reqs.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
-    const pending  = reqs.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+    const approved = reqs.filter(r => r.status === "aprobado").reduce((a, r) => a + getEffectiveDays(r), 0);
+    const pending  = reqs.filter(r => r.status === "pendiente").reduce((a, r) => a + getEffectiveDays(r), 0);
     return { approved, pending };
   }
 
@@ -3009,7 +3013,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       department:   r.profiles?.department ?? "",
       label:   r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
       subtitle: r.start_date
-        ? `${fmtSupaDate(r.start_date)}${r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""} · ${r.days_requested ?? 0} días`
+        ? `${fmtSupaDate(r.start_date)}${r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""} · ${getEffectiveDays(r)} días`
         : "",
       comment: r.comment || null,
       status: r.status, created_at: r.created_at,
@@ -3819,7 +3823,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
       id: r.id, kind: "request", type: r.type,
       label: r.type === "vacaciones" ? "Vacaciones" : (r.category || "Permiso"),
       subtitle: r.start_date
-        ? `${fmtSupaShort(r.start_date)} → ${fmtSupaShort(r.end_date)} · ${r.days_requested ?? 0} días`
+        ? `${fmtSupaShort(r.start_date)} → ${fmtSupaShort(r.end_date || r.start_date)} · ${getEffectiveDays(r)} días`
         : (r.comment || ""),
       status: r.status, created_at: r.created_at,
       reviewerName: r.reviewer?.full_name || null,
@@ -3838,8 +3842,8 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const vacationBalance = profile?.vacation_balance ?? VAC_TOTAL;
-  const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + (r.days_requested ?? 0), 0);
-  const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + (r.days_requested ?? 0), 0);
+  const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + getEffectiveDays(r), 0);
+  const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + getEffectiveDays(r), 0);
   const availableDays = Math.max(0, vacationBalance - approvedDays);
   const vacData = { approvedDays, pendingDays, availableDays, vacationBalance };
 
