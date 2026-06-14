@@ -3426,7 +3426,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
               <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>{item.employeeName}</span>
-              {item.department && <DeptTag dept={item.department} />}
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
               <SolicitudIcon kind={item.kind} type={item.type} size={16} />
