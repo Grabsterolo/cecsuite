@@ -2097,7 +2097,8 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     console.log('[AltaEmpleado] Sesión activa (uid):', diagSession?.user?.id);
     const { data: myProfile } = await supabase.from("profiles").select("id, role").eq("id", diagSession?.user?.id ?? "").single();
     console.log('[AltaEmpleado] Mi perfil (admin):', myProfile);
-    const { data: isAdminCheck } = await supabase.rpc("is_admin").catch(() => ({ data: null }));
+    let isAdminCheck = null;
+    try { const { data: _ia } = await supabase.rpc("is_admin"); isAdminCheck = _ia; } catch (_) {}
     console.log('[AltaEmpleado] is_admin() resultado:', isAdminCheck);
     // ────────────────────
 
