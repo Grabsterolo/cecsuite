@@ -984,7 +984,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
   const [comment,   setComment]   = useState(editData?.comment   || "");
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
-  const wd = calcWorkDays(startDate, endDate);
+  const wd = calcWorkDays(startDate, endDate || startDate);
   const toDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
 
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1095,7 +1095,7 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
 
-  const workDays = calcWorkDays(startDate, endDate);
+  const workDays = calcWorkDays(startDate, endDate || startDate);
   const todayP = new Date(); todayP.setHours(0,0,0,0);
   const isPastStartP = startDate && startDate < todayP;
 
