@@ -3101,6 +3101,10 @@ function TeamCalendarSection({ teamVacations = [] }) {
 
   const todayYMD = toYMD(now.getFullYear(), now.getMonth(), now.getDate());
   const getFirstName = name => (name || "?").trim().split(/\s+/)[0];
+  const getPrimaryDept = p => {
+    const arr = p?.departments;
+    return (Array.isArray(arr) && arr.length > 0) ? arr[0] : (p?.department || null);
+  };
   function getInitials(name) {
     if (!name) return "?";
     const parts = name.trim().split(/\s+/);
@@ -3116,7 +3120,7 @@ function TeamCalendarSection({ teamVacations = [] }) {
     return rs && rs <= monthEnd && re >= monthStart;
   });
   const anyThisMonth = monthVacationers.length > 0;
-  const legendDepts = [...new Set(monthVacationers.map(r => r.profiles?.department).filter(Boolean))].sort();
+  const legendDepts = [...new Set(monthVacationers.map(r => getPrimaryDept(r.profiles)).filter(Boolean))].sort();
 
   const selectedVacationers = selectedDay
     ? teamVacations.filter(r => {
@@ -3150,7 +3154,7 @@ function TeamCalendarSection({ teamVacations = [] }) {
         </div>
 
         {/* Calendar grid */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
           {cells.map((cell, i) => {
             const vacers = vacationersOnDay(cell);
             const ymd = toYMD(cell.y, cell.m, cell.d);
@@ -3164,8 +3168,8 @@ function TeamCalendarSection({ teamVacations = [] }) {
                 key={i}
                 onClick={() => !isOverflow && hasVac && setSelectedDay(isSelected ? null : ymd)}
                 style={{
-                  aspectRatio:"1/1",
-                  borderRadius:8,
+                  minHeight:56,
+                  borderRadius:7,
                   padding:"4px 3px 3px",
                   background: isSelected
                     ? "rgba(31,74,64,0.12)"
@@ -3179,15 +3183,16 @@ function TeamCalendarSection({ teamVacations = [] }) {
                     : "1.5px solid transparent",
                   cursor: !isOverflow && hasVac ? "pointer" : "default",
                   opacity: isOverflow ? 0.3 : 1,
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:2,
+                  display:"flex", flexDirection:"column", alignItems:"flex-start", gap:2,
                   overflow:"hidden",
                   transition:"background 0.1s",
                 }}
               >
                 <span style={{
-                  fontSize:11, fontWeight: isToday ? 700 : 500,
-                  color: isToday ? COLORS.gold : COLORS.text,
-                  lineHeight:1, flexShrink:0,
+                  fontSize:10, fontWeight: isToday ? 700 : 400,
+                  color: isToday ? COLORS.gold : COLORS.textMuted,
+                  lineHeight:1, flexShrink:0, alignSelf:"flex-end",
+                  marginBottom:1,
                 }}>
                   {cell.d}
                 </span>
@@ -3196,7 +3201,7 @@ function TeamCalendarSection({ teamVacations = [] }) {
                 {hasVac && !isOverflow && (
                   <div style={{ display:"flex", flexDirection:"column", gap:1, width:"100%", overflow:"hidden" }}>
                     {vacers.slice(0, 2).map((r, vi) => {
-                      const dept = r.profiles?.department;
+                      const dept = getPrimaryDept(r.profiles);
                       return (
                         <div key={vi} style={{
                           background: getDepartmentColor(dept),
@@ -3259,8 +3264,8 @@ function TeamCalendarSection({ teamVacations = [] }) {
               }}>
                 <div style={{
                   width:32, height:32, borderRadius:16,
-                  background: getDepartmentColor(r.profiles?.department),
-                  color: getDepartmentTextColor(r.profiles?.department),
+                  background: getDepartmentColor(getPrimaryDept(r.profiles)),
+                  color: getDepartmentTextColor(getPrimaryDept(r.profiles)),
                   display:"flex", alignItems:"center", justifyContent:"center",
                   fontSize:12, fontWeight:700, flexShrink:0,
                 }}>
@@ -3268,8 +3273,8 @@ function TeamCalendarSection({ teamVacations = [] }) {
                 </div>
                 <div>
                   <div style={{ fontSize:13, fontWeight:600, color:COLORS.text }}>{r.profiles?.full_name || "—"}</div>
-                  {r.profiles?.department && (
-                    <div style={{ marginTop:3 }}><DeptTag dept={r.profiles.department} /></div>
+                  {getPrimaryDept(r.profiles) && (
+                    <div style={{ marginTop:3 }}><DeptTag dept={getPrimaryDept(r.profiles)} /></div>
                   )}
                   <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:4 }}>
                     {fmtSupaDate(r.start_date)} → {fmtSupaDate(r.end_date || r.start_date)}
@@ -4366,7 +4371,7 @@ export default function App() {
       .then(({ data }) => { if (data) setDocuments(data); });
     supabase
       .from("requests")
-      .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department)")
+      .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department, departments)")
       .eq("type", "vacaciones")
       .eq("status", "aprobado")
       .then(({ data }) => { if (data) setTeamVacations(data); });
@@ -4512,7 +4517,7 @@ export default function App() {
       if (row.type === "vacaciones") {
         supabase
           .from("requests")
-          .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department)")
+          .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department, departments)")
           .eq("type", "vacaciones")
           .eq("status", "aprobado")
           .then(({ data }) => { if (data) setTeamVacations(data); });
