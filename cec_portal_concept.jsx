@@ -4404,12 +4404,14 @@ export default function App() {
       .or(buildAudienceFilter("departments", profile.departments))
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setDocuments(data); });
-    supabase
-      .from("requests")
-      .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department, departments)")
-      .eq("type", "vacaciones")
-      .eq("status", "aprobado")
-      .then(({ data }) => { if (data) setTeamVacations(data); });
+    supabase.rpc("get_team_vacations").then(({ data }) => {
+      console.log("[TeamCalendar] get_team_vacations raw data:", data);
+      if (data) setTeamVacations(data.map(r => ({
+        start_date: r.start_date,
+        end_date:   r.end_date,
+        profiles: { full_name: r.full_name, department: r.department, departments: r.departments },
+      })));
+    });
     supabase.rpc("get_birthdays").then(({ data }) => {
       if (!data) return;
       const today = new Date(); today.setHours(0,0,0,0);
@@ -4550,12 +4552,14 @@ export default function App() {
     // ── team vacation calendar: refresh when any vacation changes approval ──
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests" }, ({ new: row }) => {
       if (row.type === "vacaciones") {
-        supabase
-          .from("requests")
-          .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department, departments)")
-          .eq("type", "vacaciones")
-          .eq("status", "aprobado")
-          .then(({ data }) => { if (data) setTeamVacations(data); });
+        supabase.rpc("get_team_vacations").then(({ data }) => {
+          console.log("[TeamCalendar] realtime refresh get_team_vacations data:", data);
+          if (data) setTeamVacations(data.map(r => ({
+            start_date: r.start_date,
+            end_date:   r.end_date,
+            profiles: { full_name: r.full_name, department: r.department, departments: r.departments },
+          })));
+        });
       }
     });
 
