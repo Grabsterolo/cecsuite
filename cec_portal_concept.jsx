@@ -1789,10 +1789,25 @@ function ProfileSection({ profile }) {
   );
 }
 
-function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, availableDays, existingVacationRequests = [] }) {
-  const [modal, setModal] = useState(false);
-  const [filterType,   setFilterType]   = useState("todos");
-  const [filterStatus, setFilterStatus] = useState("todos");
+function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, availableDays, existingVacationRequests = [], onDeleteRequest, onDeleteReport }) {
+  const [modal,            setModal]            = useState(false);
+  const [filterType,       setFilterType]       = useState("todos");
+  const [filterStatus,     setFilterStatus]     = useState("todos");
+  const [confirmingDelete, setConfirmingDelete] = useState(null); // item id
+  const [deleting,         setDeleting]         = useState(false);
+  const [deleteError,      setDeleteError]      = useState(null);
+
+  async function handleDelete(item) {
+    setDeleting(true);
+    setDeleteError(null);
+    const table = item.kind === "request" ? "requests" : "reports";
+    const { error } = await supabase.from(table).delete().eq("id", item.id);
+    setDeleting(false);
+    if (error) { setDeleteError(translateError(error.message)); return; }
+    setConfirmingDelete(null);
+    if (item.kind === "request") onDeleteRequest?.(item.id);
+    else onDeleteReport?.(item.id);
+  }
 
   const typeOpts = [
     { value:"todos",      label:"Todos"      },
@@ -1871,11 +1886,38 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
         <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes que coincidan con los filtros.</p></Card>
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-          {filtered.map(s => (
-            <Card key={`${s.kind}-${s.id}`} style={{ padding:"14px 16px" }}>
-              <SolicitudItem s={s} style={{ border:"none", background:"transparent", padding:0, borderRadius:0 }} />
-            </Card>
-          ))}
+          {filtered.map(s => {
+            const isConfirming = confirmingDelete === s.id;
+            return (
+              <Card key={`${s.kind}-${s.id}`} style={{ padding:"14px 16px" }}>
+                <SolicitudItem s={s} style={{ border:"none", background:"transparent", padding:0, borderRadius:0 }} />
+                {s.status === "pendiente" && (
+                  isConfirming ? (
+                    <div style={{ marginTop:10, padding:"8px 12px", background:"rgba(192,57,43,0.06)", borderRadius:8, border:"1px solid rgba(192,57,43,0.15)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar esta solicitud?</span>
+                        <div style={{ display:"flex", gap:6 }}>
+                          <button onClick={() => handleDelete(s)} disabled={deleting} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:deleting?"not-allowed":"pointer", opacity:deleting?0.6:1, fontFamily:"'Manrope', sans-serif" }}>
+                            {deleting ? "Eliminando..." : "Confirmar"}
+                          </button>
+                          <button onClick={() => { setConfirmingDelete(null); setDeleteError(null); }} disabled={deleting} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer", fontFamily:"'Manrope', sans-serif" }}>
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                      {deleteError && <p style={{ fontSize:11, color:"#c0392b", margin:"5px 0 0", fontFamily:"'Manrope', sans-serif" }}>{deleteError}</p>}
+                    </div>
+                  ) : (
+                    <div style={{ marginTop:8, display:"flex", justifyContent:"flex-end" }}>
+                      <button onClick={() => { setConfirmingDelete(s.id); setDeleteError(null); }} style={{ fontSize:11, fontWeight:600, color:"#c0392b", background:"rgba(192,57,43,0.06)", border:"1px solid rgba(192,57,43,0.15)", borderRadius:6, padding:"4px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'Manrope', sans-serif" }}>
+                        <Trash2 size={11}/> Eliminar solicitud
+                      </button>
+                    </div>
+                  )
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
@@ -4179,7 +4221,7 @@ function AdminSupportChatWidget({ adminId }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [] }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -4305,7 +4347,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin" || profile?.role === "rrhh") && userId && <AdminSupportChatWidget adminId={userId}/>}
@@ -4340,7 +4382,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
@@ -4652,8 +4694,10 @@ export default function App() {
             profile={profile}
             allRequests={allRequests}
             onNewRequest={r => setAllRequests(prev => [r, ...prev])}
+            onDeleteRequest={id => setAllRequests(prev => prev.filter(r => r.id !== id))}
             reports={reports}
             onNewReport={r => setReports(prev => [r, ...prev])}
+            onDeleteReport={id => setReports(prev => prev.filter(r => r.id !== id))}
             announcements={announcements}
             documents={documents}
             upcomingBirthdays={upcomingBirthdays}
