@@ -2062,6 +2062,10 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       return;
     }
     setLoading(true);
+
+    // Snapshot admin session BEFORE touching tempClient so we can restore it
+    const { data: { session: adminSession } } = await supabase.auth.getSession();
+
     const tempClient = _createSupabaseClient(
       import.meta.env.VITE_SUPABASE_URL,
       import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
@@ -2074,6 +2078,20 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       setError("No se pudo obtener el ID del nuevo usuario. Es posible que el correo ya esté registrado.");
       setLoading(false); return;
     }
+
+    // Explicitly restore admin session — signUp on the temp client can pollute
+    // the shared auth state even when persistSession:false is set
+    if (adminSession) {
+      await supabase.auth.setSession({
+        access_token:  adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+    }
+
+    // Diagnostic: confirm admin session is intact before the profile upsert
+    const { data: sessionCheck } = await supabase.auth.getSession();
+    console.log('[AltaEmpleado] Sesión activa antes del update:', sessionCheck?.session?.user?.id);
+
     const { error: profileError } = await supabase.from("profiles").upsert({
       id:                    userId,
       full_name:             fullName.trim(),
