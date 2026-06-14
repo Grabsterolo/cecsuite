@@ -3686,7 +3686,16 @@ function SupportChatWidget({ userId }) {
   useEffect(() => {
     const ch = supabase.channel("support-emp-" + userId)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
-        if (row.sender_id === userId) return; // own message, already added optimistically
+        if (row.sender_id === userId) {
+          // Replace the oldest pending optimistic message with the real DB row so its id matches future UPDATE events
+          setMessages(prev => {
+            if (!prev) return [row];
+            const optIdx = prev.findIndex(m => String(m.id).startsWith("opt-"));
+            if (optIdx !== -1) return prev.map((m, i) => i === optIdx ? row : m);
+            return prev.some(m => m.id === row.id) ? prev : [...prev, row];
+          });
+          return;
+        }
         if (openRef2.current) {
           setMessages(prev => prev ? (prev.some(m => m.id === row.id) ? prev : [...prev, row]) : [row]);
           supabase.from("support_messages").update({ read_by_employee: true }).eq("id", row.id);
@@ -3921,9 +3930,9 @@ function AdminSupportChatWidget({ adminId }) {
   // Realtime: all new employee messages + read-receipt updates for admin's own messages
   useEffect(() => {
     const ch = supabase.channel("support-admin-" + adminId)
-      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"support_messages" }, ({ new: row }) => {
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"support_messages", filter:`sender_id=eq.${adminId}` }, ({ new: row }) => {
         // When employee reads an admin message, update read_by_employee in local state
-        if (row.sender_id === adminId && row.read_by_employee && selectedRef.current?.userId === row.user_id) {
+        if (row.read_by_employee && selectedRef.current?.userId === row.user_id) {
           setChatMessages(prev => prev.map(m => m.id === row.id ? { ...m, read_by_employee: true } : m));
         }
       })
