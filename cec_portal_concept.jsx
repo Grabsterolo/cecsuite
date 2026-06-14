@@ -2081,16 +2081,16 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
 
     // Explicitly restore admin session — signUp on the temp client can pollute
     // the shared auth state even when persistSession:false is set
+    const { data: beforeRestore } = await supabase.auth.getSession();
+    console.log('[AltaEmpleado] Sesión ANTES de setSession:', beforeRestore?.session?.user?.id);
     if (adminSession) {
       await supabase.auth.setSession({
         access_token:  adminSession.access_token,
         refresh_token: adminSession.refresh_token,
       });
     }
-
-    // Diagnostic: confirm admin session is intact before the profile upsert
-    const { data: sessionCheck } = await supabase.auth.getSession();
-    console.log('[AltaEmpleado] Sesión activa antes del update:', sessionCheck?.session?.user?.id);
+    const { data: afterRestore } = await supabase.auth.getSession();
+    console.log('[AltaEmpleado] Sesión DESPUÉS de setSession:', afterRestore?.session?.user?.id);
 
     const { error: profileError } = await supabase.from("profiles").upsert({
       id:                    userId,
