@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, CheckCircle2, XCircle,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send,
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -88,14 +88,6 @@ const FONTS = `
   0%   { opacity: 0.4; transform: translateY(-10px) rotate(0deg); }
   85%  { opacity: 0.25; }
   100% { opacity: 0;   transform: translateY(100vh) rotate(540deg); }
-}
-@keyframes toastIn {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes toastOut {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(32px); }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
@@ -211,55 +203,6 @@ function RotatingWord({ noAnim }) {
           {ROTATING_WORDS[noAnim ? 0 : idx]}
         </span>
       </span>
-    </div>
-  );
-}
-
-function Toast({ id, msg, accent, iconType, onDismiss }) {
-  const [leaving, setLeaving] = useState(false);
-  const onDismissRef = useRef(onDismiss);
-  onDismissRef.current = onDismiss;
-
-  useEffect(() => {
-    const remove = () => { setLeaving(true); setTimeout(() => onDismissRef.current(id), 260); };
-    const t = setTimeout(remove, 5000);
-    return () => clearTimeout(t);
-  }, []);
-
-  function handleClose() { setLeaving(true); setTimeout(() => onDismissRef.current(id), 260); }
-
-  const Icon = iconType === "check" ? CheckCircle2 : XCircle;
-  return (
-    <div style={{
-      display:"flex", alignItems:"flex-start", gap:10,
-      background:COLORS.panel,
-      borderRadius:10,
-      border:`1px solid ${accent}28`,
-      borderLeft:`4px solid ${accent}`,
-      padding:"12px 12px 12px 14px",
-      boxShadow:"0 4px 22px rgba(0,0,0,0.11)",
-      minWidth:270, maxWidth:360,
-      fontFamily:"'Manrope', sans-serif",
-      animation: leaving ? "toastOut 0.26s ease-in both" : "toastIn 0.26s ease-out both",
-    }}>
-      <Icon size={17} color={accent} style={{ flexShrink:0, marginTop:1 }}/>
-      <span style={{ fontSize:13, color:COLORS.text, flex:1, lineHeight:1.5 }}>{msg}</span>
-      <button onClick={handleClose} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, padding:"0 0 0 6px", lineHeight:1, flexShrink:0, display:"flex", alignItems:"center" }}>
-        <X size={13}/>
-      </button>
-    </div>
-  );
-}
-
-function ToastContainer({ toasts, onDismiss }) {
-  if (!toasts.length) return null;
-  return (
-    <div style={{ position:"fixed", top:20, right:20, zIndex:400, display:"flex", flexDirection:"column", gap:8, pointerEvents:"none" }}>
-      {toasts.map(t => (
-        <div key={t.id} style={{ pointerEvents:"auto" }}>
-          <Toast {...t} onDismiss={onDismiss}/>
-        </div>
-      ))}
     </div>
   );
 }
@@ -422,7 +365,7 @@ const BIRTHDAYS = [
 ];
 
 /* ── Drawer móvil ── */
-function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0 }) {
+function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0 }) {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -470,6 +413,14 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
                 transition: "background 0.15s, color 0.15s",
               }}>
                 <Icon size={19} />{item.label}
+                {item.key === "solicitudes" && solicitudesUnreadCount > 0 && (
+                  <span style={{
+                    marginLeft:"auto", minWidth:20, height:20, borderRadius:10,
+                    background: isActive ? "rgba(255,255,255,0.3)" : "#e74c3c",
+                    color:"#FFF", fontSize:11, fontWeight:700,
+                    display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px",
+                  }}>{solicitudesUnreadCount}</span>
+                )}
               </button>
             );
           })}
@@ -559,7 +510,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
   );
 }
 
-function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0 }) {
+function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0 }) {
   return (
     <div style={{
       width: 252,
@@ -601,6 +552,14 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
             >
               <Icon size={16} />
               {item.label}
+              {item.key === "solicitudes" && solicitudesUnreadCount > 0 && (
+                <span style={{
+                  marginLeft:"auto", minWidth:18, height:18, borderRadius:9,
+                  background: isActive ? "rgba(255,255,255,0.3)" : "#e74c3c",
+                  color:"#FFF", fontSize:10, fontWeight:700,
+                  display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
+                }}>{solicitudesUnreadCount}</span>
+              )}
             </button>
           );
         })}
@@ -3806,7 +3765,7 @@ function AdminSupportChatWidget({ adminId }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -3818,11 +3777,12 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   const [sectionPhase, setSectionPhase] = useState(null); // null = no anim on first mount
   const navigate = useCallback((next) => {
     if (next === displayActive) return;
+    if (next === "solicitudes") onClearSolicitudesUnread?.();
     setActive(next);
     if (noAnim) { setDisplayActive(next); return; }
     setSectionPhase("out");
     setTimeout(() => { setDisplayActive(next); setSectionPhase("in"); }, 170);
-  }, [displayActive, noAnim]);
+  }, [displayActive, noAnim, onClearSolicitudesUnread]);
   const sectionAnim = (!sectionPhase || noAnim) ? {} : sectionPhase === "out"
     ? { animation: "sectionOut 0.17s ease-in both" }
     : { animation: "sectionIn 0.22s ease-out both" };
@@ -3910,7 +3870,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
           </button>
         </div>
         {isBirthday && !noAnim && <BirthdayConfetti />}
-        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
+        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} />
         <div style={{ padding: "24px 16px 48px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             {todayStr}
@@ -3942,7 +3902,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }} onAnimationEnd={(e) => { if (e.animationName === "dashboardIn") setDashDone(true); }}>
       {isBirthday && !noAnim && <BirthdayConfetti />}
-      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} />
+      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={sectionAnim} onAnimationEnd={(e) => { if (e.animationName === "sectionIn") setSectionPhase(null); }}>
           <div style={{ marginBottom: 32 }}>
@@ -4026,9 +3986,7 @@ export default function App() {
   const [adminProfiles,      setAdminProfiles]       = useState([]);
   const [departments,        setDepartments]         = useState([]);
   const [departmentsList,    setDepartmentsList]     = useState([]);
-  const [toasts,             setToasts]              = useState([]);
-
-  function dismissToast(id) { setToasts(prev => prev.filter(t => t.id !== id)); }
+  const [solicitudesUnread,  setSolicitudesUnread]   = useState(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
@@ -4139,17 +4097,6 @@ export default function App() {
 
     const ch = supabase.channel("portal-realtime-" + userId);
 
-    // addToast only fires for non-admin employees; setToasts is always stable
-    function addToast(msg, accent, iconType) {
-      if (isAdmin) return;
-      const id = crypto.randomUUID();
-      setToasts(prev => {
-        const next = [...prev, { id, msg, accent, iconType }];
-        return next.length > 3 ? next.slice(next.length - 3) : next;
-      });
-      playNotificationPing();
-    }
-
     // ── announcements ──
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "announcements" }, ({ new: row }) => {
       if (new Date(row.publish_at) > new Date()) return;
@@ -4186,30 +4133,20 @@ export default function App() {
       if (isAdmin) setAdminDocuments(prev => prev.filter(d => d.id !== row.id));
     });
 
-    // ── employee's own requests: status updates ──
+    // ── employee's own requests/reports: status updates ──
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests", filter: `user_id=eq.${userId}` }, ({ new: row, old: oldRow }) => {
-      // oldRow.status is present when status actually changed (Supabase includes changed columns in old)
       const prevWasPending = !oldRow?.status || oldRow.status === "pendiente";
-      if (prevWasPending && row.status !== "pendiente") {
-        const label = row.type === "vacaciones" ? "Vacaciones" : (row.category || "Permiso");
-        if (row.status === "aprobado") {
-          addToast(`Tu solicitud de ${label} fue aprobada.`, COLORS.green, "check");
-        } else if (row.status === "rechazado") {
-          addToast(`Tu solicitud de ${label} fue rechazada.`, "#c0392b", "x");
-        }
+      if (!isAdmin && prevWasPending && row.status !== "pendiente") {
+        playNotificationPing(); // sound first, state update follows in the same microtask batch
+        setSolicitudesUnread(n => n + 1);
       }
       setAllRequests(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
     });
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "reports", filter: `user_id=eq.${userId}` }, ({ new: row, old: oldRow }) => {
       const prevWasPending = !oldRow?.status || oldRow.status === "pendiente";
-      if (prevWasPending && row.status !== "pendiente") {
-        const label = row.category || "incidencia";
-        if (row.status === "atendido") {
-          const note = row.resolution_note ? `: ${row.resolution_note}` : ".";
-          addToast(`Tu reporte de ${label} fue atendido${note}`, COLORS.green, "check");
-        } else if (row.status === "descartado") {
-          addToast(`Tu reporte de ${label} fue descartado.`, COLORS.textMuted, "x");
-        }
+      if (!isAdmin && prevWasPending && row.status !== "pendiente") {
+        playNotificationPing();
+        setSolicitudesUnread(n => n + 1);
       }
       setReports(prev => prev.map(r => r.id === row.id ? { ...r, ...row } : r));
     });
@@ -4272,9 +4209,8 @@ export default function App() {
   return (
     <div>
       <style>{FONTS}</style>
-      {session ? (
-        <>
-          <Dashboard
+      {session
+        ? <Dashboard
             onLogout={() => supabase.auth.signOut()}
             profile={profile}
             allRequests={allRequests}
@@ -4298,12 +4234,11 @@ export default function App() {
             departmentsList={departmentsList}
             onUpdateAdminProfile={updatedEmp => setAdminProfiles(prev => prev.map(p => p.id === updatedEmp.id ? updatedEmp : p))}
             userId={session?.user?.id}
+            solicitudesUnread={solicitudesUnread}
+            onClearSolicitudesUnread={() => setSolicitudesUnread(0)}
           />
-          <ToastContainer toasts={toasts} onDismiss={dismissToast}/>
-        </>
-      ) : (
-        <LoginScreen onLogin={() => {}} />
-      )}
+        : <LoginScreen onLogin={() => {}} />
+      }
     </div>
   );
 }
