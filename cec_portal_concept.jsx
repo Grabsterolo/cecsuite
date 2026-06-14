@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, CalendarRange, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, Check, CheckCheck,
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -3682,7 +3682,7 @@ function SupportChatWidget({ userId }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Realtime: admin replies — channel stable for widget lifetime (openRef2 avoids dep on `open`)
+  // Realtime: admin replies + read-receipt updates
   useEffect(() => {
     const ch = supabase.channel("support-emp-" + userId)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
@@ -3694,6 +3694,12 @@ function SupportChatWidget({ userId }) {
           setUnread(true);
         }
       })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_messages", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
+        // Update read_by_admin flag on own messages so receipt icon updates in real time
+        if (row.sender_id === userId && row.read_by_admin) {
+          setMessages(prev => prev ? prev.map(m => m.id === row.id ? { ...m, read_by_admin: true } : m) : prev);
+        }
+      })
       .subscribe();
     return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
   }, [userId]);
@@ -3702,7 +3708,7 @@ function SupportChatWidget({ userId }) {
     const text = input.trim();
     if (!text || sending) return;
     setSending(true);
-    const optimistic = { id: "opt-" + Date.now(), user_id: userId, sender_id: userId, message: text, created_at: new Date().toISOString() };
+    const optimistic = { id: "opt-" + Date.now(), user_id: userId, sender_id: userId, message: text, created_at: new Date().toISOString(), read_by_admin: false, read_by_employee: true };
     setMessages(prev => [...(prev || []), optimistic]);
     setInput("");
     await supabase.from("support_messages").insert({ user_id: userId, sender_id: userId, message: text, read_by_admin: false, read_by_employee: true });
@@ -3750,7 +3756,14 @@ function SupportChatWidget({ userId }) {
                   <div style={{ maxWidth:"80%", padding:"8px 12px", fontSize:13, color:COLORS.text, lineHeight:1.5, ...(mine ? isMineStyle : isTheirsStyle) }}>
                     {msg.message}
                   </div>
-                  <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtChatTime(msg.created_at)}</span>
+                  <div style={{ display:"flex", alignItems:"center", gap:3, marginTop:3 }}>
+                    <span style={{ fontSize:10, color:COLORS.textMuted }}>{fmtChatTime(msg.created_at)}</span>
+                    {mine && (
+                      msg.read_by_admin
+                        ? <CheckCheck size={12} color={COLORS.gold} />
+                        : <Check size={12} color={COLORS.textMuted} />
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -3886,7 +3899,7 @@ function AdminSupportChatWidget({ adminId }) {
     const text = input.trim();
     if (!text || sending || !selectedConv) return;
     setSending(true);
-    const optimistic = { id:"opt-"+Date.now(), user_id:selectedConv.userId, sender_id:adminId, message:text, created_at:new Date().toISOString() };
+    const optimistic = { id:"opt-"+Date.now(), user_id:selectedConv.userId, sender_id:adminId, message:text, created_at:new Date().toISOString(), read_by_admin:true, read_by_employee:false };
     setChatMessages(prev => [...prev, optimistic]);
     setInput("");
     await supabase.from("support_messages").insert({ user_id:selectedConv.userId, sender_id:adminId, message:text, read_by_admin:true, read_by_employee:false });
@@ -3905,9 +3918,15 @@ function AdminSupportChatWidget({ adminId }) {
     if (selectedConv?.userId === userId) { setView("list"); setSelectedConv(null); setChatMessages([]); }
   }
 
-  // Realtime: all new employee messages
+  // Realtime: all new employee messages + read-receipt updates for admin's own messages
   useEffect(() => {
     const ch = supabase.channel("support-admin-" + adminId)
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"support_messages" }, ({ new: row }) => {
+        // When employee reads an admin message, update read_by_employee in local state
+        if (row.sender_id === adminId && row.read_by_employee && selectedRef.current?.userId === row.user_id) {
+          setChatMessages(prev => prev.map(m => m.id === row.id ? { ...m, read_by_employee: true } : m));
+        }
+      })
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"support_messages" }, ({ new: row }) => {
         if (row.sender_id === adminId) return;
         playNotificationPing();
@@ -4083,7 +4102,14 @@ function AdminSupportChatWidget({ adminId }) {
                       }}>
                         {msg.message}
                       </div>
-                      <span style={{ fontSize:10, color:COLORS.textMuted, marginTop:3 }}>{fmtChatTime(msg.created_at)}</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:3, marginTop:3 }}>
+                        <span style={{ fontSize:10, color:COLORS.textMuted }}>{fmtChatTime(msg.created_at)}</span>
+                        {mine && (
+                          msg.read_by_employee
+                            ? <CheckCheck size={12} color={COLORS.gold} />
+                            : <Check size={12} color={COLORS.textMuted} />
+                        )}
+                      </div>
                     </div>
                   );
                 })}
