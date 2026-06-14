@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Bell, FileText, CalendarDays, CalendarCheck, User, LogOut,
+  Bell, FileText, CalendarDays, CalendarCheck, CalendarRange, User, LogOut,
   Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send,
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
@@ -343,8 +343,9 @@ function LoginScreen({ onLogin }) {
 
 const NAV_ITEMS = [
   { key: "inicio",      label: "Inicio",      icon: Home },
-  { key: "vacaciones",  label: "Vacaciones",  icon: CalendarCheck },
-  { key: "comunicados", label: "Comunicados", icon: Bell },
+  { key: "vacaciones",        label: "Vacaciones",         icon: CalendarCheck  },
+  { key: "calendario-equipo", label: "Calendario de equipo", icon: CalendarRange  },
+  { key: "comunicados",       label: "Comunicados",         icon: Bell           },
   { key: "documentos",  label: "Documentos",  icon: FileText },
   { key: "solicitudes", label: "Solicitudes", icon: CalendarDays },
   { key: "perfil",      label: "Mi perfil",   icon: User },
@@ -2997,6 +2998,239 @@ function GestionComunicadosSection({ adminAnnouncements = [], departmentsList = 
   );
 }
 
+/* ── Team vacation calendar ── */
+function TeamCalendarSection({ teamVacations = [] }) {
+  const now = new Date();
+  const [yr, setYr] = useState(now.getFullYear());
+  const [mo, setMo] = useState(now.getMonth());
+  const [selectedDay, setSelectedDay] = useState(null); // "YYYY-MM-DD"
+
+  const firstWeekday = new Date(yr, mo, 1).getDay();
+  const daysInMonth  = new Date(yr, mo + 1, 0).getDate();
+  const prevMo = mo === 0 ? 11 : mo - 1;
+  const prevYr = mo === 0 ? yr - 1 : yr;
+  const daysInPrev = new Date(prevYr, prevMo + 1, 0).getDate();
+  const nextMo = mo === 11 ? 0 : mo + 1;
+  const nextYr = mo === 11 ? yr + 1 : yr;
+
+  const cells = [];
+  for (let i = firstWeekday - 1; i >= 0; i--) cells.push({ d: daysInPrev - i, m: prevMo, y: prevYr, overflow: true });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ d, m: mo, y: yr, overflow: false });
+  while (cells.length < 42) cells.push({ d: cells.length - firstWeekday - daysInMonth + 1, m: nextMo, y: nextYr, overflow: true });
+
+  function toYMD(y, m, d) {
+    return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+
+  function vacationersOnDay(cell) {
+    const ymd = toYMD(cell.y, cell.m, cell.d);
+    return teamVacations.filter(r => {
+      const rs = (r.start_date || "").slice(0, 10);
+      const re = (r.end_date   || r.start_date || "").slice(0, 10);
+      return rs && ymd >= rs && ymd <= re;
+    });
+  }
+
+  function getInitials(name) {
+    if (!name) return "?";
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2);
+  }
+
+  function navMonth(delta) {
+    let nm = mo + delta, ny = yr;
+    if (nm < 0) { nm = 11; ny--; }
+    if (nm > 11) { nm = 0; ny++; }
+    setMo(nm); setYr(ny); setSelectedDay(null);
+  }
+
+  const todayYMD = toYMD(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // vacationers in the whole visible month (for empty-month message)
+  const monthStart = toYMD(yr, mo, 1);
+  const monthEnd   = toYMD(yr, mo, daysInMonth);
+  const anyThisMonth = teamVacations.some(r => {
+    const rs = (r.start_date || "").slice(0, 10);
+    const re = (r.end_date   || r.start_date || "").slice(0, 10);
+    return rs && rs <= monthEnd && re >= monthStart;
+  });
+
+  const selectedVacationers = selectedDay
+    ? teamVacations.filter(r => {
+        const rs = (r.start_date || "").slice(0, 10);
+        const re = (r.end_date   || r.start_date || "").slice(0, 10);
+        return rs && selectedDay >= rs && selectedDay <= re;
+      })
+    : [];
+
+  const navBtn = { border:"none", background:"rgba(31,74,64,0.07)", cursor:"pointer", color:COLORS.green, display:"flex", padding:"6px 8px", borderRadius:8 };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      <Card>
+        {/* Month navigation */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+          <button style={navBtn} onClick={() => navMonth(-1)}><ChevronLeft size={16}/></button>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <button onClick={() => setYr(y => y - 1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, padding:"0 2px" }}>‹</button>
+            <span style={{ fontWeight:700, color:COLORS.green, fontSize:15, minWidth:154, textAlign:"center" }}>{MONTH_NAMES[mo]} {yr}</span>
+            <button onClick={() => setYr(y => y + 1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, padding:"0 2px" }}>›</button>
+          </div>
+          <button style={navBtn} onClick={() => navMonth(1)}><ChevronRight size={16}/></button>
+        </div>
+
+        {/* Day headers */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:4 }}>
+          {DAY_NAMES.map(d => (
+            <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:COLORS.textMuted, padding:"3px 0" }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+          {cells.map((cell, i) => {
+            const vacers = vacationersOnDay(cell);
+            const ymd = toYMD(cell.y, cell.m, cell.d);
+            const isToday = ymd === todayYMD;
+            const isSelected = ymd === selectedDay;
+            const isOverflow = cell.overflow;
+            const hasVac = vacers.length > 0;
+
+            return (
+              <div
+                key={i}
+                onClick={() => !isOverflow && hasVac && setSelectedDay(isSelected ? null : ymd)}
+                style={{
+                  minHeight:54,
+                  borderRadius:8,
+                  padding:"4px 3px 3px",
+                  background: isSelected
+                    ? "rgba(31,74,64,0.12)"
+                    : isToday
+                    ? "rgba(201,162,78,0.10)"
+                    : "transparent",
+                  border: isToday
+                    ? `1.5px solid ${COLORS.gold}`
+                    : isSelected
+                    ? `1.5px solid ${COLORS.green}`
+                    : "1.5px solid transparent",
+                  cursor: !isOverflow && hasVac ? "pointer" : "default",
+                  opacity: isOverflow ? 0.3 : 1,
+                  display:"flex", flexDirection:"column", alignItems:"center", gap:2,
+                  transition:"background 0.1s",
+                }}
+              >
+                <span style={{
+                  fontSize:11, fontWeight: isToday ? 700 : 500,
+                  color: isToday ? COLORS.gold : COLORS.text,
+                  lineHeight:1,
+                }}>
+                  {cell.d}
+                </span>
+
+                {/* Vacation indicators */}
+                {hasVac && !isOverflow && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:2, width:"100%" }}>
+                    {vacers.slice(0, 2).map((r, vi) => (
+                      <div key={vi} style={{
+                        background: COLORS.gold,
+                        color:"#fff",
+                        borderRadius:4,
+                        fontSize:9,
+                        fontWeight:700,
+                        padding:"1px 3px",
+                        textAlign:"center",
+                        overflow:"hidden",
+                        whiteSpace:"nowrap",
+                        textOverflow:"ellipsis",
+                        lineHeight:1.4,
+                      }}>
+                        {getInitials(r.profiles?.full_name)}
+                      </div>
+                    ))}
+                    {vacers.length > 2 && (
+                      <div style={{
+                        background: COLORS.greenSoft,
+                        color:"#fff",
+                        borderRadius:4,
+                        fontSize:9,
+                        fontWeight:700,
+                        padding:"1px 3px",
+                        textAlign:"center",
+                        lineHeight:1.4,
+                      }}>
+                        +{vacers.length - 2}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Empty month message */}
+        {!anyThisMonth && (
+          <p style={{ textAlign:"center", color:COLORS.textMuted, fontSize:13, marginTop:16, marginBottom:4 }}>
+            Nadie del equipo tiene vacaciones programadas este mes.
+          </p>
+        )}
+      </Card>
+
+      {/* Detail panel for selected day */}
+      {selectedDay && selectedVacationers.length > 0 && (
+        <Card>
+          <div style={{ marginBottom:10, fontSize:13, fontWeight:700, color:COLORS.green }}>
+            {fmtSupaDate(selectedDay)} — {selectedVacationers.length} persona{selectedVacationers.length !== 1 ? "s" : ""} de vacaciones
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {selectedVacationers.map((r, i) => (
+              <div key={i} style={{
+                display:"flex", alignItems:"center", gap:10,
+                padding:"8px 12px", borderRadius:8, background:COLORS.panelAlt,
+              }}>
+                <div style={{
+                  width:32, height:32, borderRadius:16,
+                  background:`linear-gradient(135deg,${COLORS.goldSoft},${COLORS.gold})`,
+                  color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:12, fontWeight:700, flexShrink:0,
+                }}>
+                  {getInitials(r.profiles?.full_name)}
+                </div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600, color:COLORS.text }}>{r.profiles?.full_name || "—"}</div>
+                  {r.profiles?.department && (
+                    <div style={{ fontSize:11, color:COLORS.textMuted }}>{r.profiles.department}</div>
+                  )}
+                  <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:1 }}>
+                    {fmtSupaDate(r.start_date)} → {fmtSupaDate(r.end_date || r.start_date)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Legend */}
+      <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"0 2px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:COLORS.textMuted }}>
+          <div style={{ width:20, height:14, borderRadius:3, background:COLORS.gold }}/>
+          Vacaciones aprobadas
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:COLORS.textMuted }}>
+          <div style={{ width:20, height:14, borderRadius:3, background:COLORS.greenSoft }}/>
+          +N personas adicionales
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:COLORS.textMuted }}>
+          <div style={{ width:20, height:14, borderRadius:3, border:`1.5px solid ${COLORS.gold}` }}/>
+          Hoy
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, reviewerName }) {
   const [errors,        setErrors]        = useState({});
   const [loading,       setLoading]       = useState({});
@@ -3787,7 +4021,7 @@ function AdminSupportChatWidget({ adminId }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports = [], onNewReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [] }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -3811,7 +4045,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
   const [dashDone, setDashDone] = useState(false);
   const dashboardInAnim = (!dashDone && !noAnim) ? { animation: "dashboardIn 0.45s ease-out both" } : {};
 
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[displayActive];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", "calendario-equipo": "Calendario de equipo", comunicados: "Comunicados", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[displayActive];
 
   const pendingApprovalCount = (profile?.role === "admin" || profile?.role === "rrhh")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
@@ -3913,7 +4147,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin" || profile?.role === "rrhh") && userId && <AdminSupportChatWidget adminId={userId}/>}
@@ -3948,7 +4182,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, reports 
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "rrhh" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
@@ -4009,12 +4243,13 @@ export default function App() {
   const [departments,        setDepartments]         = useState([]);
   const [departmentsList,    setDepartmentsList]     = useState([]);
   const [solicitudesUnread,  setSolicitudesUnread]   = useState(0);
+  const [teamVacations,      setTeamVacations]       = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -4056,6 +4291,12 @@ export default function App() {
       .or(buildAudienceFilter("departments", profile.departments))
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setDocuments(data); });
+    supabase
+      .from("requests")
+      .select("start_date, end_date, profiles!requests_user_id_fkey(full_name, department)")
+      .eq("type", "vacaciones")
+      .eq("status", "aprobado")
+      .then(({ data }) => { if (data) setTeamVacations(data); });
     supabase.rpc("get_birthdays").then(({ data }) => {
       if (!data) return;
       const today = new Date(); today.setHours(0,0,0,0);
@@ -4258,6 +4499,7 @@ export default function App() {
             userId={session?.user?.id}
             solicitudesUnread={solicitudesUnread}
             onClearSolicitudesUnread={() => setSolicitudesUnread(0)}
+            teamVacations={teamVacations}
           />
         : <LoginScreen onLogin={() => {}} />
       }
