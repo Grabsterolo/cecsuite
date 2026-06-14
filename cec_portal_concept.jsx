@@ -3685,7 +3685,6 @@ function SupportChatWidget({ userId }) {
   useEffect(() => {
     const ch = supabase.channel("support-emp-" + userId)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
-        console.log("[SupportChat:emp] INSERT recibido", { id: row.id, sender_id: row.sender_id, message: row.message });
         if (row.sender_id === userId) {
           // Replace the oldest pending optimistic message with the real DB row so its id matches future UPDATE events
           setMessages(prev => {
@@ -3938,7 +3937,6 @@ function AdminSupportChatWidget({ adminId }) {
         }
       })
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"support_messages" }, ({ new: row }) => {
-        console.log("[SupportChat:admin] INSERT recibido", { id: row.id, sender_id: row.sender_id, user_id: row.user_id, message: row.message });
         if (row.sender_id === adminId) return;
         playNotificationPing();
         const inThisChat = openRef.current && viewRef.current === "chat" && selectedRef.current?.userId === row.user_id;
