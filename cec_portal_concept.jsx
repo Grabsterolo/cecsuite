@@ -1032,7 +1032,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
       type: "vacaciones",
       status: "pendiente",
       start_date: toDate(startDate),
-      end_date: toDate(endDate),
+      end_date: toDate(endDate || startDate),
       days_requested: wd,
       comment: comment.trim() || null,
     }).select().single();
@@ -1113,7 +1113,7 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
       category: tipoPermiso,
       status: "pendiente",
       start_date: toDate(startDate),
-      end_date: toDate(endDate),
+      end_date: toDate(endDate || startDate),
       days_requested: workDays,
       comment: notes.trim() || null,
     }).select().single();
