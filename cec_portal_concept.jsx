@@ -836,7 +836,7 @@ function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
 
   const safeUsed = Math.min(used, total);
   const safeReq  = Math.min(requested, total - safeUsed);
-  const available = total - safeUsed - safeReq;
+  const available = total - safeUsed;
   const usedDeg = (safeUsed / total) * 360 * pct;
   const reqDeg  = (safeReq  / total) * 360 * pct;
 
@@ -1547,19 +1547,19 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
         />
         <div style={{ display:"flex", alignItems:"center", gap:18 }}>
           <VacationDonut used={approvedDays} requested={pendingDays} total={vacationBalance} />
-          <div style={{ flex:1, fontSize:13 }}>
-            <p style={{ margin:"0 0 5px", color:COLORS.textMuted }}>
+          <div style={{ flex:1, fontSize:15 }}>
+            <p style={{ margin:"0 0 7px", color:COLORS.textMuted }}>
               <span style={{ color:COLORS.green, fontWeight:700 }}>{availableDays}</span> días disponibles
             </p>
             {approvedDays > 0 && (
-              <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ width:8, height:8, borderRadius:2, background:COLORS.gold, display:"inline-block", flexShrink:0 }}/>
+              <p style={{ margin:"0 0 7px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
+                <span style={{ width:9, height:9, borderRadius:2, background:COLORS.gold, display:"inline-block", flexShrink:0 }}/>
                 <span style={{ color:COLORS.green, fontWeight:700 }}>{approvedDays}</span> tomados
               </p>
             )}
             {pendingDays > 0 && (
-              <p style={{ margin:"0 0 5px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ width:8, height:8, borderRadius:2, background:COLORS.goldSoft, display:"inline-block", flexShrink:0 }}/>
+              <p style={{ margin:"0 0 7px", color:COLORS.textMuted, display:"flex", alignItems:"center", gap:5 }}>
+                <span style={{ width:9, height:9, borderRadius:2, background:COLORS.goldSoft, display:"inline-block", flexShrink:0 }}/>
                 <span style={{ color:COLORS.gold, fontWeight:700 }}>{pendingDays}</span> en solicitud
               </p>
             )}
@@ -2955,7 +2955,7 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
   const statBox = (label, value, color) => (
     <div style={{ flex:1, textAlign:"center", padding:"16px 8px" }}>
       <div style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:42, fontWeight:700, color, lineHeight:1 }}>{value}</div>
-      <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:4, fontWeight:600, letterSpacing:"0.03em" }}>{label}</div>
+      <div style={{ fontSize:13, color:COLORS.textMuted, marginTop:4, fontWeight:600, letterSpacing:"0.03em" }}>{label}</div>
     </div>
   );
 
