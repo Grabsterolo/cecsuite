@@ -380,7 +380,7 @@ const NAV_ITEMS = [
   { key: "comunicados",        label: "Comunicados",          icon: Bell           },
   { key: "encuestas",          label: "Encuestas",            icon: BarChart3      },
   { key: "reconocimientos",   label: "Reconocimientos",      icon: Award          },
-  { key: "comisiones",        label: "Comisiones",           icon: DollarSign,    condition: p => p?.commission_eligible || p?.role === "admin" },
+  { key: "comisiones",        label: "Comisiones",           icon: DollarSign,    condition: p => p?.commission_eligible && p?.role !== "admin" },
   { key: "documentos",        label: "Documentos",           icon: FileText       },
   { key: "perfil",      label: "Mi perfil",   icon: User },
 ];
@@ -503,6 +503,17 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
                 transition:"background 0.15s, color 0.15s",
               }}>
                 <FileUp size={19} />Gestionar documentos
+              </button>
+              <button onClick={() => { setActive("comisiones"); onClose(); }} style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"12px 14px", borderRadius:10, border:"none",
+                cursor:"pointer", textAlign:"left", fontSize:15, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif",
+                color: active === "comisiones" ? "#FFF" : COLORS.sidebarMuted,
+                background: active === "comisiones" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition:"background 0.15s, color 0.15s",
+              }}>
+                <DollarSign size={19} />Comisiones
               </button>
               <button onClick={() => { setActive("empleados"); onClose(); }} style={{
                 display:"flex", alignItems:"center", gap:14,
@@ -690,6 +701,25 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
                   onMouseLeave={e => { if (!isActive3) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
                 >
                   <FileUp size={16} />Gestionar documentos
+                </button>
+              );
+            })()}
+            {(() => {
+              const isA = active === "comisiones";
+              return (
+                <button onClick={() => setActive("comisiones")} style={{
+                  display:"flex", alignItems:"center", gap:12,
+                  padding:"10px 14px", borderRadius:8, border:"none",
+                  cursor:"pointer", textAlign:"left", fontSize:14, fontWeight:600,
+                  fontFamily:"'Manrope', sans-serif",
+                  color: isA ? "#FFFFFF" : COLORS.sidebarMuted,
+                  background: isA ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                  transition:"background 0.15s, color 0.15s",
+                }}
+                  onMouseEnter={e => { if (!isA) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
+                  onMouseLeave={e => { if (!isA) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
+                >
+                  <DollarSign size={16} />Comisiones
                 </button>
               );
             })()}
@@ -2510,6 +2540,7 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
   const [lockError,      setLockError]      = useState(null);
   const [lockConfirm,    setLockConfirm]    = useState(false);
   const [adminFilter,    setAdminFilter]    = useState("");
+  const [adminCurrency,  setAdminCurrency]  = useState("USD");
 
   function openNew() {
     setSvcName(""); setClientName(""); setAmount(""); setSaleCurrency("USD");
@@ -2595,11 +2626,16 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
   const byUser = {};
   adminFilteredSales.forEach(s => {
     const name = s.profiles?.full_name ?? s.user_id;
-    if (!byUser[name]) byUser[name] = { name, totalUSD: 0, totalCRC: 0, commUSD: 0, commCRC: 0 };
-    if (s.currency === "USD") { byUser[name].totalUSD += s.amount; byUser[name].commUSD += s.amount * 0.05; }
-    else { byUser[name].totalCRC += s.amount; byUser[name].commCRC += s.amount * 0.05; }
+    if (!byUser[name]) byUser[name] = { name, total: 0, comm: 0 };
+    const converted = adminCurrency === "USD"
+      ? toUSD(s.amount, s.currency, rate)
+      : toCRC(s.amount, s.currency, rate);
+    byUser[name].total += converted;
+    byUser[name].comm  += converted * 0.05;
   });
   const userRows = Object.values(byUser);
+  const grandTotal = userRows.reduce((a, r) => a + r.total, 0);
+  const grandComm  = userRows.reduce((a, r) => a + r.comm, 0);
 
   const cardStyle = { background: COLORS.panel, border: `1.5px solid ${COLORS.border}`, borderRadius: 14, padding: "18px 20px", marginBottom: 18 };
   const inp = { ...inputStyle, fontSize: 14, padding: "10px 14px" };
@@ -2636,9 +2672,24 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
         <div style={cardStyle}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
             <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>Resumen de ventas</span>
-            <input type="month" value={adminFilter} onChange={e => setAdminFilter(e.target.value)} style={{ ...inp, width: "auto", minWidth: 160 }}
-              onFocus={e => e.target.style.borderColor = COLORS.gold} onBlur={e => e.target.style.borderColor = COLORS.border} />
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 4 }}>
+                {["USD", "CRC"].map(cur => (
+                  <button key={cur} onClick={() => setAdminCurrency(cur)} style={{
+                    padding: "5px 14px", borderRadius: 20, border: `1.5px solid ${adminCurrency === cur ? COLORS.gold : COLORS.border}`,
+                    background: adminCurrency === cur ? "rgba(201,162,78,0.12)" : COLORS.panel,
+                    color: adminCurrency === cur ? COLORS.green : COLORS.textMuted,
+                    fontWeight: adminCurrency === cur ? 700 : 400, fontSize: 12, cursor: "pointer",
+                    fontFamily: "'Manrope', sans-serif",
+                  }}>{cur}</button>
+                ))}
+              </div>
+              <input type="month" value={adminFilter} onChange={e => setAdminFilter(e.target.value)} style={{ ...inp, width: "auto", minWidth: 160 }}
+                onFocus={e => e.target.style.borderColor = COLORS.gold} onBlur={e => e.target.style.borderColor = COLORS.border} />
+            </div>
           </div>
+          {!rate && adminCurrency === "CRC" && <p style={{ fontSize: 12, color: "#e07070", marginBottom: 10 }}>Configura el tipo de cambio para convertir ventas en USD a CRC.</p>}
+          {!rate && adminCurrency === "USD" && allSales.some(s => s.currency === "CRC") && <p style={{ fontSize: 12, color: "#e07070", marginBottom: 10 }}>Configura el tipo de cambio para convertir ventas en CRC a USD.</p>}
           {userRows.length === 0
             ? <p style={{ fontSize: 13, color: COLORS.textMuted, textAlign: "center", padding: "20px 0" }}>No hay ventas{adminFilter ? " para este período" : ""}.</p>
             : (
@@ -2647,22 +2698,25 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
                   <thead>
                     <tr style={{ borderBottom: `1.5px solid ${COLORS.border}` }}>
                       <th style={{ textAlign: "left", padding: "8px 10px", color: COLORS.textMuted, fontWeight: 600 }}>Esteticista</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", color: COLORS.textMuted, fontWeight: 600 }}>Ventas USD</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", color: COLORS.textMuted, fontWeight: 600 }}>Comis. USD</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", color: COLORS.textMuted, fontWeight: 600 }}>Ventas CRC</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", color: COLORS.textMuted, fontWeight: 600 }}>Comis. CRC</th>
+                      <th style={{ textAlign: "right", padding: "8px 10px", color: COLORS.textMuted, fontWeight: 600 }}>Total vendido</th>
+                      <th style={{ textAlign: "right", padding: "8px 10px", color: COLORS.textMuted, fontWeight: 600 }}>Comisión (5%)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {userRows.map(r => (
                       <tr key={r.name} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                         <td style={{ padding: "8px 10px", fontWeight: 600, color: COLORS.text }}>{r.name}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.text }}>{r.totalUSD > 0 ? `$${r.totalUSD.toFixed(2)}` : "—"}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.green, fontWeight: 600 }}>{r.commUSD > 0 ? `$${r.commUSD.toFixed(2)}` : "—"}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.text }}>{r.totalCRC > 0 ? `₡${Math.round(r.totalCRC).toLocaleString("es-CR")}` : "—"}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.green, fontWeight: 600 }}>{r.commCRC > 0 ? `₡${Math.round(r.commCRC).toLocaleString("es-CR")}` : "—"}</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.text }}>{fmtAmt(r.total, adminCurrency, rate)}</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.green, fontWeight: 600 }}>{fmtAmt(r.comm, adminCurrency, rate)}</td>
                       </tr>
                     ))}
+                    {userRows.length > 1 && (
+                      <tr style={{ borderTop: `2px solid ${COLORS.border}` }}>
+                        <td style={{ padding: "8px 10px", fontWeight: 700, color: COLORS.text }}>Total general</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: COLORS.text }}>{fmtAmt(grandTotal, adminCurrency, rate)}</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: COLORS.gold }}>{fmtAmt(grandComm, adminCurrency, rate)}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
