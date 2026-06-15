@@ -1563,7 +1563,6 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
                 <span style={{ color:COLORS.gold, fontWeight:700 }}>{pendingDays}</span> en solicitud
               </p>
             )}
-            <p style={{ margin:"8px 0 0", fontSize:11, color:COLORS.textMuted }}>{vacationBalance} días totales</p>
           </div>
         </div>
       </Card>
@@ -2995,9 +2994,6 @@ function VacationSection({ profile, vacationRequests, onNewRequest }) {
           <div style={{ width:1, background:COLORS.border, margin:"12px 0" }}/>
           {statBox("En solicitud", pendingDays, COLORS.goldSoft)}
         </div>
-        <p style={{ margin:"12px 0 0", fontSize:11, color:COLORS.textMuted, textAlign:"center" }}>
-          Saldo total: <strong>{vacationBalance}</strong> días
-        </p>
       </Card>
 
       {/* Historial */}
