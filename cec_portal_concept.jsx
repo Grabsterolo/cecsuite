@@ -2533,11 +2533,9 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
     if (editingSale) {
       const { error } = await supabase.from("commission_sales").update(payload).eq("id", editingSale.id);
       err = error;
-      if (!error) onSaleUpdated?.({ ...editingSale, ...payload });
     } else {
-      const { data, error } = await supabase.from("commission_sales").insert({ ...payload, user_id: userId }).select().single();
+      const { error } = await supabase.from("commission_sales").insert({ ...payload, user_id: userId });
       err = error;
-      if (!error && data) onSaleCreated?.(data);
     }
     setFormLoading(false);
     if (err) { setFormError(translateError(err.message)); return; }
@@ -2546,8 +2544,7 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
 
   async function handleDelete(sale) {
     if (!window.confirm(`¿Eliminar la venta "${sale.service_name}"?`)) return;
-    const { error } = await supabase.from("commission_sales").delete().eq("id", sale.id);
-    if (!error) onSaleDeleted?.(sale.id);
+    await supabase.from("commission_sales").delete().eq("id", sale.id);
   }
 
   async function handleSaveRate() {
@@ -5619,7 +5616,7 @@ export default function App() {
       ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "commission_sales" }, refreshAllSales);
       ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "commission_sales" }, refreshAllSales);
     } else if (profile.commission_eligible) {
-      ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "commission_sales", filter: `user_id=eq.${userId}` }, ({ new: row }) => setMySales(prev => [row, ...prev]));
+      ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "commission_sales", filter: `user_id=eq.${userId}` }, ({ new: row }) => setMySales(prev => prev.some(s => s.id === row.id) ? prev : [row, ...prev]));
       ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "commission_sales", filter: `user_id=eq.${userId}` }, ({ new: row }) => setMySales(prev => prev.map(s => s.id === row.id ? { ...s, ...row } : s)));
       ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "commission_sales", filter: `user_id=eq.${userId}` }, ({ old: row }) => setMySales(prev => prev.filter(s => s.id !== row.id)));
     }
