@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, CalendarRange, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, Check, CheckCheck, Award, BarChart3,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, Check, CheckCheck, Award, BarChart3, DollarSign,
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -380,6 +380,7 @@ const NAV_ITEMS = [
   { key: "comunicados",        label: "Comunicados",          icon: Bell           },
   { key: "encuestas",          label: "Encuestas",            icon: BarChart3      },
   { key: "reconocimientos",   label: "Reconocimientos",      icon: Award          },
+  { key: "comisiones",        label: "Comisiones",           icon: DollarSign,    condition: p => p?.commission_eligible || p?.role === "admin" },
   { key: "documentos",        label: "Documentos",           icon: FileText       },
   { key: "perfil",      label: "Mi perfil",   icon: User },
 ];
@@ -433,7 +434,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
         </div>
         <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 16, flexShrink: 0 }} />
         <nav style={{ display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", flex: 1, paddingBottom: 8 }}>
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter(item => !item.condition || item.condition(profile)).map((item) => {
             const Icon = item.icon;
             const isActive = active === item.key;
             return (
@@ -562,7 +563,7 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter(item => !item.condition || item.condition(profile)).map((item) => {
           const Icon = item.icon;
           const isActive = active === item.key;
           return (
@@ -2559,13 +2560,14 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
   const [selectedDepts, setSelectedDepts] = useState([]);
   const [hireDate,      setHireDate]      = useState("");
   const [birthDate,     setBirthDate]     = useState("");
-  const [role,          setRole]          = useState("empleado");
-  const [vacBalance,    setVacBalance]    = useState("");
-  const [vacPerYear,    setVacPerYear]    = useState("12");
-  const [loading,       setLoading]       = useState(false);
-  const [error,         setError]         = useState(null);
-  const [partialErr,    setPartialErr]    = useState(null);
-  const [successInfo,   setSuccessInfo]   = useState(null);
+  const [role,               setRole]               = useState("empleado");
+  const [vacBalance,         setVacBalance]         = useState("");
+  const [vacPerYear,         setVacPerYear]         = useState("12");
+  const [commissionEligible, setCommissionEligible] = useState(false);
+  const [loading,            setLoading]            = useState(false);
+  const [error,              setError]              = useState(null);
+  const [partialErr,         setPartialErr]         = useState(null);
+  const [successInfo,        setSuccessInfo]        = useState(null);
 
   function toggleDept(name) {
     setSelectedDepts(prev => prev.includes(name) ? prev.filter(d => d !== name) : [...prev, name]);
@@ -2633,8 +2635,9 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       hire_date:             hireDate   || null,
       birth_date:            birthDate  || null,
       role,
-      vacation_balance:      vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
-      vacation_days_per_year: vacPerYear !== "" ? Number(vacPerYear) : VAC_TOTAL,
+      vacation_balance:       vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
+      vacation_days_per_year: vacPerYear  !== "" ? Number(vacPerYear)  : VAC_TOTAL,
+      commission_eligible:    commissionEligible,
     }, { onConflict: "id" });
     setLoading(false);
     if (profileError) {
@@ -2652,7 +2655,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     const savedPwd   = password;
     setEmail(""); setPassword(""); setFullName(""); setPosition("");
     setSelectedDepts([]); setHireDate(""); setBirthDate("");
-    setRole("empleado"); setVacBalance(""); setVacPerYear("12");
+    setRole("empleado"); setVacBalance(""); setVacPerYear("12"); setCommissionEligible(false);
     setSuccessInfo({ email: savedEmail, password: savedPwd });
   }
 
@@ -2764,6 +2767,14 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
         </div>
       </div>
 
+      {/* Módulo de comisiones */}
+      <div style={{ marginBottom:14 }}>
+        <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", fontSize:13, fontWeight:500, color:COLORS.text }}>
+          <input type="checkbox" checked={commissionEligible} onChange={e => setCommissionEligible(e.target.checked)} style={{ width:16, height:16, accentColor:COLORS.green }} />
+          Módulo de comisiones (esteticista)
+        </label>
+      </div>
+
       {error && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
       {partialErr && (
         <div style={{ fontSize:12, color:"#e07070", background:"rgba(192,57,43,0.06)", borderRadius:7, padding:"10px 12px", margin:"0 0 12px", lineHeight:1.6 }}>
@@ -2802,6 +2813,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
   const [vacPerYear,  setVacPerYear]  = useState(emp.vacation_days_per_year !== undefined && emp.vacation_days_per_year !== null ? String(emp.vacation_days_per_year) : "12");
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
+  const [commissionEligible, setCommissionEligible] = useState(emp.commission_eligible ?? false);
 
   function toggleDept(name) {
     setSelectedDepts(prev => prev.includes(name) ? prev.filter(d => d !== name) : [...prev, name]);
@@ -2823,6 +2835,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
       role,
       vacation_balance:       vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
       vacation_days_per_year: vacPerYear  !== "" ? Number(vacPerYear)  : VAC_TOTAL,
+      commission_eligible:    commissionEligible,
     };
     const { error: updateError } = await supabase.from("profiles").update(updates).eq("id", emp.id);
     setLoading(false);
@@ -2906,6 +2919,12 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
         </div>
       </div>
 
+      <div style={{ marginBottom:14 }}>
+        <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", fontSize:13, fontWeight:500, color:COLORS.text }}>
+          <input type="checkbox" checked={commissionEligible} onChange={e => setCommissionEligible(e.target.checked)} style={{ width:16, height:16, accentColor:COLORS.green }} />
+          Módulo de comisiones (esteticista)
+        </label>
+      </div>
       {error && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{error}</p>}
       <div style={{ display:"flex", gap:10 }}>
         <button onClick={onClose} style={btnCancelStyle}>Cancelar</button>
@@ -4926,12 +4945,15 @@ export default function App() {
   const [polls,              setPolls]               = useState([]);
   const [myVotes,            setMyVotes]             = useState({});
   const [pollResults,        setPollResults]         = useState({});
+  const [exchangeRate,       setExchangeRate]        = useState(null);
+  const [mySales,            setMySales]             = useState([]);
+  const [allSales,           setAllSales]            = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); setPolls([]); setMyVotes({}); setPollResults({}); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); setPolls([]); setMyVotes({}); setPollResults({}); setExchangeRate(null); setMySales([]); setAllSales([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -4995,6 +5017,14 @@ export default function App() {
         const map = {}; data.forEach(v => { map[v.poll_id] = v.option_index; });
         setMyVotes(map);
       });
+
+    supabase.from("exchange_rate").select("*").order("updated_at", { ascending: false }).limit(1).single().then(({ data }) => { if (data) setExchangeRate(data); });
+    if (profile.commission_eligible) {
+      supabase.from("commission_sales").select("*").eq("user_id", profile.id).order("sale_date", { ascending: false }).then(({ data }) => { if (data) setMySales(data); });
+    }
+    if (profile.role === "admin") {
+      supabase.from("commission_sales").select("*, profiles(full_name)").order("sale_date", { ascending: false }).then(({ data }) => { if (data) setAllSales(data); });
+    }
 
     supabase.rpc("get_team_vacations").then(({ data }) => {
       if (data) setTeamVacations(data.map(r => ({
@@ -5206,6 +5236,21 @@ export default function App() {
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "poll_votes" }, ({ new: row }) => {
       refreshPollResults(row.poll_id);
     });
+
+    // ── commission_sales realtime ──
+    if (isAdmin) {
+      const refreshAllSales = () => supabase.from("commission_sales").select("*, profiles(full_name)").order("sale_date", { ascending: false }).then(({ data }) => { if (data) setAllSales(data); });
+      ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "commission_sales" }, refreshAllSales);
+      ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "commission_sales" }, refreshAllSales);
+      ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "commission_sales" }, refreshAllSales);
+    } else if (profile.commission_eligible) {
+      ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "commission_sales", filter: `user_id=eq.${userId}` }, ({ new: row }) => setMySales(prev => [row, ...prev]));
+      ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "commission_sales", filter: `user_id=eq.${userId}` }, ({ new: row }) => setMySales(prev => prev.map(s => s.id === row.id ? { ...s, ...row } : s)));
+      ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "commission_sales", filter: `user_id=eq.${userId}` }, ({ old: row }) => setMySales(prev => prev.filter(s => s.id !== row.id)));
+    }
+    if (isAdmin || profile.commission_eligible) {
+      ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "exchange_rate" }, ({ new: row }) => setExchangeRate(row));
+    }
 
     ch.subscribe();
     return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
