@@ -385,15 +385,7 @@ const NAV_ITEMS = [
   { key: "perfil",      label: "Mi perfil",   icon: User },
 ];
 
-const ANNOUNCEMENTS = [
-  { title: "Dr. Chacón fuera del país entre el 1 y el 22 de junio", date: "1 jun 2026", tag: "Avisos" },
-  { title: "Capacitación Merz", date: "8 jun 2026", tag: "Capacitación" },
-];
 
-const DOCUMENTS = [
-  "Protocolo de Consulta",
-  "Manual de facturación en EMA",
-];
 
 const BIRTHDAYS = [
   { name: "Maggie Araya", date: "3 ago" },
@@ -2366,6 +2358,7 @@ function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, userId, 
   const [changingVote, setChangingVote] = useState({});
   const [confirmDel,   setConfirmDel]   = useState(null);
   const [deleting,     setDeleting]     = useState(null);
+  const [voteError,    setVoteError]    = useState(null);
 
   async function handleCreate() {
     const q = question.trim();
@@ -2385,12 +2378,16 @@ function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, userId, 
   async function handleVote(pollId, isUpdate) {
     const idx = pendingVote[pollId];
     if (idx === undefined) return;
+    setVoteError(null);
     setVotingPoll(pollId);
     const { error } = isUpdate
       ? await supabase.from("poll_votes").update({ option_index: idx }).eq("poll_id", pollId).eq("user_id", userId)
       : await supabase.from("poll_votes").insert({ poll_id: pollId, user_id: userId, option_index: idx });
     setVotingPoll(null);
-    if (error) return;
+    if (error) {
+      setVoteError("No se pudo registrar tu voto. Intenta de nuevo.");
+      return;
+    }
     onVoted?.(pollId, idx);
     setPendingVote(prev => { const n = { ...prev }; delete n[pollId]; return n; });
     setChangingVote(prev => { const n = { ...prev }; delete n[pollId]; return n; });
@@ -2515,7 +2512,7 @@ function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, userId, 
                         {opt}
                       </label>
                     ))}
-                    <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:4 }}>
+                    <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:4, flexWrap:"wrap" }}>
                       <button onClick={() => handleVote(poll.id, hasVoted)} disabled={isSubmitting || noPending} style={{
                         padding:"8px 18px", borderRadius:8, border:"none",
                         background: (isSubmitting || noPending) ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
@@ -2527,6 +2524,7 @@ function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, userId, 
                         <button onClick={() => setChangingVote(prev => { const n={...prev}; delete n[poll.id]; return n; })} style={{ fontSize:12, color:COLORS.textMuted, background:"none", border:"none", cursor:"pointer", fontFamily:"'Manrope', sans-serif", padding:0 }}>Cancelar</button>
                       )}
                     </div>
+                    {voteError && <p style={{ fontSize:12, color:"#e07070", margin:"6px 0 0" }}>{voteError}</p>}
                   </div>
                 )}
 
@@ -2563,7 +2561,7 @@ function toCRC(amount, currency, rate) {
   return rate ? Number(amount) * rate : 0;
 }
 
-function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSales = [], onSaleCreated, onSaleUpdated, onSaleDeleted, onExchangeRateUpdated }) {
+function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSales = [], onExchangeRateUpdated }) {
   const isAdmin = profile?.role === "admin";
   const isMobile = useIsMobile();
   const rate = exchangeRate?.rate ?? null;
@@ -5176,7 +5174,7 @@ function AdminSupportChatWidget({ adminId }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition, teamDirectory = [], recognitionsUnread = 0, onMarkRecognitionsRead, polls = [], myVotes = {}, pollResults = {}, onVoted, onPollCreated, onPollClosed, onPollDeleted, exchangeRate = null, mySales = [], allSales = [], onSaleCreated, onSaleUpdated, onSaleDeleted, onExchangeRateUpdated }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition, teamDirectory = [], recognitionsUnread = 0, onMarkRecognitionsRead, polls = [], myVotes = {}, pollResults = {}, onVoted, onPollCreated, onPollClosed, onPollDeleted, exchangeRate = null, mySales = [], allSales = [], onExchangeRateUpdated }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -5304,7 +5302,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onSaleCreated={onSaleCreated} onSaleUpdated={onSaleUpdated} onSaleDeleted={onSaleDeleted} onExchangeRateUpdated={onExchangeRateUpdated} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
@@ -5339,7 +5337,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onSaleCreated={onSaleCreated} onSaleUpdated={onSaleUpdated} onSaleDeleted={onSaleDeleted} onExchangeRateUpdated={onExchangeRateUpdated} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
@@ -5403,6 +5401,12 @@ export default function App() {
   const [teamVacations,      setTeamVacations]       = useState([]);
   const [recognitions,       setRecognitions]        = useState([]);
   const [toast,              setToast]               = useState(null);
+  const toastTimerRef = useRef(null);
+  function showToast(toastObj) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(toastObj);
+    toastTimerRef.current = setTimeout(() => { setToast(null); toastTimerRef.current = null; }, 5000);
+  }
   const [teamDirectory,      setTeamDirectory]       = useState([]);
   const [polls,              setPolls]               = useState([]);
   const [myVotes,            setMyVotes]             = useState({});
@@ -5564,8 +5568,7 @@ export default function App() {
       if (audienceMatch(row.audience_list)) {
         setAnnouncements(prev => prev.some(a => a.id === row.id) ? prev : [row, ...prev]);
         playNotificationPing();
-        setToast({ message: `Nuevo comunicado: ${row.title}`, Icon: Bell });
-        setTimeout(() => setToast(null), 5000);
+        showToast({ message: `Nuevo comunicado: ${row.title}`, Icon: Bell });
       }
       if (isAdmin) {
         supabase.from("announcements").select("*, profiles!announcements_created_by_fkey(full_name)").eq("id", row.id).single()
@@ -5662,8 +5665,7 @@ export default function App() {
         const added = data.find(r => r.id === row.id);
         if (added && added.to_user_id === session?.user?.id) {
           playNotificationPing();
-          setToast({ message: `¡${added.from_name ?? "Un compañero"} te reconoció por ${added.category}!`, Icon: Award });
-          setTimeout(() => setToast(null), 5000);
+          showToast({ message: `¡${added.from_name ?? "Un compañero"} te reconoció por ${added.category}!`, Icon: Award });
         }
       });
     });
@@ -5677,11 +5679,13 @@ export default function App() {
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "polls" }, ({ new: row }) => {
       setPolls(prev => prev.some(p => p.id === row.id) ? prev : [row, ...prev]);
       playNotificationPing();
-      setToast({ message: `Nueva encuesta: ${row.question}`, Icon: BarChart3 });
-      setTimeout(() => setToast(null), 5000);
+      showToast({ message: `Nueva encuesta: ${row.question}`, Icon: BarChart3 });
     });
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "polls" }, ({ new: row }) => {
       setPolls(prev => prev.map(p => p.id === row.id ? { ...p, ...row } : p));
+    });
+    ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "polls" }, ({ old: row }) => {
+      setPolls(prev => prev.filter(p => p.id !== row.id));
     });
 
     // ── poll votes: refresh results for affected poll ──
@@ -5813,9 +5817,6 @@ export default function App() {
             exchangeRate={exchangeRate}
             mySales={mySales}
             allSales={allSales}
-            onSaleCreated={sale => setMySales(prev => [sale, ...prev])}
-            onSaleUpdated={sale => setMySales(prev => prev.map(s => s.id === sale.id ? { ...s, ...sale } : s))}
-            onSaleDeleted={id => setMySales(prev => prev.filter(s => s.id !== id))}
             onExchangeRateUpdated={r => setExchangeRate(r)}
           />
         : <LoginScreen onLogin={() => {}} />
