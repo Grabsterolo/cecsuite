@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, CalendarRange, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, Check, CheckCheck, Award,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, Check, CheckCheck, Award, BarChart3,
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -378,6 +378,7 @@ const NAV_ITEMS = [
   { key: "solicitudes",       label: "Solicitudes",          icon: CalendarDays   },
   { key: "calendario-equipo", label: "Calendario de equipo", icon: CalendarRange  },
   { key: "comunicados",        label: "Comunicados",          icon: Bell           },
+  { key: "encuestas",          label: "Encuestas",            icon: BarChart3      },
   { key: "reconocimientos",   label: "Reconocimientos",      icon: Award          },
   { key: "documentos",        label: "Documentos",           icon: FileText       },
   { key: "perfil",      label: "Mi perfil",   icon: User },
@@ -1479,9 +1480,12 @@ function DocDownloadBtn({ fileUrl, label, iconOnly = false }) {
   );
 }
 
-function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [], recognitions = [] }) {
-  const [modal, setModal] = useState(null); // null | "new-sol"
+function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [], recognitions = [], polls = [], myVotes = {}, pollResults = {}, userId, onVoted }) {
+  const [modal, setModal] = useState(null);
+  const [pollPending, setPollPending] = useState(null); // selected option_index for active poll widget
+  const [pollVoting, setPollVoting] = useState(false);
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
+  const activePoll = polls.find(p => p.status === "activa" && myVotes[p.id] === undefined);
 
   return (
     <>
@@ -1603,6 +1607,40 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
           </div>
         )}
       </Card>
+
+      {/* Encuesta activa */}
+      {activePoll && (
+        <Card style={{ border:`1.5px solid ${COLORS.gold}` }}>
+          <CardHeader title="Encuesta activa"
+            action={<button style={verTodosStyle} onClick={() => setActive("encuestas")}>Ver encuestas <ChevronRight size={14}/></button>}
+          />
+          <p style={{ fontSize:14, fontWeight:700, color:COLORS.green, margin:"0 0 12px", lineHeight:1.4 }}>{activePoll.question}</p>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {activePoll.options.map((opt, idx) => (
+              <label key={idx} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", fontSize:13, color:COLORS.text, fontWeight: pollPending === idx ? 600 : 400 }}>
+                <input type="radio" name={`home-poll-${activePoll.id}`} checked={pollPending === idx}
+                  onChange={() => setPollPending(idx)}
+                  style={{ accentColor: COLORS.green, width:15, height:15, flexShrink:0 }}
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+          <button onClick={async () => {
+            if (pollPending === null || pollPending === undefined || pollVoting) return;
+            setPollVoting(true);
+            const { error } = await supabase.from("poll_votes").insert({ poll_id: activePoll.id, user_id: userId, option_index: pollPending });
+            setPollVoting(false);
+            if (!error) { onVoted?.(activePoll.id, pollPending); setPollPending(null); }
+          }} disabled={pollPending === null || pollPending === undefined || pollVoting} style={{
+            marginTop:14, padding:"8px 18px", borderRadius:8, border:"none",
+            background: (pollPending === null || pollPending === undefined || pollVoting) ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+            color:"#FFF", fontSize:13, fontWeight:700,
+            cursor: (pollPending === null || pollPending === undefined || pollVoting) ? "not-allowed" : "pointer",
+            fontFamily:"'Manrope', sans-serif", opacity: (pollPending === null || pollPending === undefined || pollVoting) ? 0.7 : 1, transition:"all 0.15s",
+          }}>{pollVoting ? "Enviando..." : "Votar"}</button>
+        </Card>
+      )}
 
       {/* Reconocimientos recientes */}
       <Card>
@@ -2186,6 +2224,230 @@ function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteReco
               </div>
             </Card>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Encuestas ── */
+function PollResultBars({ poll, pollResults = {}, myVoteIndex }) {
+  const results = pollResults[poll.id] || {};
+  const total = Object.values(results).reduce((s, v) => s + v, 0);
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      {poll.options.map((opt, idx) => {
+        const votes = results[idx] ?? 0;
+        const pct = total > 0 ? Math.round((votes / total) * 100) : 0;
+        const isMyVote = myVoteIndex === idx;
+        return (
+          <div key={idx}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:3 }}>
+              <span style={{ fontSize:13, fontWeight: isMyVote ? 700 : 500, color: isMyVote ? COLORS.green : COLORS.text, display:"flex", alignItems:"center", gap:5 }}>
+                {isMyVote && <Check size={13} color={COLORS.green} />}
+                {opt}
+              </span>
+              <span style={{ fontSize:12, color:COLORS.textMuted, flexShrink:0, marginLeft:8 }}>{votes} voto{votes !== 1 ? "s" : ""} · {pct}%</span>
+            </div>
+            <div style={{ height:8, borderRadius:4, background:COLORS.border, overflow:"hidden" }}>
+              <div style={{ height:"100%", borderRadius:4, width:`${pct}%`, background: isMyVote ? `linear-gradient(90deg, ${COLORS.goldSoft}, ${COLORS.gold})` : COLORS.green, transition:"width 0.4s ease" }} />
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ fontSize:11, color:COLORS.textMuted }}>{total} voto{total !== 1 ? "s" : ""} totales</div>
+    </div>
+  );
+}
+
+function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, userId, profile, onPollCreated, onVoted, onPollClosed, onPollDeleted }) {
+  const isAdmin = profile?.role === "admin";
+  const [question,     setQuestion]     = useState("");
+  const [options,      setOptions]      = useState(["", ""]);
+  const [creating,     setCreating]     = useState(false);
+  const [createError,  setCreateError]  = useState(null);
+  const [pendingVote,  setPendingVote]  = useState({});
+  const [votingPoll,   setVotingPoll]   = useState(null);
+  const [changingVote, setChangingVote] = useState({});
+  const [confirmDel,   setConfirmDel]   = useState(null);
+  const [deleting,     setDeleting]     = useState(null);
+
+  async function handleCreate() {
+    const q = question.trim();
+    const opts = options.map(o => o.trim()).filter(Boolean);
+    if (!q) { setCreateError("Escribe una pregunta."); return; }
+    if (opts.length < 2) { setCreateError("Agrega al menos 2 opciones."); return; }
+    setCreating(true); setCreateError(null);
+    const { data, error } = await supabase.from("polls")
+      .insert({ question: q, options: opts, created_by: userId, status: "activa" })
+      .select("*").single();
+    setCreating(false);
+    if (error) { setCreateError(translateError(error.message)); return; }
+    setQuestion(""); setOptions(["", ""]);
+    onPollCreated?.(data);
+  }
+
+  async function handleVote(pollId, isUpdate) {
+    const idx = pendingVote[pollId];
+    if (idx === undefined) return;
+    setVotingPoll(pollId);
+    const { error } = isUpdate
+      ? await supabase.from("poll_votes").update({ option_index: idx }).eq("poll_id", pollId).eq("user_id", userId)
+      : await supabase.from("poll_votes").insert({ poll_id: pollId, user_id: userId, option_index: idx });
+    setVotingPoll(null);
+    if (error) return;
+    onVoted?.(pollId, idx);
+    setPendingVote(prev => { const n = { ...prev }; delete n[pollId]; return n; });
+    setChangingVote(prev => { const n = { ...prev }; delete n[pollId]; return n; });
+  }
+
+  async function handleClose(pollId) {
+    await supabase.from("polls").update({ status: "cerrada" }).eq("id", pollId);
+    onPollClosed?.(pollId);
+  }
+
+  async function handleDelete(pollId) {
+    setDeleting(pollId);
+    await supabase.from("polls").delete().eq("id", pollId);
+    setDeleting(null); setConfirmDel(null);
+    onPollDeleted?.(pollId);
+  }
+
+  const inpStyle = { width:"100%", padding:"9px 12px", borderRadius:8, border:`1px solid ${COLORS.border}`, background:COLORS.inputBg, color:COLORS.text, fontSize:13, fontFamily:"'Manrope', sans-serif", outline:"none", boxSizing:"border-box" };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      {isAdmin && (
+        <Card>
+          <CardHeader title="Crear encuesta" />
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <div>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, marginBottom:5 }}>Pregunta</label>
+              <input value={question} onChange={e => setQuestion(e.target.value)} placeholder="¿Cuál es tu pregunta?" style={inpStyle} />
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, marginBottom:6 }}>Opciones</label>
+              <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                {options.map((opt, i) => (
+                  <div key={i} style={{ display:"flex", gap:6, alignItems:"center" }}>
+                    <input value={opt} onChange={e => { const n = [...options]; n[i] = e.target.value; setOptions(n); }} placeholder={`Opción ${i + 1}`} style={{ ...inpStyle, flex:1 }} />
+                    {options.length > 2 && (
+                      <button onClick={() => setOptions(options.filter((_, j) => j !== i))} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, padding:4, display:"flex", flexShrink:0, transition:"color 0.12s" }}
+                        onMouseEnter={e => e.currentTarget.style.color="#c0392b"}
+                        onMouseLeave={e => e.currentTarget.style.color=COLORS.textMuted}
+                      ><X size={14}/></button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {options.length < 5 && (
+                <button onClick={() => setOptions([...options, ""])} style={{ marginTop:8, display:"flex", alignItems:"center", gap:5, background:"none", border:"none", cursor:"pointer", color:COLORS.gold, fontSize:12, fontWeight:600, fontFamily:"'Manrope', sans-serif", padding:0 }}>
+                  <Plus size={13}/> Agregar opción
+                </button>
+              )}
+            </div>
+            {createError && <p style={{ fontSize:12, color:"#c0392b", margin:0 }}>{createError}</p>}
+            <button onClick={handleCreate} disabled={creating} style={{
+              padding:"10px 0", borderRadius:9, border:"none",
+              background: creating ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+              color:"#FFF", fontSize:14, fontWeight:700,
+              cursor: creating ? "not-allowed" : "pointer",
+              fontFamily:"'Manrope', sans-serif", opacity: creating ? 0.7 : 1, transition:"all 0.15s",
+            }}>{creating ? "Creando..." : "Crear encuesta"}</button>
+          </div>
+        </Card>
+      )}
+
+      {polls.length === 0 ? (
+        <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay encuestas por el momento.</p></Card>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          {polls.map(poll => {
+            const myvote = myVotes[poll.id];
+            const isClosed = poll.status === "cerrada";
+            const hasVoted = myvote !== undefined;
+            const isChanging = !!changingVote[poll.id];
+            const showResults = hasVoted && !isChanging;
+            const showVoteForm = !isClosed && (!hasVoted || isChanging);
+            const isSubmitting = votingPoll === poll.id;
+            const noPending = pendingVote[poll.id] === undefined;
+            return (
+              <Card key={poll.id} style={{ padding:"16px 18px" }}>
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:12 }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                      <BarChart3 size={15} color={isClosed ? COLORS.textMuted : COLORS.green} style={{ flexShrink:0 }} />
+                      <h3 style={{ margin:0, fontSize:15, fontWeight:700, color:COLORS.green, flex:1, lineHeight:1.3 }}>{poll.question}</h3>
+                      {isClosed && (
+                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", color:"#FFF", background:COLORS.textMuted, borderRadius:6, padding:"2px 8px", flexShrink:0 }}>Cerrada</span>
+                      )}
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <div style={{ display:"flex", gap:6, flexShrink:0, alignItems:"center" }}>
+                      {!isClosed && (
+                        <button onClick={() => handleClose(poll.id)} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"none", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"3px 8px", cursor:"pointer", fontFamily:"'Manrope', sans-serif", transition:"all 0.12s", whiteSpace:"nowrap" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor=COLORS.green; e.currentTarget.style.color=COLORS.green; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor=COLORS.border; e.currentTarget.style.color=COLORS.textMuted; }}
+                        >Cerrar</button>
+                      )}
+                      {confirmDel === poll.id ? (
+                        <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                          <span style={{ fontSize:11, color:COLORS.textMuted, whiteSpace:"nowrap" }}>¿Eliminar?</span>
+                          <button onClick={() => handleDelete(poll.id)} disabled={deleting === poll.id} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontFamily:"'Manrope', sans-serif" }}>
+                            {deleting === poll.id ? "..." : "Sí"}
+                          </button>
+                          <button onClick={() => setConfirmDel(null)} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"none", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"3px 8px", cursor:"pointer", fontFamily:"'Manrope', sans-serif" }}>No</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDel(poll.id)} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, padding:4, display:"flex", transition:"color 0.12s" }}
+                          onMouseEnter={e => e.currentTarget.style.color="#c0392b"}
+                          onMouseLeave={e => e.currentTarget.style.color=COLORS.textMuted}
+                        ><Trash2 size={14}/></button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {showVoteForm && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    {poll.options.map((opt, idx) => (
+                      <label key={idx} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", fontSize:13, color:COLORS.text, fontWeight: pendingVote[poll.id] === idx ? 600 : 400 }}>
+                        <input type="radio" name={`poll-${poll.id}`} checked={pendingVote[poll.id] === idx}
+                          onChange={() => setPendingVote(prev => ({ ...prev, [poll.id]: idx }))}
+                          style={{ accentColor: COLORS.green, width:15, height:15, flexShrink:0 }}
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                    <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:4 }}>
+                      <button onClick={() => handleVote(poll.id, hasVoted)} disabled={isSubmitting || noPending} style={{
+                        padding:"8px 18px", borderRadius:8, border:"none",
+                        background: (isSubmitting || noPending) ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                        color:"#FFF", fontSize:13, fontWeight:700,
+                        cursor: (isSubmitting || noPending) ? "not-allowed" : "pointer",
+                        fontFamily:"'Manrope', sans-serif", opacity: (isSubmitting || noPending) ? 0.7 : 1, transition:"all 0.15s",
+                      }}>{isSubmitting ? "Enviando..." : hasVoted ? "Actualizar voto" : "Votar"}</button>
+                      {isChanging && (
+                        <button onClick={() => setChangingVote(prev => { const n={...prev}; delete n[poll.id]; return n; })} style={{ fontSize:12, color:COLORS.textMuted, background:"none", border:"none", cursor:"pointer", fontFamily:"'Manrope', sans-serif", padding:0 }}>Cancelar</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {showResults && (
+                  <>
+                    <PollResultBars poll={poll} pollResults={pollResults} myVoteIndex={myvote} />
+                    {!isClosed && (
+                      <button onClick={() => setChangingVote(prev => ({ ...prev, [poll.id]: true }))} style={{ marginTop:10, fontSize:12, color:COLORS.gold, background:"none", border:"none", cursor:"pointer", fontFamily:"'Manrope', sans-serif", fontWeight:600, padding:0, textDecoration:"underline" }}>
+                        Cambiar mi voto
+                      </button>
+                    )}
+                  </>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
@@ -4423,7 +4685,7 @@ function AdminSupportChatWidget({ adminId }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition, teamDirectory = [], recognitionsUnread = 0, onMarkRecognitionsRead }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition, teamDirectory = [], recognitionsUnread = 0, onMarkRecognitionsRead, polls = [], myVotes = {}, pollResults = {}, onVoted, onPollCreated, onPollClosed, onPollDeleted }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -4448,7 +4710,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
   const [dashDone, setDashDone] = useState(false);
   const dashboardInAnim = (!dashDone && !noAnim) ? { animation: "dashboardIn 0.45s ease-out both" } : {};
 
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", "calendario-equipo": "Calendario de equipo", comunicados: "Comunicados", reconocimientos: "Reconocimientos", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[displayActive];
+  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", "calendario-equipo": "Calendario de equipo", comunicados: "Comunicados", encuestas: "Encuestas", reconocimientos: "Reconocimientos", documentos: "Documentos", solicitudes: "Solicitudes", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[displayActive];
 
   const pendingApprovalCount = (profile?.role === "admin")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
@@ -4550,7 +4812,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
@@ -4585,7 +4847,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
@@ -4650,12 +4912,15 @@ export default function App() {
   const [recognitions,       setRecognitions]        = useState([]);
   const [toast,              setToast]               = useState(null);
   const [teamDirectory,      setTeamDirectory]       = useState([]);
+  const [polls,              setPolls]               = useState([]);
+  const [myVotes,            setMyVotes]             = useState({});
+  const [pollResults,        setPollResults]         = useState({});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); setPolls([]); setMyVotes({}); setPollResults({}); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -4701,6 +4966,24 @@ export default function App() {
       .then(({ data }) => { if (data) setRecognitions(data); });
     supabase.rpc("get_team_directory")
       .then(({ data }) => { if (data) setTeamDirectory(data); });
+    supabase.from("polls").select("*").order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        setPolls(data);
+        data.filter(p => p.status === "activa").forEach(p => {
+          supabase.rpc("get_poll_results", { poll_id_input: p.id }).then(({ data: res }) => {
+            if (!res) return;
+            const map = {}; res.forEach(r => { map[r.option_index] = r.votes; });
+            setPollResults(prev => ({ ...prev, [p.id]: map }));
+          });
+        });
+      });
+    supabase.from("poll_votes").select("poll_id, option_index").eq("user_id", profile.id)
+      .then(({ data }) => {
+        if (!data) return;
+        const map = {}; data.forEach(v => { map[v.poll_id] = v.option_index; });
+        setMyVotes(map);
+      });
 
     supabase.rpc("get_team_vacations").then(({ data }) => {
       if (data) setTeamVacations(data.map(r => ({
@@ -4884,6 +5167,32 @@ export default function App() {
       setRecognitions(prev => prev.filter(r => r.id !== row.id));
     });
 
+    // ── polls ──
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "polls" }, ({ new: row }) => {
+      setPolls(prev => prev.some(p => p.id === row.id) ? prev : [row, ...prev]);
+      playNotificationPing();
+      setToast(`Nueva encuesta: ${row.question}`);
+      setTimeout(() => setToast(null), 5000);
+    });
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "polls" }, ({ new: row }) => {
+      setPolls(prev => prev.map(p => p.id === row.id ? { ...p, ...row } : p));
+    });
+
+    // ── poll votes: refresh results for affected poll ──
+    function refreshPollResults(pollId) {
+      supabase.rpc("get_poll_results", { poll_id_input: pollId }).then(({ data }) => {
+        if (!data) return;
+        const map = {}; data.forEach(r => { map[r.option_index] = r.votes; });
+        setPollResults(prev => ({ ...prev, [pollId]: map }));
+      });
+    }
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "poll_votes" }, ({ new: row }) => {
+      refreshPollResults(row.poll_id);
+    });
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "poll_votes" }, ({ new: row }) => {
+      refreshPollResults(row.poll_id);
+    });
+
     ch.subscribe();
     return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
   }, [profile, session]);
@@ -4971,6 +5280,13 @@ export default function App() {
             teamDirectory={teamDirectory}
             recognitionsUnread={recognitionsUnread}
             onMarkRecognitionsRead={markRecognitionsRead}
+            polls={polls}
+            myVotes={myVotes}
+            pollResults={pollResults}
+            onVoted={(pollId, idx) => setMyVotes(prev => ({ ...prev, [pollId]: idx }))}
+            onPollCreated={p => setPolls(prev => prev.some(x => x.id === p.id) ? prev : [p, ...prev])}
+            onPollClosed={id => setPolls(prev => prev.map(p => p.id === id ? { ...p, status: "cerrada" } : p))}
+            onPollDeleted={id => setPolls(prev => prev.filter(p => p.id !== id))}
           />
         : <LoginScreen onLogin={() => {}} />
       }
