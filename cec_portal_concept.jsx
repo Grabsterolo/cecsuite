@@ -374,12 +374,12 @@ function LoginScreen({ onLogin }) {
 
 const NAV_ITEMS = [
   { key: "inicio",      label: "Inicio",      icon: Home },
-  { key: "vacaciones",        label: "Vacaciones",         icon: CalendarCheck  },
+  { key: "vacaciones",        label: "Vacaciones",           icon: CalendarCheck  },
+  { key: "solicitudes",       label: "Solicitudes",          icon: CalendarDays   },
   { key: "calendario-equipo", label: "Calendario de equipo", icon: CalendarRange  },
   { key: "comunicados",        label: "Comunicados",          icon: Bell           },
   { key: "reconocimientos",   label: "Reconocimientos",      icon: Award          },
   { key: "documentos",        label: "Documentos",           icon: FileText       },
-  { key: "solicitudes", label: "Solicitudes", icon: CalendarDays },
   { key: "perfil",      label: "Mi perfil",   icon: User },
 ];
 
