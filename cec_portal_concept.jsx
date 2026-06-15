@@ -544,7 +544,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
   );
 }
 
-function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, recognitionsUnreadCount = 0 }) {
+function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, recognitionsUnreadCount = 0, pollsUnvotedCount = 0 }) {
   return (
     <div style={{
       width: 252,
@@ -601,6 +601,14 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
                   color:"#FFF", fontSize:10, fontWeight:700,
                   display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
                 }}>{recognitionsUnreadCount}</span>
+              )}
+              {item.key === "encuestas" && pollsUnvotedCount > 0 && (
+                <span style={{
+                  marginLeft:"auto", minWidth:18, height:18, borderRadius:9,
+                  background: isActive ? "rgba(255,255,255,0.3)" : COLORS.green,
+                  color:"#FFF", fontSize:10, fontWeight:700,
+                  display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
+                }}>{pollsUnvotedCount}</span>
               )}
             </button>
           );
@@ -1486,6 +1494,7 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
   const [pollVoting, setPollVoting] = useState(false);
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
   const activePoll = polls.find(p => p.status === "activa" && myVotes[p.id] === undefined);
+  console.log("[DashboardHome] polls:", polls, "myVotes:", myVotes, "activePoll:", activePoll);
 
   return (
     <>
@@ -4715,6 +4724,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
   const pendingApprovalCount = (profile?.role === "admin")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
     : 0;
+  const pollsUnvotedCount = polls.filter(p => p.status === "activa" && myVotes[p.id] === undefined).length;
 
   const vacationRequests = allRequests.filter(r => r.type === "vacaciones");
   const allSolicitudes = [
@@ -4823,7 +4833,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }} onAnimationEnd={(e) => { if (e.animationName === "dashboardIn") setDashDone(true); }}>
       {isBirthday && !noAnim && <BirthdayConfetti />}
-      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} recognitionsUnreadCount={recognitionsUnread} />
+      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} recognitionsUnreadCount={recognitionsUnread} pollsUnvotedCount={pollsUnvotedCount} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={sectionAnim} onAnimationEnd={(e) => { if (e.animationName === "sectionIn") setSectionPhase(null); }}>
           <div style={{ marginBottom: 32 }}>
