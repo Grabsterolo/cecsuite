@@ -554,15 +554,16 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
       flexDirection: "column",
       padding: "28px 14px",
       height: "100vh",
+      boxSizing: "border-box",
       position: "sticky",
       top: 0,
       flexShrink: 0,
     }}>
-      <div style={{ padding: "0 8px 28px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }}>
+      <div style={{ padding: "0 8px 28px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 16, flexShrink: 0 }}>
         <Logo width={160} />
       </div>
 
-      <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <nav style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto", minHeight: 0 }}>
         {NAV_ITEMS.filter(item => !item.condition || item.condition(profile)).map((item) => {
           const Icon = item.icon;
           const isActive = active === item.key;
@@ -734,7 +735,7 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
         )}
       </nav>
 
-      <div style={{ marginTop: "auto" }}>
+      <div style={{ flexShrink: 0, marginTop: 8 }}>
         <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "0 8px 14px" }} />
         <button
           onClick={onLogout}
