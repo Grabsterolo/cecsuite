@@ -2075,8 +2075,9 @@ function AnnouncementsSection({ announcements }) {
 }
 
 /* ── Toast de notificación (reconocimientos y futuras alertas) ── */
-function ToastNotification({ message }) {
-  if (!message) return null;
+function ToastNotification({ toast }) {
+  if (!toast) return null;
+  const { message, Icon = Award } = toast;
   return (
     <div style={{
       position:"fixed", top:24, right:24, zIndex:9999,
@@ -2087,7 +2088,7 @@ function ToastNotification({ message }) {
       fontFamily:"'Manrope', sans-serif",
       animation:"sectionIn 0.2s ease-out both",
     }}>
-      <Award size={18} color={COLORS.gold} style={{ flexShrink:0 }} />
+      <Icon size={18} color={COLORS.gold} style={{ flexShrink:0 }} />
       <span style={{ fontSize:13, color:COLORS.text, fontWeight:600, lineHeight:1.4 }}>{message}</span>
     </div>
   );
@@ -5070,6 +5071,9 @@ export default function App() {
       if (new Date(row.publish_at) > new Date()) return;
       if (audienceMatch(row.audience_list)) {
         setAnnouncements(prev => prev.some(a => a.id === row.id) ? prev : [row, ...prev]);
+        playNotificationPing();
+        setToast({ message: `Nuevo comunicado: ${row.title}`, Icon: Bell });
+        setTimeout(() => setToast(null), 5000);
       }
       if (isAdmin) {
         supabase.from("announcements").select("*, profiles!announcements_created_by_fkey(full_name)").eq("id", row.id).single()
@@ -5166,7 +5170,7 @@ export default function App() {
         const added = data.find(r => r.id === row.id);
         if (added && added.to_user_id === session?.user?.id) {
           playNotificationPing();
-          setToast(`¡${added.from_name ?? "Un compañero"} te reconoció por ${added.category}!`);
+          setToast({ message: `¡${added.from_name ?? "Un compañero"} te reconoció por ${added.category}!`, Icon: Award });
           setTimeout(() => setToast(null), 5000);
         }
       });
@@ -5181,7 +5185,7 @@ export default function App() {
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "polls" }, ({ new: row }) => {
       setPolls(prev => prev.some(p => p.id === row.id) ? prev : [row, ...prev]);
       playNotificationPing();
-      setToast(`Nueva encuesta: ${row.question}`);
+      setToast({ message: `Nueva encuesta: ${row.question}`, Icon: BarChart3 });
       setTimeout(() => setToast(null), 5000);
     });
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "polls" }, ({ new: row }) => {
@@ -5300,7 +5304,7 @@ export default function App() {
           />
         : <LoginScreen onLogin={() => {}} />
       }
-      <ToastNotification message={toast} />
+      <ToastNotification toast={toast} />
     </div>
   );
 }
