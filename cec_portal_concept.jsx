@@ -543,7 +543,7 @@ function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pen
   );
 }
 
-function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0 }) {
+function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, recognitionsUnreadCount = 0 }) {
   return (
     <div style={{
       width: 252,
@@ -592,6 +592,14 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
                   color:"#FFF", fontSize:10, fontWeight:700,
                   display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
                 }}>{solicitudesUnreadCount}</span>
+              )}
+              {item.key === "reconocimientos" && recognitionsUnreadCount > 0 && (
+                <span style={{
+                  marginLeft:"auto", minWidth:18, height:18, borderRadius:9,
+                  background: isActive ? "rgba(255,255,255,0.3)" : COLORS.gold,
+                  color:"#FFF", fontSize:10, fontWeight:700,
+                  display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
+                }}>{recognitionsUnreadCount}</span>
               )}
             </button>
           );
@@ -2043,7 +2051,7 @@ const RECOGNITION_CATEGORIES = [
 ];
 
 /* ── Reconocimientos ── */
-function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteRecognition, userId, profile }) {
+function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteRecognition, userId, profile, teamDirectory = [], onMarkRead, unreadCount = 0 }) {
   const [modal,    setModal]    = useState(false);
   const [toUser,   setToUser]   = useState("");
   const [category, setCategory] = useState("");
@@ -2051,15 +2059,13 @@ function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteReco
   const [sending,  setSending]  = useState(false);
   const [error,    setError]    = useState(null);
   const [success,  setSuccess]  = useState(false);
-  const [peers,    setPeers]    = useState([]);
 
+  const peers = teamDirectory.filter(p => p.id !== userId);
+
+  // Auto-mark all as read while viewing this section
   useEffect(() => {
-    if (!modal || peers.length > 0) return;
-    supabase.from("profiles").select("id, full_name")
-      .neq("role", "inactivo").neq("id", userId)
-      .order("full_name")
-      .then(({ data }) => { if (data) setPeers(data); });
-  }, [modal]);
+    if (unreadCount > 0) onMarkRead?.();
+  }, [unreadCount]);
 
   function openModal() { setModal(true); setError(null); setSuccess(false); }
   function closeModal() { setModal(false); setToUser(""); setCategory(""); setMessage(""); setError(null); }
@@ -2077,7 +2083,6 @@ function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteReco
       .single();
     setSending(false);
     if (err) { setError(translateError(err.message)); return; }
-    console.log("[Recognitions] handleSend result:", data);
     onNewRecognition?.(data);
     closeModal();
     setSuccess(true);
@@ -4421,7 +4426,7 @@ function AdminSupportChatWidget({ adminId }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, adminAnnouncements = [], onNewAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition, teamDirectory = [], recognitionsUnread = 0, onMarkRecognitionsRead }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -4434,6 +4439,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
   const navigate = useCallback((next) => {
     if (next === displayActive) return;
     if (next === "solicitudes") onClearSolicitudesUnread?.();
+    if (next === "reconocimientos") onMarkRecognitionsRead?.();
     setActive(next);
     if (noAnim) { setDisplayActive(next); return; }
     setSectionPhase("out");
@@ -4547,7 +4553,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
@@ -4558,7 +4564,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }} onAnimationEnd={(e) => { if (e.animationName === "dashboardIn") setDashDone(true); }}>
       {isBirthday && !noAnim && <BirthdayConfetti />}
-      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} />
+      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} recognitionsUnreadCount={recognitionsUnread} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={sectionAnim} onAnimationEnd={(e) => { if (e.animationName === "sectionIn") setSectionPhase(null); }}>
           <div style={{ marginBottom: 32 }}>
@@ -4582,7 +4588,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} reviewerName={profile?.full_name} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
@@ -4646,12 +4652,13 @@ export default function App() {
   const [teamVacations,      setTeamVacations]       = useState([]);
   const [recognitions,       setRecognitions]        = useState([]);
   const [toast,              setToast]               = useState(null);
+  const [teamDirectory,      setTeamDirectory]       = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -4697,10 +4704,9 @@ export default function App() {
       .from("recognitions")
       .select("*, from_profile:profiles!from_user_id(full_name), to_profile:profiles!to_user_id(full_name)")
       .order("created_at", { ascending: false })
-      .then(({ data, error: recErr }) => {
-        console.log("[Recognitions] initial load:", data?.[0], recErr);
-        if (data) setRecognitions(data);
-      });
+      .then(({ data }) => { if (data) setRecognitions(data); });
+    supabase.rpc("get_team_directory")
+      .then(({ data }) => { if (data) setTeamDirectory(data); });
 
     supabase.rpc("get_team_vacations").then(({ data }) => {
       if (data) setTeamVacations(data.map(r => ({
@@ -4856,7 +4862,6 @@ export default function App() {
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "requests" }, ({ new: row }) => {
       if (row.type === "vacaciones") {
         supabase.rpc("get_team_vacations").then(({ data }) => {
-          console.log("[TeamCalendar] realtime refresh get_team_vacations data:", data);
           if (data) setTeamVacations(data.map(r => ({
             start_date: r.start_date,
             end_date:   r.end_date,
@@ -4881,6 +4886,11 @@ export default function App() {
             setTimeout(() => setToast(null), 5000);
           }
         });
+    });
+
+    // ── recognitions: deleted by admin ──
+    ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "recognitions" }, ({ old: row }) => {
+      setRecognitions(prev => prev.filter(r => r.id !== row.id));
     });
 
     ch.subscribe();
@@ -4916,6 +4926,19 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  const recognitionsUnread = session?.user
+    ? recognitions.filter(r => r.to_user_id === session.user.id && !r.read_by_recipient).length
+    : 0;
+
+  function markRecognitionsRead() {
+    if (!session?.user?.id) return;
+    const uid = session.user.id;
+    supabase.from("recognitions").update({ read_by_recipient: true }).eq("to_user_id", uid).eq("read_by_recipient", false);
+    setRecognitions(prev => prev.map(r =>
+      r.to_user_id === uid && !r.read_by_recipient ? { ...r, read_by_recipient: true } : r
+    ));
   }
 
   return (
@@ -4954,6 +4977,9 @@ export default function App() {
             recognitions={recognitions}
             onNewRecognition={r => setRecognitions(prev => prev.some(x => x.id === r.id) ? prev : [r, ...prev])}
             onDeleteRecognition={id => setRecognitions(prev => prev.filter(r => r.id !== id))}
+            teamDirectory={teamDirectory}
+            recognitionsUnread={recognitionsUnread}
+            onMarkRecognitionsRead={markRecognitionsRead}
           />
         : <LoginScreen onLogin={() => {}} />
       }
