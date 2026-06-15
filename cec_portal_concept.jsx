@@ -3087,26 +3087,12 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
 
     // Explicitly restore admin session — signUp on the temp client can pollute
     // the shared auth state even when persistSession:false is set
-    const { data: beforeRestore } = await supabase.auth.getSession();
-    console.log('[AltaEmpleado] Sesión ANTES de setSession:', beforeRestore?.session?.user?.id);
     if (adminSession) {
       await supabase.auth.setSession({
         access_token:  adminSession.access_token,
         refresh_token: adminSession.refresh_token,
       });
     }
-    const { data: afterRestore } = await supabase.auth.getSession();
-    console.log('[AltaEmpleado] Sesión DESPUÉS de setSession:', afterRestore?.session?.user?.id);
-
-    // ── Diagnóstico RLS ──
-    const { data: { session: diagSession } } = await supabase.auth.getSession();
-    console.log('[AltaEmpleado] Sesión activa (uid):', diagSession?.user?.id);
-    const { data: myProfile } = await supabase.from("profiles").select("id, role").eq("id", diagSession?.user?.id ?? "").single();
-    console.log('[AltaEmpleado] Mi perfil (admin):', myProfile);
-    let isAdminCheck = null;
-    try { const { data: _ia } = await supabase.rpc("is_admin"); isAdminCheck = _ia; } catch (_) {}
-    console.log('[AltaEmpleado] is_admin() resultado:', isAdminCheck);
-    // ────────────────────
 
     const { error: profileError } = await supabase.from("profiles").upsert({
       id:                    userId,
@@ -3122,7 +3108,6 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     }, { onConflict: "id" });
     setLoading(false);
     if (profileError) {
-      console.log('[AltaEmpleado] Error completo del update:', JSON.stringify(profileError, null, 2));
       setPartialErr(
         `El usuario fue creado en autenticación (ID: ${userId}) pero no se pudo actualizar el perfil.\n` +
         `message: ${profileError.message}\n` +
