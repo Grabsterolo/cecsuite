@@ -1618,7 +1618,7 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
                   <Award size={12} color={COLORS.gold} style={{ flexShrink:0 }} />
                   <span style={{ fontSize:12, fontWeight:700, color:COLORS.green }}>
-                    {r.from_profile?.full_name ?? "—"} → {r.to_profile?.full_name ?? "—"}
+                    {r.from_name ?? "—"} → {r.to_name ?? "—"}
                   </span>
                   <span style={{ marginLeft:"auto", fontSize:10, color:COLORS.textMuted, flexShrink:0 }}>
                     {fmtSupaDate((r.created_at ?? "").slice(0,10))}
@@ -2076,14 +2076,11 @@ function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteReco
       return;
     }
     setSending(true); setError(null);
-    const { data, error: err } = await supabase
+    const { error: err } = await supabase
       .from("recognitions")
-      .insert({ from_user_id: userId, to_user_id: toUser, category, message: message.trim() })
-      .select("*, from_profile:profiles!from_user_id(full_name), to_profile:profiles!to_user_id(full_name)")
-      .single();
+      .insert({ from_user_id: userId, to_user_id: toUser, category, message: message.trim() });
     setSending(false);
     if (err) { setError(translateError(err.message)); return; }
-    onNewRecognition?.(data);
     closeModal();
     setSuccess(true);
     setTimeout(() => setSuccess(false), 3000);
@@ -2172,7 +2169,7 @@ function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteReco
                   <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap", marginBottom:5 }}>
                     <Award size={14} color={COLORS.gold} style={{ flexShrink:0 }} />
                     <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>
-                      {r.from_profile?.full_name ?? "—"} reconoció a {r.to_profile?.full_name ?? "—"}
+                      {r.from_name ?? "—"} reconoció a {r.to_name ?? "—"}
                     </span>
                   </div>
                   <span style={{ display:"inline-block", fontSize:11, fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:6, padding:"2px 8px", marginBottom:6 }}>{r.category}</span>
@@ -4700,10 +4697,7 @@ export default function App() {
       .or(buildAudienceFilter("departments", profile.departments))
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setDocuments(data); });
-    supabase
-      .from("recognitions")
-      .select("*, from_profile:profiles!from_user_id(full_name), to_profile:profiles!to_user_id(full_name)")
-      .order("created_at", { ascending: false })
+    supabase.rpc("get_recognitions_feed")
       .then(({ data }) => { if (data) setRecognitions(data); });
     supabase.rpc("get_team_directory")
       .then(({ data }) => { if (data) setTeamDirectory(data); });
@@ -4873,19 +4867,16 @@ export default function App() {
 
     // ── recognitions: new entry ──
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "recognitions" }, ({ new: row }) => {
-      supabase
-        .from("recognitions")
-        .select("*, from_profile:profiles!from_user_id(full_name), to_profile:profiles!to_user_id(full_name)")
-        .eq("id", row.id).single()
-        .then(({ data }) => {
-          if (!data) return;
-          setRecognitions(prev => prev.some(r => r.id === data.id) ? prev : [data, ...prev]);
-          if (data.to_user_id === session?.user?.id) {
-            playNotificationPing();
-            setToast(`¡${data.from_profile?.full_name ?? "Un compañero"} te reconoció por ${data.category}!`);
-            setTimeout(() => setToast(null), 5000);
-          }
-        });
+      supabase.rpc("get_recognitions_feed").then(({ data }) => {
+        if (!data) return;
+        setRecognitions(data);
+        const added = data.find(r => r.id === row.id);
+        if (added && added.to_user_id === session?.user?.id) {
+          playNotificationPing();
+          setToast(`¡${added.from_name ?? "Un compañero"} te reconoció por ${added.category}!`);
+          setTimeout(() => setToast(null), 5000);
+        }
+      });
     });
 
     // ── recognitions: deleted by admin ──
