@@ -1522,14 +1522,15 @@ function DocDownloadBtn({ fileUrl, label, iconOnly = false }) {
 
 function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [], recognitions = [], polls = [], myVotes = {}, pollResults = {}, userId, onVoted }) {
   const [modal, setModal] = useState(null);
+  const [announcementModal, setAnnouncementModal] = useState(null);
   const [pollPending, setPollPending] = useState(null); // selected option_index for active poll widget
   const [pollVoting, setPollVoting] = useState(false);
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
   const activePoll = polls.find(p => p.status === "activa" && myVotes[p.id] === undefined);
-  console.log("[DashboardHome] polls:", polls, "myVotes:", myVotes, "activePoll:", activePoll);
 
   return (
     <>
+      {announcementModal && <AnnouncementDetailModal announcement={announcementModal} onClose={() => setAnnouncementModal(null)} />}
       {modal === "new-sol" && (
         <CrearSolicitudModal onClose={() => setModal(null)} onSubmit={() => setModal(null)} editData={null} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={existingVacationRequests} />
       )}
@@ -1580,10 +1581,16 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
               const d = a.publish_at ? new Date(a.publish_at) : null;
               const dateStr = d ? `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)}` : "";
               return (
-                <div key={a.id ?? i} style={{
+                <div key={a.id ?? i} onClick={() => setAnnouncementModal(a)} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                   paddingBottom: 14, borderBottom: `1px solid ${COLORS.border}`,
-                }}>
+                  cursor: "pointer", borderRadius: 6, margin: "0 -6px",
+                  padding: "8px 6px 14px",
+                  transition: "background 0.15s",
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = COLORS.panelAlt}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                     <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 500, wordBreak:"break-word" }}>{a.title}</div>
                     {a.tag && <Tag label={a.tag} />}
@@ -2063,6 +2070,52 @@ function DocumentsSection({ documents }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+function AnnouncementDetailModal({ announcement: a, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function fmtFull(str) {
+    if (!str) return "";
+    const d = new Date(str);
+    const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+  }
+
+  return (
+    <div
+      style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background:COLORS.panel, borderRadius:16, padding:"28px 28px 24px", width:"100%", maxWidth:560, maxHeight:"88vh", overflowY:"auto", boxShadow:"0 8px 40px rgba(31,74,64,0.22)", fontFamily:"'Manrope', sans-serif", animation:"sectionIn 0.18s ease-out both" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+            {a.tag && <Tag label={a.tag} />}
+            <span style={{ fontSize:12, color:COLORS.textMuted }}>{fmtFull(a.publish_at)}</span>
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4, flexShrink:0, marginLeft:12 }}>
+            <X size={18} />
+          </button>
+        </div>
+        <h2 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:24, fontWeight:600, color:COLORS.green, margin:"0 0 16px", lineHeight:1.3, wordBreak:"break-word" }}>{a.title}</h2>
+        {a.body
+          ? <p style={{ fontSize:14, color:COLORS.text, lineHeight:1.75, margin:"0 0 16px", whiteSpace:"pre-wrap" }}>{a.body}</p>
+          : <p style={{ fontSize:13, color:COLORS.textMuted, fontStyle:"italic", margin:"0 0 16px" }}>Este comunicado no tiene cuerpo de texto.</p>
+        }
+        {a.profiles?.full_name && (
+          <p style={{ fontSize:12, color:COLORS.textMuted, margin:"0 0 20px" }}>Publicado por: <strong style={{ color:COLORS.text }}>{a.profiles.full_name}</strong></p>
+        )}
+        <button onClick={onClose} style={{ ...btnCancelStyle, flex:"none", width:"100%", marginTop:4 }}>Cerrar</button>
+      </div>
+    </div>
   );
 }
 
