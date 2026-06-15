@@ -5775,7 +5775,10 @@ export default function App() {
   function markRecognitionsRead() {
     if (!session?.user?.id) return;
     const uid = session.user.id;
-    supabase.from("recognitions").update({ read_by_recipient: true }).eq("to_user_id", uid).eq("read_by_recipient", false);
+    // No .eq("read_by_recipient", false) filter: PostgreSQL "= false" skips NULL rows.
+    // Remove the filter so rows with NULL (missing DEFAULT false) are also marked read.
+    supabase.from("recognitions").update({ read_by_recipient: true }).eq("to_user_id", uid)
+      .then(({ error }) => console.log("[markRecognitionsRead] result:", { error }));
     setRecognitions(prev => prev.map(r =>
       r.to_user_id === uid && !r.read_by_recipient ? { ...r, read_by_recipient: true } : r
     ));
