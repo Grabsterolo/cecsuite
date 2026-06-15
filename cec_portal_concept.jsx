@@ -66,7 +66,7 @@ function DeptTag({ dept }) {
   return (
     <span style={{ background:bg, color, borderRadius:4, fontSize:10, fontWeight:700,
       letterSpacing:"0.04em", textTransform:"uppercase", padding:"2px 7px",
-      display:"inline-block", whiteSpace:"nowrap" }}>{dept}</span>
+      display:"inline-block", whiteSpace:"nowrap", width:"fit-content", alignSelf:"flex-start" }}>{dept}</span>
   );
 }
 
@@ -893,6 +893,7 @@ function Tag({ label }) {
       textTransform: "uppercase", color: COLORS.gold,
       background: "rgba(201,162,78,0.1)", borderRadius: 4, padding: "2px 7px",
       fontFamily: "'Manrope', sans-serif",
+      display: "inline-block", width: "fit-content", alignSelf: "flex-start",
     }}>
       {label}
     </span>
@@ -1845,7 +1846,7 @@ function ProfileSection({ profile }) {
         {row("Fecha de ingreso", fmtHireDate(profile.hire_date))}
         {showRole && (
           <div style={{ marginTop:14 }}>
-            <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:6, padding:"4px 10px" }}>
+            <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:6, padding:"4px 10px", display:"inline-block", width:"fit-content" }}>
               {profile.role === "admin" ? "Administrador" : "RRHH"}
             </span>
           </div>
@@ -3671,7 +3672,7 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:2 }}>
                       <span style={{ fontFamily:"'Manrope', sans-serif", fontSize:15, fontWeight:700, color:COLORS.green, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0, maxWidth:"100%" }}>{emp.full_name ?? "—"}</span>
                       {showRole && (
-                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:5, padding:"2px 8px" }}>
+                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.12)", borderRadius:5, padding:"2px 8px", display:"inline-block", width:"fit-content" }}>
                           {emp.role === "admin" ? "Admin" : "RRHH"}
                         </span>
                       )}
