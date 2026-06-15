@@ -2073,10 +2073,11 @@ function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteReco
     const { data, error: err } = await supabase
       .from("recognitions")
       .insert({ from_user_id: userId, to_user_id: toUser, category, message: message.trim() })
-      .select("*, from_profile:profiles!recognitions_from_user_id_fkey(full_name), to_profile:profiles!recognitions_to_user_id_fkey(full_name)")
+      .select("*, from_profile:profiles!from_user_id(full_name), to_profile:profiles!to_user_id(full_name)")
       .single();
     setSending(false);
     if (err) { setError(translateError(err.message)); return; }
+    console.log("[Recognitions] handleSend result:", data);
     onNewRecognition?.(data);
     closeModal();
     setSuccess(true);
@@ -4694,12 +4695,14 @@ export default function App() {
       .then(({ data }) => { if (data) setDocuments(data); });
     supabase
       .from("recognitions")
-      .select("*, from_profile:profiles!recognitions_from_user_id_fkey(full_name), to_profile:profiles!recognitions_to_user_id_fkey(full_name)")
+      .select("*, from_profile:profiles!from_user_id(full_name), to_profile:profiles!to_user_id(full_name)")
       .order("created_at", { ascending: false })
-      .then(({ data }) => { if (data) setRecognitions(data); });
+      .then(({ data, error: recErr }) => {
+        console.log("[Recognitions] initial load:", data?.[0], recErr);
+        if (data) setRecognitions(data);
+      });
 
     supabase.rpc("get_team_vacations").then(({ data }) => {
-      console.log("[TeamCalendar] get_team_vacations raw data:", data);
       if (data) setTeamVacations(data.map(r => ({
         start_date: r.start_date,
         end_date:   r.end_date,
@@ -4867,7 +4870,7 @@ export default function App() {
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "recognitions" }, ({ new: row }) => {
       supabase
         .from("recognitions")
-        .select("*, from_profile:profiles!recognitions_from_user_id_fkey(full_name), to_profile:profiles!recognitions_to_user_id_fkey(full_name)")
+        .select("*, from_profile:profiles!from_user_id(full_name), to_profile:profiles!to_user_id(full_name)")
         .eq("id", row.id).single()
         .then(({ data }) => {
           if (!data) return;
