@@ -1267,6 +1267,27 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
   );
 }
 
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX_WIDTH = 1200;
+      const scale = Math.min(1, MAX_WIDTH / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+        URL.revokeObjectURL(url);
+      }, "image/jpeg", 0.70);
+    };
+    img.src = url;
+  });
+}
+
 /* ── Formulario reporte ── */
 function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
   const [category,    setCategory]    = useState(editData?.tipoReporte || "");
@@ -1299,10 +1320,13 @@ function ReporteForm({ onClose, onSubmit, editData, onNewReport }) {
       }
       setConverting(false);
     }
-    setFile(f);
+    // Show preview from pre-compression file
     const reader = new FileReader();
     reader.onload = ev => setPreview(ev.target.result);
     reader.readAsDataURL(f);
+    // Compress for upload (max 1200px wide, 70% quality)
+    const compressed = await compressImage(f);
+    setFile(compressed);
   }
 
   async function submit() {
