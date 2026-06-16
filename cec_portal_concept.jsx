@@ -2580,7 +2580,12 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
   const [clientName, setClientName] = useState("");
   const [amount,     setAmount]     = useState("");
   const [saleCurrency, setSaleCurrency] = useState("USD");
-  const [saleDate,   setSaleDate]   = useState(new Date().toISOString().slice(0, 10));
+  const getTodayCR = () => {
+    const now = new Date();
+    const cr = new Date(now.toLocaleString("en-US", { timeZone: "America/Costa_Rica" }));
+    return cr.toISOString().slice(0, 10);
+  };
+  const [saleDate,   setSaleDate]   = useState(getTodayCR());
   const [formLoading, setFormLoading] = useState(false);
   const [formError,   setFormError]   = useState(null);
 
@@ -2598,7 +2603,7 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
 
   function openNew() {
     setSvcName(""); setClientName(""); setAmount(""); setSaleCurrency("USD");
-    setSaleDate(new Date().toISOString().slice(0, 10));
+    setSaleDate(getTodayCR());
     setFormError(null); setEditingSale(null); setShowSaleForm(true);
   }
   function openEdit(sale) {
@@ -2660,7 +2665,9 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
     if (!lockMonth) { setLockError("Selecciona un mes."); return; }
     setLockLoading(true); setLockError(null);
     const start = lockMonth + "-01";
-    const end = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 0).toISOString().slice(0, 10);
+    const d = new Date(start + "T12:00:00");
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const end = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`;
     const { error } = await supabase.from("commission_sales").update({ locked: true }).gte("sale_date", start).lte("sale_date", end);
     setLockLoading(false);
     if (error) { setLockError(translateError(error.message)); return; }
