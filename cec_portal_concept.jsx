@@ -1484,7 +1484,7 @@ function SolicitudItem({ s, style }) {
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word", marginBottom:1 }}>{s.label}</div>
         {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>}
-        {s.timeRange && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>🕐 {s.timeRange}</div>}
+        {s.timeRange && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, display:"flex", alignItems:"center", gap:4 }}><Clock size={12} color={COLORS.textMuted} />{s.timeRange}</div>}
         {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
         {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
         {s.reviewerName && s.status !== "pendiente" && (
@@ -4473,7 +4473,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
               <span style={{ fontSize:13, fontWeight:600, color:COLORS.text, wordBreak:"break-word" }}>{item.label}</span>
             </div>
             {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}>{item.subtitle}</div>}
-            {item.timeRange && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>🕐 {item.timeRange}</div>}
+            {item.timeRange && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2, display:"flex", alignItems:"center", gap:4 }}><Clock size={12} color={COLORS.textMuted} />{item.timeRange}</div>}
             {item.comment && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}><span style={{ fontWeight:600 }}>Nota:</span> {item.comment}</div>}
             {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
             <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
