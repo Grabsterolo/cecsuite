@@ -2559,6 +2559,11 @@ function toUSD(amount, currency, rate) {
   if (currency === "USD") return Number(amount);
   return rate ? Number(amount) / rate : 0;
 }
+function getFirstNames(name) {
+  if (!name) return "";
+  const parts = name.trim().split(/\s+/);
+  return parts.slice(0, 2).join(" ");
+}
 function toCRC(amount, currency, rate) {
   if (currency === "CRC") return Number(amount);
   return rate ? Number(amount) * rate : 0;
@@ -4151,7 +4156,7 @@ function TeamCalendarSection({ teamVacations = [] }) {
   }
 
   const todayYMD = toYMD(now.getFullYear(), now.getMonth(), now.getDate());
-  const getFirstName = name => (name || "?").trim().split(/\s+/)[0];
+  const getFirstName = name => getFirstNames(name) || "?";
   const getPrimaryDept = p => {
     const arr = p?.departments;
     return (Array.isArray(arr) && arr.length > 0) ? arr[0] : (p?.department || null);
@@ -5263,12 +5268,12 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
     : hour >= 12 && hour < 19 ? "Buenas tardes"
     : "Buenas noches";
   const greeting = profile?.full_name
-    ? `${timeGreeting}, ${profile.full_name.split(" ")[0]}`
+    ? `${timeGreeting}, ${getFirstNames(profile.full_name)}`
     : timeGreeting;
   const DAY_NAMES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
   const todayStr = `${DAY_NAMES[now.getDay()]} ${now.getDate()} de ${MONTH_NAMES[now.getMonth()].toLowerCase()} de ${now.getFullYear()}`;
   const isBirthday = isBirthdayToday(profile?.birth_date);
-  const firstName = profile?.full_name?.split(" ")[0] || "";
+  const firstName = getFirstNames(profile?.full_name);
   const dailyMessage = getDailyMessage();
 
   if (isMobile) {
