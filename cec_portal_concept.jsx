@@ -1476,7 +1476,7 @@ function ReportPhoto({ path, size = 44, radius = 6 }) {
 }
 
 /* ── Item individual de solicitud ── */
-function SolicitudItem({ s, style }) {
+function SolicitudItem({ s, style, hideStatus = false }) {
   const dateStr = s.created_at ? fmtSupaDate(s.created_at.slice(0,10)) : "";
   return (
     <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 12px", borderRadius:8, background:"rgba(31,74,64,0.04)", border:`1px solid ${COLORS.border}`, ...style }}>
@@ -1499,7 +1499,7 @@ function SolicitudItem({ s, style }) {
         )}
       </div>
       {s.photo_url && <ReportPhoto path={s.photo_url} size={44} radius={6} />}
-      <div style={{ flexShrink:0, marginTop:1 }}><StatusBadge status={s.status} /></div>
+      {!hideStatus && <div style={{ flexShrink:0, marginTop:1 }}><StatusBadge status={s.status} /></div>}
     </div>
   );
 }
@@ -2021,35 +2021,37 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
       ) : filtered.length === 0 ? (
         <Card><p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay solicitudes que coincidan con los filtros.</p></Card>
       ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
           {filtered.map(s => {
             const isConfirming = confirmingDelete === s.id;
             return (
-              <Card key={`${s.kind}-${s.id}`} style={{ padding:"14px 16px" }}>
-                <SolicitudItem s={s} style={{ border:"none", background:"transparent", padding:0, borderRadius:0 }} />
-                {s.status === "pendiente" && (
-                  isConfirming ? (
-                    <div style={{ marginTop:10, padding:"8px 12px", background:"rgba(192,57,43,0.06)", borderRadius:8, border:"1px solid rgba(192,57,43,0.15)" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                        <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar esta solicitud?</span>
-                        <div style={{ display:"flex", gap:6 }}>
-                          <button onClick={() => handleDelete(s)} disabled={deleting} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:deleting?"not-allowed":"pointer", opacity:deleting?0.6:1, fontFamily:"'Manrope', sans-serif" }}>
-                            {deleting ? "Eliminando..." : "Confirmar"}
-                          </button>
-                          <button onClick={() => { setConfirmingDelete(null); setDeleteError(null); }} disabled={deleting} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer", fontFamily:"'Manrope', sans-serif" }}>
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                      {deleteError && <p style={{ fontSize:11, color:"#c0392b", margin:"5px 0 0", fontFamily:"'Manrope', sans-serif" }}>{deleteError}</p>}
-                    </div>
-                  ) : (
-                    <div style={{ marginTop:8, display:"flex", justifyContent:"flex-end" }}>
+              <Card key={`${s.kind}-${s.id}`} style={{ padding:"10px 14px" }}>
+                <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                  <SolicitudItem s={s} style={{ border:"none", background:"transparent", padding:0, borderRadius:0, flex:1, minWidth:0 }} hideStatus />
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
+                    <StatusBadge status={s.status} />
+                    {s.status === "pendiente" && !isConfirming && (
                       <button onClick={() => { setConfirmingDelete(s.id); setDeleteError(null); }} style={{ fontSize:11, fontWeight:600, color:"#c0392b", background:"rgba(192,57,43,0.06)", border:"1px solid rgba(192,57,43,0.15)", borderRadius:6, padding:"4px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'Manrope', sans-serif" }}>
-                        <Trash2 size={11}/> Eliminar solicitud
+                        <Trash2 size={11}/> Eliminar
                       </button>
+                    )}
+                  </div>
+                </div>
+                {s.status === "pendiente" && isConfirming && (
+                  <div style={{ marginTop:8, padding:"8px 12px", background:"rgba(192,57,43,0.06)", borderRadius:8, border:"1px solid rgba(192,57,43,0.15)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:12, color:"#c0392b", fontWeight:600 }}>¿Eliminar esta solicitud?</span>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button onClick={() => handleDelete(s)} disabled={deleting} style={{ fontSize:11, fontWeight:700, color:"#FFF", background:"#c0392b", border:"none", borderRadius:6, padding:"4px 10px", cursor:deleting?"not-allowed":"pointer", opacity:deleting?0.6:1, fontFamily:"'Manrope', sans-serif" }}>
+                          {deleting ? "Eliminando..." : "Confirmar"}
+                        </button>
+                        <button onClick={() => { setConfirmingDelete(null); setDeleteError(null); }} disabled={deleting} style={{ fontSize:11, fontWeight:600, color:COLORS.textMuted, background:"transparent", border:`1px solid ${COLORS.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer", fontFamily:"'Manrope', sans-serif" }}>
+                          Cancelar
+                        </button>
+                      </div>
                     </div>
-                  )
+                    {deleteError && <p style={{ fontSize:11, color:"#c0392b", margin:"5px 0 0", fontFamily:"'Manrope', sans-serif" }}>{deleteError}</p>}
+                  </div>
                 )}
               </Card>
             );
@@ -4462,10 +4464,10 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     const isLoading = !!loading[key];
     const errMsg = errors[key];
     return (
-      <Card key={key} style={{ padding:"14px 16px" }}>
-        <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+      <Card key={key} style={{ padding:"10px 14px" }}>
+        <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:2 }}>
               <span style={{ fontSize:13, fontWeight:700, color:COLORS.green }}>{item.employeeName}</span>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
@@ -4478,17 +4480,17 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
             {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
             <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
             {item.reviewerName && item.status !== "pendiente" && (
-              <div style={{ fontSize:11, marginTop:4, color: item.status === "aprobado" ? COLORS.green : item.status === "atendido" ? COLORS.green : item.status === "rechazado" ? "#c0392b" : COLORS.textMuted, fontWeight:600 }}>
+              <div style={{ fontSize:11, marginTop:3, color: item.status === "aprobado" ? COLORS.green : item.status === "atendido" ? COLORS.green : item.status === "rechazado" ? "#c0392b" : COLORS.textMuted, fontWeight:600 }}>
                 {{ aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" }[item.status] ?? item.status} por {item.reviewerName}
               </div>
             )}
             {item.resolution_note && (item.status === "atendido" || item.status === "descartado") && (
-              <div style={{ fontSize:11, marginTop:3, color:COLORS.textMuted, lineHeight:1.5 }}>
+              <div style={{ fontSize:11, marginTop:2, color:COLORS.textMuted, lineHeight:1.5 }}>
                 <span style={{ fontWeight:600 }}>Nota:</span> {item.resolution_note}
               </div>
             )}
           </div>
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8, flexShrink:0 }}>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
             {item.photo_url && <ReportPhoto path={item.photo_url} size={48} radius={7} />}
             <StatusBadge status={item.status} />
           </div>
