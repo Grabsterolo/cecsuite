@@ -3168,6 +3168,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
   const [email,         setEmail]         = useState("");
   const [password,      setPassword]      = useState("");
   const [fullName,      setFullName]      = useState("");
+  const [alias,         setAlias]         = useState("");
   const [position,      setPosition]      = useState("");
   const [selectedDepts, setSelectedDepts] = useState([]);
   const [hireDate,      setHireDate]      = useState("");
@@ -3228,6 +3229,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     const { error: profileError } = await supabase.from("profiles").upsert({
       id:                    userId,
       full_name:             fullName.trim(),
+      alias:                 alias.trim() || null,
       position:              position.trim() || null,
       departments:           selectedDepts,
       hire_date:             hireDate   || null,
@@ -3250,7 +3252,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     }
     const savedEmail = email.trim();
     const savedPwd   = password;
-    setEmail(""); setPassword(""); setFullName(""); setPosition("");
+    setEmail(""); setPassword(""); setFullName(""); setAlias(""); setPosition("");
     setSelectedDepts([]); setHireDate(""); setBirthDate("");
     setRole("empleado"); setVacBalance(""); setVacPerYear("12"); setCommissionEligible(false);
     setSuccessInfo({ email: savedEmail, password: savedPwd });
@@ -3294,6 +3296,11 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
         <div>
           {fl("Nombre completo")}
           <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Nombre Apellido" style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Alias / ¿Cómo llamarlo?", true)}
+          <input type="text" value={alias} onChange={e => { if (e.target.value.length <= 30) setAlias(e.target.value); }} placeholder="Apodo o nombre corto" maxLength={30} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
         <div>
@@ -3408,6 +3415,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
   const [role,        setRole]        = useState(emp.role ?? "empleado");
   const [vacBalance,  setVacBalance]  = useState(emp.vacation_balance !== undefined && emp.vacation_balance !== null ? String(emp.vacation_balance) : "");
   const [vacPerYear,  setVacPerYear]  = useState(emp.vacation_days_per_year !== undefined && emp.vacation_days_per_year !== null ? String(emp.vacation_days_per_year) : "12");
+  const [alias,       setAlias]       = useState(emp.alias ?? "");
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
   const [commissionEligible, setCommissionEligible] = useState(emp.commission_eligible ?? false);
@@ -3425,6 +3433,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
     setLoading(true);
     const updates = {
       full_name:              fullName.trim(),
+      alias:                  alias.trim() || null,
       position:               position.trim() || null,
       departments:            selectedDepts,
       hire_date:              hireDate  || null,
@@ -3451,9 +3460,14 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
   return (
     <ModalShell onClose={onClose} title={`Editar: ${emp.full_name ?? "empleado"}`}>
       <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
-        <div style={{ gridColumn:isMobile ? "1" : "span 2" }}>
+        <div>
           {fl("Nombre completo")}
           <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Alias / ¿Cómo llamarlo?", true)}
+          <input type="text" value={alias} onChange={e => { if (e.target.value.length <= 30) setAlias(e.target.value); }} placeholder="Apodo o nombre corto" maxLength={30} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
         <div>
