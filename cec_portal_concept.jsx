@@ -1171,6 +1171,8 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
   const [startDate, setStartDate] = useState(editData?.startDate || null);
   const [endDate,   setEndDate]   = useState(editData?.endDate   || null);
   const [notes,     setNotes]     = useState(editData?.notes || "");
+  const [startTime, setStartTime] = useState("");
+  const [endTime,   setEndTime]   = useState("");
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
 
@@ -1182,6 +1184,8 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
     setError(null);
     if (!tipoPermiso || !startDate) return;
     if (isPastStartP) return;
+    if ((startTime && !endTime) || (!startTime && endTime)) { setError("Si llenas un horario, debes llenar ambas horas."); return; }
+    if (startTime && endTime && endTime <= startTime) { setError("La hora de fin debe ser posterior a la hora de inicio."); return; }
     if (editData) { onSubmit({ tipo:"permiso", tipoPermiso, startDate, endDate, notes }); return; }
     const effectiveEnd = endDate || startDate;
     const daysRequested = calcWorkDays(startDate, effectiveEnd);
@@ -1197,6 +1201,8 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
       end_date: toDate(effectiveEnd),
       days_requested: daysRequested,
       comment: notes.trim() || null,
+      start_time: startTime || null,
+      end_time: endTime || null,
     }).select().single();
     setLoading(false);
     if (insertError) { setError(translateError(insertError.message)); return; }
@@ -1228,6 +1234,18 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
           </>}
         </div>
       )}
+      <div style={{ display:"flex", gap:12, marginTop:14 }}>
+        <div style={{ flex:1 }}>
+          <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Hora de inicio <span style={{ fontWeight:400 }}>(opcional)</span></label>
+          <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{ ...inputStyle, fontSize:14, padding:"10px 14px" }}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border} />
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Hora de fin <span style={{ fontWeight:400 }}>(opcional)</span></label>
+          <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={{ ...inputStyle, fontSize:14, padding:"10px 14px" }}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border} />
+        </div>
+      </div>
       <div style={{ marginTop:14 }}>
         <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>Notas adicionales</label>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Información adicional o justificación..." rows={2} style={taStyle}
@@ -1466,6 +1484,7 @@ function SolicitudItem({ s, style }) {
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ color:COLORS.text, fontWeight:600, fontSize:13, wordBreak:"break-word", marginBottom:1 }}>{s.label}</div>
         {s.subtitle && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2, lineHeight:1.5, wordBreak:"break-word" }}>{s.subtitle}</div>}
+        {s.timeRange && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>🕐 {s.timeRange}</div>}
         {s.location && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:2 }}>📍 {s.location}</div>}
         {dateStr && <div style={{ color:COLORS.textMuted, fontSize:11, marginTop:3 }}>{dateStr}</div>}
         {s.reviewerName && s.status !== "pendiente" && (
@@ -4383,6 +4402,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       subtitle: r.start_date
         ? `${fmtSupaDate(r.start_date)}${r.end_date ? ` — ${fmtSupaDate(r.end_date)}` : ""} · ${getEffectiveDays(r)} días`
         : "",
+      timeRange: (r.start_time && r.end_time) ? `${r.start_time.slice(0,5)} — ${r.end_time.slice(0,5)}` : null,
       comment: r.comment || null,
       status: r.status, created_at: r.created_at,
       reviewerName: r.reviewer?.full_name || null,
@@ -4453,6 +4473,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
               <span style={{ fontSize:13, fontWeight:600, color:COLORS.text, wordBreak:"break-word" }}>{item.label}</span>
             </div>
             {item.subtitle && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}>{item.subtitle}</div>}
+            {item.timeRange && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>🕐 {item.timeRange}</div>}
             {item.comment && <div style={{ fontSize:11, color:COLORS.textMuted, lineHeight:1.5, marginBottom:2, wordBreak:"break-word" }}><span style={{ fontWeight:600 }}>Nota:</span> {item.comment}</div>}
             {item.location && <div style={{ fontSize:11, color:COLORS.textMuted, marginBottom:2 }}>📍 {item.location}</div>}
             <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:2 }}>{fmtSupaDate((item.created_at ?? "").slice(0,10))}</div>
@@ -5233,6 +5254,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
       subtitle: r.start_date
         ? `${fmtSupaShort(r.start_date)} → ${fmtSupaShort(r.end_date || r.start_date)} · ${getEffectiveDays(r)} días`
         : (r.comment || ""),
+      timeRange: (r.start_time && r.end_time) ? `${r.start_time.slice(0,5)} — ${r.end_time.slice(0,5)}` : null,
       status: r.status, created_at: r.created_at,
       reviewerName: r.reviewer?.full_name || null,
       reviewed_at: r.reviewed_at || null,
