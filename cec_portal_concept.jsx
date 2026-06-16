@@ -851,6 +851,12 @@ function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
 }
 
 
+function fmtFull(str, fallback = "—") {
+  if (!str) return fallback;
+  const d = new Date(str);
+  const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+}
 function fmtSupaDate(str) {
   if (!str) return "—";
   const d = new Date(str + "T12:00:00");
@@ -2164,13 +2170,6 @@ function AnnouncementDetailModal({ announcement: a, onClose }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  function fmtFull(str) {
-    if (!str) return "";
-    const d = new Date(str);
-    const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-    return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
-  }
-
   return (
     <div
       style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
@@ -2217,12 +2216,6 @@ function AnnouncementsSection({ announcements, profile, onDeleteAnnouncement }) 
     setDeletingId(null);
     if (error) { setDeleteError(a.id); return; }
     onDeleteAnnouncement?.(a.id);
-  }
-  function fmtFull(str) {
-    if (!str) return "—";
-    const d = new Date(str);
-    const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-    return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
   }
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -2894,15 +2887,15 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
                     {userRows.map(r => (
                       <tr key={r.name} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                         <td style={{ padding: "8px 10px", fontWeight: 600, color: COLORS.text }}>{r.name}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.text }}>{fmtAmt(r.total, adminCurrency, rate)}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.green, fontWeight: 600 }}>{fmtAmt(r.comm, adminCurrency, rate)}</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.text }}>{fmtAmt(r.total, adminCurrency)}</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", color: COLORS.green, fontWeight: 600 }}>{fmtAmt(r.comm, adminCurrency)}</td>
                       </tr>
                     ))}
                     {userRows.length > 1 && (
                       <tr style={{ borderTop: `2px solid ${COLORS.border}` }}>
                         <td style={{ padding: "8px 10px", fontWeight: 700, color: COLORS.text }}>Total general</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: COLORS.text }}>{fmtAmt(grandTotal, adminCurrency, rate)}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: COLORS.gold }}>{fmtAmt(grandComm, adminCurrency, rate)}</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: COLORS.text }}>{fmtAmt(grandTotal, adminCurrency)}</td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: COLORS.gold }}>{fmtAmt(grandComm, adminCurrency)}</td>
                       </tr>
                     )}
                   </tbody>
@@ -2976,14 +2969,14 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
         <div style={{ ...cardStyle, marginBottom: 0, textAlign: "center" }}>
           <p style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600 }}>Total ventas {filterMonth || "histórico"}</p>
           <p style={{ fontSize: 26, fontWeight: 800, color: COLORS.text, margin: 0 }}>
-            {rate || displayCurrency === "USD" ? fmtAmt(totalDisplay, displayCurrency, rate) : "—"}
+            {rate || displayCurrency === "USD" ? fmtAmt(totalDisplay, displayCurrency) : "—"}
           </p>
           <p style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>{filteredMySales.length} venta{filteredMySales.length !== 1 ? "s" : ""}</p>
         </div>
         <div style={{ ...cardStyle, marginBottom: 0, textAlign: "center", borderColor: COLORS.gold }}>
           <p style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600 }}>Mi comisión (5%)</p>
           <p style={{ fontSize: 26, fontWeight: 800, color: COLORS.gold, margin: 0 }}>
-            {rate || displayCurrency === "USD" ? fmtAmt(commissionDisplay, displayCurrency, rate) : "—"}
+            {rate || displayCurrency === "USD" ? fmtAmt(commissionDisplay, displayCurrency) : "—"}
           </p>
           {displayCurrency === "CRC" && !rate && <p style={{ fontSize: 11, color: "#e07070", marginTop: 4 }}>Configura el tipo de cambio</p>}
         </div>
@@ -3055,10 +3048,10 @@ function ComisionesSection({ profile, userId, exchangeRate, mySales = [], allSal
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, margin: "0 0 2px" }}>
-                      {(rate || displayCurrency === "USD") ? fmtAmt(displayAmt, displayCurrency, rate) : fmtAmt(sale.amount, sale.currency, rate)}
+                      {(rate || displayCurrency === "USD") ? fmtAmt(displayAmt, displayCurrency) : fmtAmt(sale.amount, sale.currency)}
                     </p>
                     <p style={{ fontSize: 12, color: COLORS.gold, fontWeight: 600, margin: "0 0 6px" }}>
-                      Comisión: {(rate || displayCurrency === "USD") ? fmtAmt(comm, displayCurrency, rate) : fmtAmt(sale.amount * 0.05, sale.currency, rate)}
+                      Comisión: {(rate || displayCurrency === "USD") ? fmtAmt(comm, displayCurrency) : fmtAmt(sale.amount * 0.05, sale.currency)}
                     </p>
                     {!locked && (
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
@@ -3588,7 +3581,7 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
     return { approved, pending };
   }
 
-  function fmtHireDate(str) {
+  function fmtHireDateShort(str) {
     if (!str) return "—";
     const [y, m, d] = str.split("-").map(Number);
     const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
@@ -3810,7 +3803,7 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
                     <div style={{ marginBottom:6 }}>
                       {emp.position && (
                         <div style={{ fontSize:12, color:COLORS.textMuted, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {emp.position}{emp.hire_date ? <span style={{ marginLeft:8 }}>· Ingreso: {fmtHireDate(emp.hire_date)}</span> : null}
+                          {emp.position}{emp.hire_date ? <span style={{ marginLeft:8 }}>· Ingreso: {fmtHireDateShort(emp.hire_date)}</span> : null}
                         </div>
                       )}
                       <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
@@ -3944,7 +3937,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
   const dateInputStyle = { ...inputStyle, fontSize:14, padding:"10px 14px" };
   const isLoading = !!status;
 
-  function fmtDate(str) {
+  function fmtDateStr(str) {
     if (!str) return "—";
     const d = new Date(str);
     const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
@@ -4033,7 +4026,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], o
                           ? <DeptTag dept={doc.department} />
                           : <span style={{ fontSize:11, color:COLORS.textMuted }}>Todos los departamentos</span>
                         }
-                        <span style={{ fontSize:11, color:COLORS.textMuted }}>· {fmtDate(doc.created_at)}</span>
+                        <span style={{ fontSize:11, color:COLORS.textMuted }}>· {fmtDateStr(doc.created_at)}</span>
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
@@ -5429,7 +5422,6 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
   const DAY_NAMES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
   const todayStr = `${DAY_NAMES[now.getDay()]} ${now.getDate()} de ${MONTH_NAMES[now.getMonth()].toLowerCase()} de ${now.getFullYear()}`;
   const isBirthday = isBirthdayToday(profile?.birth_date);
-  const firstName = getFirstNames(profile?.full_name);
   const dailyMessage = getDailyMessage();
 
   if (isMobile) {
