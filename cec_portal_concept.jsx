@@ -3172,7 +3172,6 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
   const [birthDate,     setBirthDate]     = useState("");
   const [role,               setRole]               = useState("empleado");
   const [vacBalance,         setVacBalance]         = useState("");
-  const [vacPerYear,         setVacPerYear]         = useState("12");
   const [commissionEligible, setCommissionEligible] = useState(false);
   const [loading,            setLoading]            = useState(false);
   const [error,              setError]              = useState(null);
@@ -3233,7 +3232,6 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       birth_date:            birthDate  || null,
       role,
       vacation_balance:       vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
-      vacation_days_per_year: vacPerYear  !== "" ? Number(vacPerYear)  : VAC_TOTAL,
       commission_eligible:    commissionEligible,
     }, { onConflict: "id" });
     setLoading(false);
@@ -3361,11 +3359,6 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
           <input type="number" min="0" value={vacBalance} onChange={e => setVacBalance(e.target.value)} placeholder={String(VAC_TOTAL)} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
-        <div>
-          {fl("Días por año", true)}
-          <input type="number" min="0" value={vacPerYear} onChange={e => setVacPerYear(e.target.value)} style={inp}
-            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-        </div>
       </div>
 
       {/* Módulo de comisiones */}
@@ -3411,7 +3404,6 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
   const [birthDate,   setBirthDate]   = useState(emp.birth_date ?? "");
   const [role,        setRole]        = useState(emp.role ?? "empleado");
   const [vacBalance,  setVacBalance]  = useState(emp.vacation_balance !== undefined && emp.vacation_balance !== null ? String(emp.vacation_balance) : "");
-  const [vacPerYear,  setVacPerYear]  = useState(emp.vacation_days_per_year !== undefined && emp.vacation_days_per_year !== null ? String(emp.vacation_days_per_year) : "12");
   const [alias,       setAlias]       = useState(emp.alias ?? "");
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
@@ -3437,7 +3429,6 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
       birth_date:             birthDate || null,
       role,
       vacation_balance:       vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
-      vacation_days_per_year: vacPerYear  !== "" ? Number(vacPerYear)  : VAC_TOTAL,
       commission_eligible:    commissionEligible,
     };
     const { error: updateError } = await supabase.from("profiles").update(updates).eq("id", emp.id);
@@ -3518,11 +3509,6 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
         <div>
           {fl("Saldo vacaciones", true)}
           <input type="number" min="0" value={vacBalance} onChange={e => setVacBalance(e.target.value)} placeholder={String(VAC_TOTAL)} style={inp}
-            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-        </div>
-        <div>
-          {fl("Días por año", true)}
-          <input type="number" min="0" value={vacPerYear} onChange={e => setVacPerYear(e.target.value)} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
       </div>
