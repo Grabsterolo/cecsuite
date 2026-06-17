@@ -4528,6 +4528,7 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     ...adminRequests.map(r => ({
       id: r.id, kind: "request", type: r.type,
       user_id: r.user_id,
+      days_requested: r.days_requested,
       effectiveDays: r.days_requested > 0 ? r.days_requested : getEffectiveDays(r),
       employeeName: r.profiles?.full_name ?? "—",
       department:   r.profiles?.department ?? "",
@@ -4592,17 +4593,19 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   async function handleCancelVacation(item) {
     setCancelLoading(true);
     setCancelError(null);
-    const days = item.effectiveDays;
+    const days = item.days_requested > 0 ? item.days_requested : item.effectiveDays;
     const { data: perfil, error: fetchErr } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
     if (fetchErr) { setCancelError("No se pudo obtener el saldo actual."); setCancelLoading(false); return; }
     const { error: updateErr } = await supabase.from("profiles").update({ vacation_balance: (perfil.vacation_balance || 0) + days }).eq("id", item.user_id);
     if (updateErr) { setCancelError(translateError(updateErr.message)); setCancelLoading(false); return; }
     const { error: deleteErr } = await supabase.from("requests").delete().eq("id", item.id);
     if (deleteErr) { setCancelError(translateError(deleteErr.message)); setCancelLoading(false); return; }
+    const { data: refreshed } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
+    const exactBalance = refreshed?.vacation_balance ?? (perfil.vacation_balance || 0) + days;
     setCancelConfirm(null);
     setCancelLoading(false);
     onDeleteAdminRequest?.(item.id);
-    onVacationCancelled?.(item.user_id, days);
+    onVacationCancelled?.(item.user_id, exactBalance);
     showToast?.({ message: `Vacaciones anuladas — ${days} día${days !== 1 ? "s" : ""} devueltos a ${getFirstNames(item.employeeName)}`, Icon: Check });
   }
 
@@ -5925,13 +5928,6 @@ export default function App() {
       refreshPollResults(row.poll_id);
     });
 
-    // ── own profile: pick up vacation_balance changes from other sessions ──
-    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${userId}` }, ({ new: row }) => {
-      if (row.vacation_balance !== undefined) {
-        setProfile(prev => prev ? { ...prev, vacation_balance: row.vacation_balance } : prev);
-      }
-    });
-
     // ── commission_sales realtime ──
     if (isAdmin) {
       const refreshAllSales = () => supabase.from("commission_sales").select("*, profiles(full_name)").order("sale_date", { ascending: false }).then(({ data }) => { if (data) setAllSales(data); });
@@ -6018,7 +6014,7 @@ export default function App() {
             onUpdateAdminRequest={(id, changes) => setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
             onUpdateAdminReport={(id, changes)  => setAdminReports(prev  => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
             onDeleteAdminRequest={id => setAdminRequests(prev => prev.filter(r => r.id !== id))}
-            onVacationCancelled={(uid, days) => { if (uid === profile?.id) setProfile(prev => ({ ...prev, vacation_balance: (prev.vacation_balance || 0) + days })); }}
+            onVacationCancelled={(uid, exactBalance) => { if (uid === profile?.id) setProfile(prev => ({ ...prev, vacation_balance: exactBalance })); }}
             adminAnnouncements={adminAnnouncements}
             onNewAnnouncement={a => setAdminAnnouncements(prev => [a, ...prev])}
             onDeleteAnnouncement={id => { setAnnouncements(prev => prev.filter(a => a.id !== id)); setAdminAnnouncements(prev => prev.filter(a => a.id !== id)); }}
