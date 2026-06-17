@@ -3331,7 +3331,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
       </div>
 
       {/* Fechas */}
-      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14, alignItems:"end" }}>
         <div>
           {fl("Fecha de ingreso", true)}
           <input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} style={inp}
@@ -3495,7 +3495,7 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
         </div>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14, alignItems:"end" }}>
         <div>
           {fl("Fecha de ingreso", true)}
           <input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} style={inp}
