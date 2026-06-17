@@ -4598,12 +4598,8 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       if (error) { setErrors(prev => ({ ...prev, [key]: translateError(error.message) })); return; }
       if (newStatus === "aprobado" && item.kind === "request" && item.type === "vacaciones") {
         const daysToDeduct = Number(item.days_requested);
-        const { data: perfil } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
-        if (perfil) {
-          const newBalance = Number(perfil.vacation_balance) - daysToDeduct;
-          console.log('[AprobarVacaciones-CHECK]', 'ejecutando descuento', { days_requested: item.days_requested, daysToDeduct, saldoActual: perfil.vacation_balance, newBalance });
-          await supabase.from("profiles").update({ vacation_balance: newBalance }).eq("id", item.user_id);
-        }
+        console.log('[AprobarVacaciones-CHECK]', 'ejecutando descuento atómico', { days_requested: item.days_requested, daysToDeduct });
+        await supabase.rpc('adjust_vacation_balance', { p_user_id: item.user_id, p_days_delta: -daysToDeduct });
       }
       setPendingAction(prev => ({ ...prev, [key]: null }));
       setNoteText(prev => ({ ...prev, [key]: "" }));
@@ -4617,12 +4613,9 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   async function handleCancelVacation(item) {
     setCancelLoading(true);
     setCancelError(null);
-    const { data: perfil, error: fetchErr } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
-    if (fetchErr) { setCancelError("No se pudo obtener el saldo actual."); setCancelLoading(false); return; }
     const daysToRefund = Number(item.days_requested);
-    const newBalance = Number(perfil.vacation_balance) + daysToRefund;
-    console.log('[AnularVacaciones]', { days_requested: item.days_requested, daysToRefund, saldoActual: perfil.vacation_balance, newBalance });
-    const { error: updateErr } = await supabase.from("profiles").update({ vacation_balance: newBalance }).eq("id", item.user_id);
+    console.log('[AnularVacaciones]', { days_requested: item.days_requested, daysToRefund });
+    const { error: updateErr } = await supabase.rpc('adjust_vacation_balance', { p_user_id: item.user_id, p_days_delta: daysToRefund });
     if (updateErr) { setCancelError(translateError(updateErr.message)); setCancelLoading(false); return; }
     const { error: deleteErr } = await supabase.from("requests").delete().eq("id", item.id);
     if (deleteErr) { setCancelError(translateError(deleteErr.message)); setCancelLoading(false); return; }
