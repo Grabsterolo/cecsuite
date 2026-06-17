@@ -1121,9 +1121,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
       days_requested: daysRequested,
       comment: comment.trim() || null,
     };
-    console.log('[VacationSubmit] datos a insertar:', insertPayload);
     const { data, error: insertError } = await supabase.from("requests").insert(insertPayload).select().single();
-    console.log('[VacationSubmit] resultado:', { data, error: insertError });
     setLoading(false);
     if (insertError) { setError(translateError(insertError.message)); return; }
     if (!data) { setError("La solicitud no pudo guardarse. Intenta de nuevo."); return; }
@@ -1214,9 +1212,7 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
       start_time: startTime || null,
       end_time: endTime || null,
     };
-    console.log('[PermisoSubmit] datos a insertar:', insertPayload);
     const { data, error: insertError } = await supabase.from("requests").insert(insertPayload).select().single();
-    console.log('[PermisoSubmit] resultado:', { data, error: insertError });
     setLoading(false);
     if (insertError) { setError(translateError(insertError.message)); return; }
     if (!data) { setError("La solicitud no pudo guardarse. Intenta de nuevo."); return; }
@@ -4598,7 +4594,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       if (error) { setErrors(prev => ({ ...prev, [key]: translateError(error.message) })); return; }
       if (newStatus === "aprobado" && item.kind === "request" && item.type === "vacaciones") {
         const daysToDeduct = Number(item.days_requested);
-        console.log('[AprobarVacaciones-CHECK]', 'ejecutando descuento atómico', { days_requested: item.days_requested, daysToDeduct });
         await supabase.rpc('adjust_vacation_balance', { p_user_id: item.user_id, p_days_delta: -daysToDeduct });
       }
       setPendingAction(prev => ({ ...prev, [key]: null }));
@@ -4614,7 +4609,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     setCancelLoading(true);
     setCancelError(null);
     const daysToRefund = Number(item.days_requested);
-    console.log('[AnularVacaciones]', { days_requested: item.days_requested, daysToRefund });
     const { error: updateErr } = await supabase.rpc('adjust_vacation_balance', { p_user_id: item.user_id, p_days_delta: daysToRefund });
     if (updateErr) { setCancelError(translateError(updateErr.message)); setCancelLoading(false); return; }
     const { error: deleteErr } = await supabase.from("requests").delete().eq("id", item.id);
