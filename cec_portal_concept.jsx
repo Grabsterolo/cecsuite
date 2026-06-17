@@ -4592,15 +4592,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     const { error } = await supabase.from(table).update(updates).eq("id", item.id);
     setLoading(prev => ({ ...prev, [key]: null }));
     if (error) { setErrors(prev => ({ ...prev, [key]: translateError(error.message) })); return; }
-    if (newStatus === "aprobado" && item.kind === "request" && item.type === "vacaciones") {
-      const daysToDeduct = Number(item.days_requested);
-      const { data: perfil } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
-      if (perfil) {
-        const newBalance = Number(perfil.vacation_balance) - daysToDeduct;
-        console.log('[AprobarVacaciones]', { days_requested: item.days_requested, daysToDeduct, saldoActual: perfil.vacation_balance, newBalance });
-        await supabase.from("profiles").update({ vacation_balance: newBalance }).eq("id", item.user_id);
-      }
-    }
     setPendingAction(prev => ({ ...prev, [key]: null }));
     setNoteText(prev => ({ ...prev, [key]: "" }));
     if (item.kind === "request") onUpdateAdminRequest(item.id, { status: newStatus, reviewer: { full_name: reviewerName } });
