@@ -6025,7 +6025,7 @@ export default function App() {
             adminReports={adminReports}
             onUpdateAdminRequest={(id, changes) => setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
             onUpdateAdminReport={(id, changes)  => setAdminReports(prev  => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
-            onDeleteAdminRequest={id => setAdminRequests(prev => prev.filter(r => r.id !== id))}
+            onDeleteAdminRequest={id => { setAdminRequests(prev => prev.filter(r => r.id !== id)); setAllRequests(prev => prev.filter(r => r.id !== id)); }}
             onVacationCancelled={(uid, exactBalance) => { if (uid === profile?.id) setProfile(prev => ({ ...prev, vacation_balance: exactBalance })); }}
             adminAnnouncements={adminAnnouncements}
             onNewAnnouncement={a => setAdminAnnouncements(prev => [a, ...prev])}
