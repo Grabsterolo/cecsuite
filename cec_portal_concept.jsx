@@ -4593,19 +4593,23 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   async function handleCancelVacation(item) {
     setCancelLoading(true);
     setCancelError(null);
-    const days = item.days_requested > 0 ? item.days_requested : item.effectiveDays;
+    const days = (item.days_requested && item.days_requested > 0)
+      ? item.days_requested
+      : item.effectiveDays;
     const { data: perfil, error: fetchErr } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
     if (fetchErr) { setCancelError("No se pudo obtener el saldo actual."); setCancelLoading(false); return; }
     const { error: updateErr } = await supabase.from("profiles").update({ vacation_balance: (perfil.vacation_balance || 0) + days }).eq("id", item.user_id);
     if (updateErr) { setCancelError(translateError(updateErr.message)); setCancelLoading(false); return; }
     const { error: deleteErr } = await supabase.from("requests").delete().eq("id", item.id);
     if (deleteErr) { setCancelError(translateError(deleteErr.message)); setCancelLoading(false); return; }
-    const { data: refreshed } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
-    const exactBalance = refreshed?.vacation_balance ?? (perfil.vacation_balance || 0) + days;
+    const { data: perfilActualizado } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (perfilActualizado && item.user_id === user?.id) {
+      onVacationCancelled?.(item.user_id, perfilActualizado.vacation_balance);
+    }
     setCancelConfirm(null);
     setCancelLoading(false);
     onDeleteAdminRequest?.(item.id);
-    onVacationCancelled?.(item.user_id, exactBalance);
     showToast?.({ message: `Vacaciones anuladas — ${days} día${days !== 1 ? "s" : ""} devueltos a ${getFirstNames(item.employeeName)}`, Icon: Check });
   }
 
