@@ -3447,19 +3447,19 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
 
   return (
     <ModalShell onClose={onClose} title={`Editar: ${emp.full_name ?? "empleado"}`}>
-      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14, alignItems:"end" }}>
         <div>
           {fl("Nombre completo")}
           <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
         <div>
-          {fl("Alias / ¿Cómo llamarlo?", true)}
+          {fl("Alias / ¿Cómo llamarlo?")}
           <input type="text" value={alias} onChange={e => { if (e.target.value.length <= 30) setAlias(e.target.value); }} placeholder="Apodo o nombre corto" maxLength={30} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
         <div>
-          {fl("Puesto", true)}
+          {fl("Puesto")}
           <input type="text" value={position} onChange={e => setPosition(e.target.value)} placeholder="Ej. Enfermera" style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
@@ -3497,17 +3497,17 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
 
       <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14, alignItems:"end" }}>
         <div>
-          {fl("Fecha de ingreso", true)}
+          {fl("Fecha de ingreso")}
           <input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
         <div>
-          {fl("Fecha de nacimiento", true)}
+          {fl("Fecha de nacimiento")}
           <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
         <div>
-          {fl("Saldo vacaciones", true)}
+          {fl("Saldo vacaciones")}
           <input type="number" min="0" value={vacBalance} onChange={e => setVacBalance(e.target.value)} placeholder={String(VAC_TOTAL)} style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
