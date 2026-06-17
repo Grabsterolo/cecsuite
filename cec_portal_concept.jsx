@@ -4605,7 +4605,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
     const { data: perfil, error: fetchErr } = await supabase.from("profiles").select("vacation_balance").eq("id", item.user_id).single();
     if (fetchErr) { setCancelError("No se pudo obtener el saldo actual."); setCancelLoading(false); return; }
     const nuevoSaldo = perfil.vacation_balance + diasADevolver;
-    console.log('[AnularVacaciones]', { days_requested: item.days_requested, diasADevolver, saldoActual: perfil.vacation_balance, nuevoSaldo });
     const { error: updateErr } = await supabase.from("profiles").update({ vacation_balance: nuevoSaldo }).eq("id", item.user_id);
     if (updateErr) { setCancelError(translateError(updateErr.message)); setCancelLoading(false); return; }
     const { error: deleteErr } = await supabase.from("requests").delete().eq("id", item.id);
