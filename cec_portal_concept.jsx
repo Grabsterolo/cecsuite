@@ -1112,7 +1112,7 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
     const daysRequested = calcWorkDays(startDate, effectiveEnd);
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const { data, error: insertError } = await supabase.from("requests").insert({
+    const insertPayload = {
       user_id: user?.id,
       type: "vacaciones",
       status: "pendiente",
@@ -1120,9 +1120,13 @@ function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays
       end_date: toDate(effectiveEnd),
       days_requested: daysRequested,
       comment: comment.trim() || null,
-    }).select().single();
+    };
+    console.log('[VacationSubmit] datos a insertar:', insertPayload);
+    const { data, error: insertError } = await supabase.from("requests").insert(insertPayload).select().single();
+    console.log('[VacationSubmit] resultado:', { data, error: insertError });
     setLoading(false);
     if (insertError) { setError(translateError(insertError.message)); return; }
+    if (!data) { setError("La solicitud no pudo guardarse. Intenta de nuevo."); return; }
     if (onNewRequest) onNewRequest(data);
     onClose();
   }
@@ -1198,7 +1202,7 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     const toDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
-    const { data, error: insertError } = await supabase.from("requests").insert({
+    const insertPayload = {
       user_id: user?.id,
       type: "permiso",
       category: tipoPermiso,
@@ -1209,9 +1213,13 @@ function PermisoForm({ onClose, onSubmit, editData, onNewRequest }) {
       comment: notes.trim() || null,
       start_time: startTime || null,
       end_time: endTime || null,
-    }).select().single();
+    };
+    console.log('[PermisoSubmit] datos a insertar:', insertPayload);
+    const { data, error: insertError } = await supabase.from("requests").insert(insertPayload).select().single();
+    console.log('[PermisoSubmit] resultado:', { data, error: insertError });
     setLoading(false);
     if (insertError) { setError(translateError(insertError.message)); return; }
+    if (!data) { setError("La solicitud no pudo guardarse. Intenta de nuevo."); return; }
     if (onNewRequest) onNewRequest(data);
     onClose();
   }
