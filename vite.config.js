@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo-blanco.png', 'pwa-icon.svg'],
+      includeAssets: ['pwa-icon.jpg'],
       manifest: {
         name: 'Portal CEC',
         short_name: 'Portal CEC',
@@ -20,16 +20,10 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/pwa-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable'
-          },
-          {
-            src: '/logo-blanco.png',
+            src: '/pwa-icon.jpg',
             sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
+            type: 'image/jpeg',
+            purpose: 'any maskable'
           }
         ]
       },
