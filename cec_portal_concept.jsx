@@ -4110,21 +4110,12 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], a
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
                       {doc.file_url && <DocDownloadBtn fileUrl={doc.file_url} />}
                       {doc.archived ? (
-                        <>
-                          <button onClick={() => handleRestore(doc)} disabled={isArchiving} title="Restaurar" style={{
-                            border:"none", background:"rgba(44,99,86,0.1)", color:COLORS.greenSoft,
-                            cursor:isArchiving?"not-allowed":"pointer", borderRadius:6, padding:"4px 10px",
-                            fontSize:11, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:isArchiving?0.6:1,
-                          }}>{isArchiving ? "..." : "Restaurar"}</button>
-                          <button onClick={() => setConfirmPermaDel(isConfirmingPermaDel ? null : doc.id)} title="Eliminar permanentemente" style={{
-                            border:"none", background:"rgba(192,57,43,0.08)", color:"#c0392b",
-                            cursor:"pointer", borderRadius:6, width:30, height:30,
-                            display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                          }}>
-                            <Trash2 size={13}/>
-                          </button>
-                        </>
-                      ) : (
+                        <button onClick={() => handleRestore(doc)} disabled={isArchiving} title="Restaurar" style={{
+                          border:"none", background:"rgba(44,99,86,0.1)", color:COLORS.greenSoft,
+                          cursor:isArchiving?"not-allowed":"pointer", borderRadius:6, padding:"4px 10px",
+                          fontSize:11, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:isArchiving?0.6:1,
+                        }}>{isArchiving ? "..." : "Restaurar"}</button>
+                      ) : doc.requires_confirmation ? (
                         <button onClick={() => setConfirmArchive(isConfirmingArchive ? null : doc.id)} disabled={isArchiving} title="Archivar" style={{
                           border:"none", background:COLORS.panelAlt, color:COLORS.textMuted,
                           cursor:isArchiving?"not-allowed":"pointer", borderRadius:6, width:30, height:30,
@@ -4132,12 +4123,20 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], a
                         }}>
                           <Archive size={13}/>
                         </button>
+                      ) : (
+                        <button onClick={() => setConfirmPermaDel(isConfirmingPermaDel ? null : doc.id)} disabled={isDeleting} title="Eliminar" style={{
+                          border:"none", background:"rgba(192,57,43,0.08)", color:"#c0392b",
+                          cursor:isDeleting?"not-allowed":"pointer", borderRadius:6, width:30, height:30,
+                          display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                        }}>
+                          <Trash2 size={13}/>
+                        </button>
                       )}
                     </div>
                   </div>
                   {isConfirmingArchive && (
                     <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, padding:"8px 10px", background:COLORS.panelAlt, borderRadius:7 }}>
-                      <span style={{ fontSize:12, color:COLORS.text, flex:1 }}>¿Archivar este documento? Dejará de ser visible para los empleados.</span>
+                      <span style={{ fontSize:12, color:COLORS.text, flex:1 }}>¿Archivar este documento? Dejará de ser visible para los empleados. <span style={{ color:COLORS.textMuted }}>Se archiva para preservar el historial de confirmaciones.</span></span>
                       <button onClick={() => handleArchive(doc)} disabled={isArchiving} style={{
                         border:"none", background:COLORS.green, color:"#FFF", borderRadius:6,
                         padding:"5px 12px", fontSize:12, fontWeight:700, cursor:"pointer",
