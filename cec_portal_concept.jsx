@@ -3249,7 +3249,7 @@ function AltaEmpleadoSection({ departmentsList = [] }) {
     const savedPwd   = password;
     setEmail(""); setPassword(""); setFullName(""); setAlias(""); setPosition("");
     setSelectedDepts([]); setHireDate(""); setBirthDate("");
-    setRole("empleado"); setVacBalance(""); setVacPerYear("12"); setCommissionEligible(false);
+    setRole("empleado"); setVacBalance(""); setCommissionEligible(false);
     setSuccessInfo({ email: savedEmail, password: savedPwd });
   }
 
@@ -4576,17 +4576,21 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
       const updates = { status: newStatus, reviewed_by: user.id, reviewed_at: new Date().toISOString() };
       if (item.kind === "report") updates.resolution_note = resolutionNote || null;
       const { error } = await supabase.from(table).update(updates).eq("id", item.id);
-      setLoading(prev => ({ ...prev, [key]: null }));
       if (error) { setErrors(prev => ({ ...prev, [key]: translateError(error.message) })); return; }
       if (newStatus === "aprobado" && item.kind === "request" && item.type === "vacaciones") {
         const daysToDeduct = Number(item.days_requested);
-        await supabase.rpc('adjust_vacation_balance', { p_user_id: item.user_id, p_days_delta: -daysToDeduct });
+        const { error: rpcError } = await supabase.rpc('adjust_vacation_balance', { p_user_id: item.user_id, p_days_delta: -daysToDeduct });
+        if (rpcError) {
+          console.error('Error al ajustar saldo:', rpcError);
+          alert('La solicitud fue aprobada pero hubo un error al actualizar el saldo. Por favor recarga la página.');
+        }
       }
       setPendingAction(prev => ({ ...prev, [key]: null }));
       setNoteText(prev => ({ ...prev, [key]: "" }));
       if (item.kind === "request") onUpdateAdminRequest(item.id, { status: newStatus, reviewer: { full_name: reviewerName } });
       else                          onUpdateAdminReport(item.id,  { status: newStatus, reviewer: { full_name: reviewerName }, resolution_note: resolutionNote || null });
     } finally {
+      setLoading(prev => ({ ...prev, [key]: null }));
       actionInProgress.current[key] = false;
     }
   }
@@ -6012,7 +6016,7 @@ export default function App() {
             upcomingBirthdays={upcomingBirthdays}
             adminRequests={adminRequests}
             adminReports={adminReports}
-            onUpdateAdminRequest={(id, changes) => setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
+            onUpdateAdminRequest={(id, changes) => { setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r)); setAllRequests(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r)); }}
             onUpdateAdminReport={(id, changes)  => setAdminReports(prev  => prev.map(r => r.id === id ? { ...r, ...changes } : r))}
             onDeleteAdminRequest={id => { setAdminRequests(prev => prev.filter(r => r.id !== id)); setAllRequests(prev => prev.filter(r => r.id !== id)); }}
             onVacationCancelled={(uid, exactBalance) => { if (uid === profile?.id) setProfile(prev => ({ ...prev, vacation_balance: exactBalance })); }}
