@@ -4092,7 +4092,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], a
                   {doc.requires_confirmation && (() => {
                     const docConfs = allConfirmations.filter(c => c.document_id === doc.id);
                     const confirmedIds = new Set(docConfs.map(c => c.user_id));
-                    const eligible = adminProfiles.filter(p => p.role !== "admin" && p.role !== "inactivo" && (Array.isArray(doc.departments) && (doc.departments.includes("todos") || (Array.isArray(p.departments) && p.departments.some(d => doc.departments.includes(d))))));
+                    const eligible = adminProfiles.filter(p => p.role !== "inactivo" && (Array.isArray(doc.departments) && (doc.departments.includes("todos") || (Array.isArray(p.departments) && p.departments.some(d => doc.departments.includes(d))))));
                     const notConfirmed = eligible.filter(p => !confirmedIds.has(p.id));
                     const isOpen = expandConfirm === doc.id;
                     return (
