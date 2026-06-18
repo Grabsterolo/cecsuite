@@ -120,6 +120,10 @@ const FONTS = `
   85%  { opacity: 0.25; }
   100% { opacity: 0;   transform: translateY(100vh) rotate(540deg); }
 }
+@keyframes gentlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
@@ -1661,7 +1665,7 @@ function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {},
           const pendingConfirm = documents.filter(d => d.requires_confirmation && !myConfirmations[d.id]).length;
           return pendingConfirm > 0 ? (
             <button onClick={() => setActive("documentos")} style={{ background:"none", border:"none", padding:0, cursor:"pointer", display:"block", marginBottom:10, textAlign:"left" }}>
-              <span style={{ fontSize:12, color:COLORS.gold, fontWeight:600 }}>⚠ {pendingConfirm} documento{pendingConfirm !== 1 ? "s" : ""} pendiente{pendingConfirm !== 1 ? "s" : ""} de confirmar lectura</span>
+              <span style={{ fontSize:12, color:COLORS.gold, fontWeight:600, animation:"gentlePulse 2s ease-in-out infinite", display:"inline-block" }}>⚠ {pendingConfirm} documento{pendingConfirm !== 1 ? "s" : ""} pendiente{pendingConfirm !== 1 ? "s" : ""} de confirmar lectura</span>
             </button>
           ) : null;
         })()}
