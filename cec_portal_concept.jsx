@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell, FileText, CalendarDays, CalendarCheck, CalendarRange, User, LogOut,
-  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, Check, CheckCheck, Award, BarChart3, DollarSign, XCircle,
+  Home, ChevronRight, ChevronLeft, Download, Clock, Cake, Menu, X, Plus, Edit2, Trash2, AlertTriangle, ClipboardCheck, ClipboardList, Megaphone, FileUp, Users, UserPlus, KeyRound, UserX, Eye, EyeOff, MessageCircle, Send, Check, CheckCheck, Award, BarChart3, DollarSign, XCircle, Archive,
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
@@ -2149,7 +2149,8 @@ function SolicitudesSection({ allSolicitudes = [], onNewRequest, onNewReport, av
   );
 }
 
-function DocumentsSection({ documents, myConfirmations = {}, userId, onConfirmRead }) {
+function DocumentsSection({ documents: allDocs, myConfirmations = {}, userId, onConfirmRead }) {
+  const documents = allDocs.filter(d => !d.archived);
   const [confirming, setConfirming] = useState({});
 
   async function handleConfirm(doc) {
@@ -3899,24 +3900,49 @@ function EmpleadosSection({ adminProfiles = [], adminRequests = [], departmentsL
   );
 }
 
-function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], adminProfiles = [], allConfirmations = [], onNewDocument, onDeleteDocument }) {
+function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], adminProfiles = [], allConfirmations = [], onNewDocument, onDeleteDocument, onUpdateAdminDocument }) {
   const isMobile = useIsMobile();
   const [title,                 setTitle]                 = useState("");
   const [category,              setCategory]              = useState("");
   const [deptTodos,             setDeptTodos]             = useState(true);
   const [selectedDepts,         setSelectedDepts]         = useState([]);
   const [requiresConfirmation,  setRequiresConfirmation]  = useState(false);
-  const [file,       setFile]       = useState(null);
-  const [status,     setStatus]     = useState(null); // null | "uploading" | "saving"
-  const [error,      setError]      = useState(null);
-  const [success,    setSuccess]    = useState(false);
-  const [deleting,   setDeleting]   = useState({}); // { [id]: true }
-  const [confirmDel, setConfirmDel] = useState(null); // id pending confirmation
-  const [expandConfirm, setExpandConfirm] = useState(null); // doc.id | null
+  const [file,          setFile]          = useState(null);
+  const [status,        setStatus]        = useState(null); // null | "uploading" | "saving"
+  const [error,         setError]         = useState(null);
+  const [success,       setSuccess]       = useState(false);
+  const [archiving,     setArchiving]     = useState({}); // { [id]: true }
+  const [deleting,      setDeleting]      = useState({}); // { [id]: true } for permanent delete
+  const [confirmArchive,   setConfirmArchive]   = useState(null); // doc.id
+  const [confirmPermaDel,  setConfirmPermaDel]  = useState(null); // doc.id
+  const [showArchived,     setShowArchived]     = useState(false);
+  const [expandConfirm,    setExpandConfirm]    = useState(null); // doc.id | null
 
-  async function handleDelete(doc) {
+  async function handleArchive(doc) {
+    setArchiving(prev => ({ ...prev, [doc.id]: true }));
+    const { error } = await supabase.from("documents").update({ archived: true }).eq("id", doc.id);
+    setArchiving(prev => ({ ...prev, [doc.id]: false }));
+    if (error) { setError(translateError(error.message)); return; }
+    onUpdateAdminDocument?.({ ...doc, archived: true });
+    setConfirmArchive(null);
+  }
+
+  async function handleRestore(doc) {
+    setArchiving(prev => ({ ...prev, [doc.id]: true }));
+    const { error } = await supabase.from("documents").update({ archived: false }).eq("id", doc.id);
+    setArchiving(prev => ({ ...prev, [doc.id]: false }));
+    if (error) { setError(translateError(error.message)); return; }
+    onUpdateAdminDocument?.({ ...doc, archived: false });
+  }
+
+  async function handlePermaDel(doc) {
+    const confCount = allConfirmations.filter(c => c.document_id === doc.id).length;
+    if (confCount > 0) {
+      setError(`No se puede eliminar — hay ${confCount} confirmación${confCount !== 1 ? "es" : ""} registrada${confCount !== 1 ? "s" : ""}.`);
+      setConfirmPermaDel(null);
+      return;
+    }
     setDeleting(prev => ({ ...prev, [doc.id]: true }));
-    // Best-effort: remove file from storage using path extracted from URL
     if (doc.file_url) {
       try { await supabase.storage.from("documents").remove([doc.file_url]); } catch (_) {}
     }
@@ -3924,7 +3950,7 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], a
     setDeleting(prev => ({ ...prev, [doc.id]: false }));
     if (delError) { setError(translateError(delError.message)); return; }
     onDeleteDocument(doc.id);
-    setConfirmDel(null);
+    setConfirmPermaDel(null);
   }
 
   function handleFile(e) { setFile(e.target.files?.[0] ?? null); }
@@ -4037,19 +4063,37 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], a
       </Card>
 
       <Card>
-        <CardHeader title="Documentos subidos" />
-        {adminDocuments.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay documentos subidos.</p>
-        ) : (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+          <span style={{ fontSize:14, fontWeight:700, color:COLORS.text }}>Documentos subidos</span>
+          <div style={{ display:"flex", gap:4 }}>
+            {["activos","archivados"].map(tab => (
+              <button key={tab} onClick={() => setShowArchived(tab === "archivados")} style={{
+                border:"none", borderRadius:6, padding:"4px 12px", fontSize:12, fontWeight:600, cursor:"pointer",
+                fontFamily:"'Manrope', sans-serif",
+                background: (tab === "archivados") === showArchived ? COLORS.green : COLORS.panelAlt,
+                color:      (tab === "archivados") === showArchived ? "#FFF" : COLORS.textMuted,
+              }}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
+            ))}
+          </div>
+        </div>
+        {(() => {
+          const displayedDocs = adminDocuments.filter(d => showArchived ? d.archived : !d.archived);
+          if (displayedDocs.length === 0) return <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>{showArchived ? "No hay documentos archivados." : "No hay documentos activos."}</p>;
+          return (
           <div style={{ display:"flex", flexDirection:"column" }}>
-            {adminDocuments.map((doc, i) => {
-              const isConfirming = confirmDel === doc.id;
+            {displayedDocs.map((doc, i) => {
+              const isArchiving  = !!archiving[doc.id];
               const isDeleting   = !!deleting[doc.id];
+              const isConfirmingArchive = confirmArchive === doc.id;
+              const isConfirmingPermaDel = confirmPermaDel === doc.id;
               return (
-                <div key={doc.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                <div key={doc.id ?? i} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}`, opacity: doc.archived ? 0.72 : 1 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:600, color:COLORS.text, marginBottom:4, wordBreak:"break-word" }}>{doc.title}</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap" }}>
+                        <span style={{ fontSize:13, fontWeight:600, color: doc.archived ? COLORS.textMuted : COLORS.text, wordBreak:"break-word" }}>{doc.title}</span>
+                        {doc.archived && <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", color:COLORS.textMuted, background:COLORS.panelAlt, borderRadius:4, padding:"1px 6px" }}>Archivado</span>}
+                      </div>
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                         {doc.category && <Tag label={doc.category} />}
                         {Array.isArray(doc.departments) ? (
@@ -4065,27 +4109,57 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], a
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
                       {doc.file_url && <DocDownloadBtn fileUrl={doc.file_url} />}
-                      <button onClick={() => setConfirmDel(isConfirming ? null : doc.id)} disabled={isDeleting} title="Eliminar" style={{
-                        border:"none", background:"rgba(192,57,43,0.08)", color:"#c0392b",
-                        cursor:"pointer", borderRadius:6, width:30, height:30,
-                        display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                      }}>
-                        <Trash2 size={13}/>
-                      </button>
+                      {doc.archived ? (
+                        <>
+                          <button onClick={() => handleRestore(doc)} disabled={isArchiving} title="Restaurar" style={{
+                            border:"none", background:"rgba(44,99,86,0.1)", color:COLORS.greenSoft,
+                            cursor:isArchiving?"not-allowed":"pointer", borderRadius:6, padding:"4px 10px",
+                            fontSize:11, fontWeight:700, fontFamily:"'Manrope', sans-serif", opacity:isArchiving?0.6:1,
+                          }}>{isArchiving ? "..." : "Restaurar"}</button>
+                          <button onClick={() => setConfirmPermaDel(isConfirmingPermaDel ? null : doc.id)} title="Eliminar permanentemente" style={{
+                            border:"none", background:"rgba(192,57,43,0.08)", color:"#c0392b",
+                            cursor:"pointer", borderRadius:6, width:30, height:30,
+                            display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                          }}>
+                            <Trash2 size={13}/>
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => setConfirmArchive(isConfirmingArchive ? null : doc.id)} disabled={isArchiving} title="Archivar" style={{
+                          border:"none", background:COLORS.panelAlt, color:COLORS.textMuted,
+                          cursor:isArchiving?"not-allowed":"pointer", borderRadius:6, width:30, height:30,
+                          display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                        }}>
+                          <Archive size={13}/>
+                        </button>
+                      )}
                     </div>
                   </div>
-                  {isConfirming && (
+                  {isConfirmingArchive && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, padding:"8px 10px", background:COLORS.panelAlt, borderRadius:7 }}>
+                      <span style={{ fontSize:12, color:COLORS.text, flex:1 }}>¿Archivar este documento? Dejará de ser visible para los empleados.</span>
+                      <button onClick={() => handleArchive(doc)} disabled={isArchiving} style={{
+                        border:"none", background:COLORS.green, color:"#FFF", borderRadius:6,
+                        padding:"5px 12px", fontSize:12, fontWeight:700, cursor:"pointer",
+                        fontFamily:"'Manrope', sans-serif", opacity:isArchiving?0.6:1,
+                      }}>{isArchiving ? "Archivando..." : "Sí, archivar"}</button>
+                      <button onClick={() => setConfirmArchive(null)} style={{
+                        border:"none", background:"transparent", color:COLORS.textMuted, borderRadius:6,
+                        padding:"5px 12px", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"'Manrope', sans-serif",
+                      }}>Cancelar</button>
+                    </div>
+                  )}
+                  {isConfirmingPermaDel && (
                     <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, padding:"8px 10px", background:"rgba(192,57,43,0.06)", borderRadius:7 }}>
-                      <span style={{ fontSize:12, color:"#c0392b", flex:1 }}>¿Eliminar este documento?</span>
-                      <button onClick={() => handleDelete(doc)} disabled={isDeleting} style={{
+                      <span style={{ fontSize:12, color:"#c0392b", flex:1 }}>¿Eliminar permanentemente? No se puede deshacer.</span>
+                      <button onClick={() => handlePermaDel(doc)} disabled={isDeleting} style={{
                         border:"none", background:"#c0392b", color:"#FFF", borderRadius:6,
                         padding:"5px 12px", fontSize:12, fontWeight:700, cursor:"pointer",
-                        fontFamily:"'Manrope', sans-serif", opacity: isDeleting ? 0.6 : 1,
+                        fontFamily:"'Manrope', sans-serif", opacity:isDeleting?0.6:1,
                       }}>{isDeleting ? "Eliminando..." : "Sí, eliminar"}</button>
-                      <button onClick={() => setConfirmDel(null)} style={{
-                        border:"none", background:COLORS.panelAlt, color:COLORS.textMuted, borderRadius:6,
-                        padding:"5px 12px", fontSize:12, fontWeight:600, cursor:"pointer",
-                        fontFamily:"'Manrope', sans-serif",
+                      <button onClick={() => setConfirmPermaDel(null)} style={{
+                        border:"none", background:"transparent", color:COLORS.textMuted, borderRadius:6,
+                        padding:"5px 12px", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"'Manrope', sans-serif",
                       }}>Cancelar</button>
                     </div>
                   )}
@@ -4126,7 +4200,8 @@ function GestionDocumentosSection({ adminDocuments = [], departmentsList = [], a
               );
             })}
           </div>
-        )}
+          );
+        })()}
       </Card>
     </div>
   );
@@ -5482,7 +5557,7 @@ function AdminSupportChatWidget({ adminId }) {
   );
 }
 
-function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, onDeleteAdminRequest, onVacationCancelled, adminAnnouncements = [], onNewAnnouncement, onDeleteAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition, teamDirectory = [], recognitionsUnread = 0, onMarkRecognitionsRead, polls = [], myVotes = {}, pollResults = {}, onVoted, onPollCreated, onPollClosed, onPollDeleted, exchangeRate = null, mySales = [], allSales = [], onExchangeRateUpdated, onSaleDeleted, showToast, onAliasUpdated, myConfirmations = {}, allConfirmations = [], onConfirmRead, onNewConfirmation }) {
+function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDeleteRequest, reports = [], onNewReport, onDeleteReport, announcements = [], documents = [], upcomingBirthdays = [], adminRequests = [], adminReports = [], onUpdateAdminRequest, onUpdateAdminReport, onDeleteAdminRequest, onVacationCancelled, adminAnnouncements = [], onNewAnnouncement, onDeleteAnnouncement, adminDocuments = [], onNewDocument, onDeleteDocument, onUpdateAdminDocument, adminProfiles = [], departments = [], departmentsList = [], onUpdateAdminProfile, userId, solicitudesUnread = 0, onClearSolicitudesUnread, teamVacations = [], recognitions = [], onNewRecognition, onDeleteRecognition, teamDirectory = [], recognitionsUnread = 0, onMarkRecognitionsRead, polls = [], myVotes = {}, pollResults = {}, onVoted, onPollCreated, onPollClosed, onPollDeleted, exchangeRate = null, mySales = [], allSales = [], onExchangeRateUpdated, onSaleDeleted, showToast, onAliasUpdated, myConfirmations = {}, allConfirmations = [], onConfirmRead, onNewConfirmation }) {
   const [active, setActive] = useState("inicio");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -5609,7 +5684,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} myConfirmations={myConfirmations} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} profile={profile} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} myConfirmations={myConfirmations} userId={userId} onConfirmRead={onConfirmRead} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} onAliasUpdated={onAliasUpdated} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} onDeleteAdminRequest={onDeleteAdminRequest} onVacationCancelled={onVacationCancelled} reviewerName={profile?.full_name} showToast={showToast} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} adminProfiles={adminProfiles} allConfirmations={allConfirmations} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} onSaleDeleted={onSaleDeleted} showToast={showToast} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} myConfirmations={myConfirmations} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} profile={profile} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} myConfirmations={myConfirmations} userId={userId} onConfirmRead={onConfirmRead} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} onAliasUpdated={onAliasUpdated} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} onDeleteAdminRequest={onDeleteAdminRequest} onVacationCancelled={onVacationCancelled} reviewerName={profile?.full_name} showToast={showToast} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} adminProfiles={adminProfiles} allConfirmations={allConfirmations} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} onUpdateAdminDocument={onUpdateAdminDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} onSaleDeleted={onSaleDeleted} showToast={showToast} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
@@ -5644,7 +5719,7 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} myConfirmations={myConfirmations} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} profile={profile} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} myConfirmations={myConfirmations} userId={userId} onConfirmRead={onConfirmRead} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} onAliasUpdated={onAliasUpdated} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} onDeleteAdminRequest={onDeleteAdminRequest} onVacationCancelled={onVacationCancelled} reviewerName={profile?.full_name} showToast={showToast} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} adminProfiles={adminProfiles} allConfirmations={allConfirmations} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} onSaleDeleted={onSaleDeleted} showToast={showToast} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} myConfirmations={myConfirmations} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} profile={profile} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} myConfirmations={myConfirmations} userId={userId} onConfirmRead={onConfirmRead} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "perfil" ? <ProfileSection profile={profile} onAliasUpdated={onAliasUpdated} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} onDeleteAdminRequest={onDeleteAdminRequest} onVacationCancelled={onVacationCancelled} reviewerName={profile?.full_name} showToast={showToast} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} adminProfiles={adminProfiles} allConfirmations={allConfirmations} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} onUpdateAdminDocument={onUpdateAdminDocument} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} onSaleDeleted={onSaleDeleted} showToast={showToast} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
@@ -5767,6 +5842,7 @@ export default function App() {
     supabase
       .from("documents")
       .select("*")
+      .eq("archived", false)
       .or(buildAudienceFilter("departments", profile.departments))
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setDocuments(data); });
@@ -6125,6 +6201,7 @@ export default function App() {
             adminDocuments={adminDocuments}
             onNewDocument={d => setAdminDocuments(prev => [d, ...prev])}
             onDeleteDocument={id => setAdminDocuments(prev => prev.filter(d => d.id !== id))}
+            onUpdateAdminDocument={d => setAdminDocuments(prev => prev.map(x => x.id === d.id ? d : x))}
             adminProfiles={adminProfiles}
             departments={departments}
             departmentsList={departmentsList}
