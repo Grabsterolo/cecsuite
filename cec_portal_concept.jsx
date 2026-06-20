@@ -5,6 +5,9 @@ import {
 } from "lucide-react";
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
+import { COLORS, DEPT_COLORS, FONTS, SIDEBAR_BG } from "./src/constants/colors.js";
+import { INFINITY_PATH, ROTATING_WORDS, NAV_ITEMS, VAC_TOTAL, MOTIVATIONAL_MESSAGES, TIPOS_PERMISO, TIPOS_REPORTE, RECOGNITION_CATEGORIES, CONFETTI_PARTICLES } from "./src/constants/nav.js";
+import { inputStyle, taStyle, btnCancelStyle, btnSubmitStyle, verTodosStyle } from "./src/styles/forms.js";
 
 function translateError(msg = "") {
   const m = msg.toLowerCase();
@@ -24,35 +27,6 @@ function translateError(msg = "") {
   return msg || "Ocurrió un error inesperado. Intenta de nuevo.";
 }
 
-const COLORS = {
-  bg: "#FAFAF8",
-  panel: "#FFFFFF",
-  panelAlt: "#F4F1EA",
-  inputBg: "#F7F5F0",
-  gold: "#C9A24E",
-  goldSoft: "#E4C77A",
-  green: "#1F4A40",
-  greenSoft: "#2C6356",
-  text: "#1F4A40",
-  textMuted: "#6B8C80",
-  border: "rgba(31,74,64,0.12)",
-  sidebarMuted: "rgba(255,255,255,0.55)",
-};
-
-const DEPT_COLORS = {
-  "Administración":           "#C9A24E",
-  "Enfermería":               "#7FA98C",
-  "Recepción":                "#7B93AE",
-  "Admisión":                 "#C98B6B",
-  "Cirugía":                  "#4A7C7A",
-  "Doctores":                 "#9B7EBD",
-  "Medicina Estética":        "#D49AA3",
-  "Estética":                 "#E0B07D",
-  "Consulta Médica":          "#6B8CAE",
-  "Mercadeo":                 "#D4B86A",
-  "Limpieza / Mantenimiento": "#A89B8C",
-  "Contact Center":           "#9FA8C9",
-};
 function getDepartmentColor(name) { return DEPT_COLORS[name] || "#C9A24E"; }
 function getDepartmentTextColor(name) {
   const hex = getDepartmentColor(name).replace("#", "");
@@ -70,70 +44,6 @@ function DeptTag({ dept }) {
   );
 }
 
-const FONTS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
-* { -webkit-tap-highlight-color: transparent; }
-@keyframes loginFadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes glowOrbit1 {
-  0%   { transform: translate(0px,   0px); }
-  25%  { transform: translate(60px, -80px); }
-  50%  { transform: translate(120px, 20px); }
-  75%  { transform: translate(40px,  90px); }
-  100% { transform: translate(0px,   0px); }
-}
-@keyframes glowOrbit2 {
-  0%   { transform: translate(0px,  0px); }
-  30%  { transform: translate(-80px, 60px); }
-  60%  { transform: translate(-40px,-90px); }
-  80%  { transform: translate(30px, -30px); }
-  100% { transform: translate(0px,  0px); }
-}
-@keyframes goldLineGrow {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
-@keyframes wordOut {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-8px); }
-}
-@keyframes wordIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes dashboardIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes sectionOut {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-5px); }
-}
-@keyframes sectionIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes confettiFall {
-  0%   { opacity: 0.4; transform: translateY(-10px) rotate(0deg); }
-  85%  { opacity: 0.25; }
-  100% { opacity: 0;   transform: translateY(100vh) rotate(540deg); }
-}
-@keyframes gentlePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-@media (prefers-reduced-motion: reduce) {
-  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
-}
-.sidebar-nav { scrollbar-width: none; -ms-overflow-style: none; }
-.sidebar-nav::-webkit-scrollbar { display: none; }
-`;
-
-const SIDEBAR_BG = "linear-gradient(168deg, #24584C 0%, #1F4A40 40%, #152E27 100%)";
-
-const INFINITY_PATH = "M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70 C58 70 42 30 30 30";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
@@ -204,16 +114,6 @@ function Logo({ width = 200 }) {
 }
 
 /* ─────────────────────────── LOGIN ─────────────────────────── */
-
-const inputStyle = {
-  width: "100%", background: "#F7F5F0",
-  border: "1.5px solid rgba(31,74,64,0.12)", borderRadius: 8,
-  padding: "12px 14px", color: "#1F4A40", fontSize: 16,
-  outline: "none", boxSizing: "border-box",
-  fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s", display: "block",
-};
-
-const ROTATING_WORDS = ["comunicados", "vacaciones", "documentos", "permisos", "reportes", "tu equipo"];
 
 function RotatingWord({ noAnim }) {
   const [idx, setIdx] = useState(0);
@@ -378,24 +278,6 @@ function LoginScreen({ onLogin }) {
 
 /* ─────────────────────────── DASHBOARD ─────────────────────────── */
 
-const NAV_ITEMS = [
-  { key: "inicio",      label: "Inicio",      icon: Home },
-  { key: "vacaciones",        label: "Vacaciones",           icon: CalendarCheck  },
-  { key: "solicitudes",       label: "Solicitudes",          icon: CalendarDays   },
-  { key: "calendario-equipo", label: "Calendario de equipo", icon: CalendarRange  },
-  { key: "comunicados",        label: "Comunicados",          icon: Bell           },
-  { key: "encuestas",          label: "Encuestas",            icon: BarChart3      },
-  { key: "reconocimientos",   label: "Reconocimientos",      icon: Award          },
-  { key: "comisiones",        label: "Comisiones",           icon: DollarSign,    condition: p => p?.commission_eligible && p?.role !== "admin" },
-  { key: "documentos",        label: "Documentos",           icon: FileText       },
-  { key: "perfil",      label: "Mi perfil",   icon: User },
-];
-
-
-
-const BIRTHDAYS = [
-  { name: "Maggie Araya", date: "3 ago" },
-];
 
 /* ── Drawer móvil ── */
 function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0 }) {
@@ -813,8 +695,6 @@ function CardHeader({ title, action }) {
   );
 }
 
-const VAC_TOTAL = 12;
-
 function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
   const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [pct, setPct] = useState(noAnim ? 1 : 0);
@@ -915,39 +795,12 @@ function SolicitudIcon({ kind, type, size = 18 }) {
 const MONTH_NAMES   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DAY_NAMES     = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
 
-const MOTIVATIONAL_MESSAGES = [
-  "Cada día es una oportunidad para marcar la diferencia en la vida de alguien.",
-  "El buen trabajo en equipo convierte lo difícil en posible.",
-  "La atención con calidad empieza con la actitud de cada uno.",
-  "Pequeñas mejoras constantes construyen grandes resultados.",
-  "Tu dedicación hoy es el bienestar de alguien mañana.",
-  "Un equipo que se apoya produce lo mejor en cada paciente.",
-  "La excelencia no es un acto puntual, es un hábito.",
-  "Cada paciente bien atendido es una misión cumplida.",
-  "El cuidado genuino se nota. Gracias por traerlo cada día.",
-  "Los detalles son lo que separa lo bueno de lo excepcional.",
-  "Trabajar con propósito hace que el esfuerzo valga la pena.",
-  "La confianza del paciente se gana con constancia y respeto.",
-  "Hoy es un buen día para hacer el trabajo con orgullo.",
-  "La comunicación clara es tan importante como la técnica.",
-  "Un ambiente positivo es también parte del tratamiento.",
-  "El trabajo bien hecho habla por sí solo.",
-  "Cada turno es una nueva oportunidad de hacer las cosas con excelencia.",
-  "La empatía es la herramienta más poderosa en salud.",
-  "El respeto entre colegas se refleja en la calidad del servicio.",
-  "Estar presente de verdad marca la diferencia para quienes nos necesitan.",
-  "La salud de las personas depende del compromiso de cada uno aquí.",
-  "Lo que hacemos importa más de lo que a veces percibimos.",
-];
-
 function getDailyMessage() {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((now - start) / 86400000);
   return MOTIVATIONAL_MESSAGES[dayOfYear % MOTIVATIONAL_MESSAGES.length];
 }
-const TIPOS_PERMISO = ["Permiso médico","Permiso personal","Permiso por duelo","Permiso de estudio","Permiso de paternidad/maternidad","Otro"];
-const TIPOS_REPORTE = ["Daño a instalaciones","Daño a equipos","Incidente de seguridad","Situación de riesgo","Conducta inapropiada","Otro"];
 
 /* ── Helpers ── */
 function calcWorkDays(start, end) {
@@ -1067,10 +920,6 @@ function ModalShell({ onClose, title, children }) {
     </div>
   );
 }
-
-const taStyle = { width:"100%", background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"10px 14px", color:COLORS.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"'Manrope', sans-serif", transition:"border-color 0.2s" };
-const btnCancelStyle = { flex:1, background:"transparent", border:`1.5px solid ${COLORS.border}`, borderRadius:8, padding:"11px 16px", color:COLORS.textMuted, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'Manrope', sans-serif" };
-const btnSubmitStyle = { flex:2, background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`, border:"none", borderRadius:8, padding:"11px 16px", color:"#FFF", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Manrope', sans-serif", boxShadow:"0 4px 14px rgba(201,162,78,0.4)" };
 
 /* ── Formulario vacaciones ── */
 function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays, existingRequests = [] }) {
@@ -1541,13 +1390,6 @@ function SolicitudItem({ s, style, hideStatus = false }) {
     </div>
   );
 }
-
-const verTodosStyle = {
-  display: "flex", alignItems: "center", gap: 4,
-  fontSize: 12, color: COLORS.gold, cursor: "pointer",
-  fontWeight: 600, background: "none", border: "none",
-  fontFamily: "'Manrope', sans-serif", padding: 0,
-};
 
 /* ── Signed-URL download button for private documents bucket ── */
 function DocDownloadBtn({ fileUrl, label, iconOnly = false }) {
@@ -2327,10 +2169,6 @@ function ToastNotification({ toast }) {
     </div>
   );
 }
-
-const RECOGNITION_CATEGORIES = [
-  "Trabajo en equipo", "Excelencia en atención", "Iniciativa", "Compañerismo", "Profesionalismo",
-];
 
 /* ── Reconocimientos ── */
 function RecognitionsSection({ recognitions = [], onNewRecognition, onDeleteRecognition, userId, profile, teamDirectory = [], onMarkRead, unreadCount = 0 }) {
@@ -4990,27 +4828,6 @@ function isBirthdayToday(birthDate) {
   const bd = new Date(birthDate + "T12:00:00");
   return bd.getMonth() === today.getMonth() && bd.getDate() === today.getDate();
 }
-
-const CONFETTI_PARTICLES = [
-  { left: "4%",  delay: 0,    dur: 3.8, color: "#C9A24E", size: 8,  rect: true  },
-  { left: "10%", delay: 0.6,  dur: 4.5, color: "#1F4A40", size: 6,  rect: false },
-  { left: "17%", delay: 1.2,  dur: 3.3, color: "#D4B97A", size: 9,  rect: true  },
-  { left: "24%", delay: 0.3,  dur: 4.8, color: "#C9A24E", size: 7,  rect: false },
-  { left: "31%", delay: 1.8,  dur: 3.6, color: "#1F4A40", size: 8,  rect: true  },
-  { left: "38%", delay: 0.9,  dur: 4.2, color: "#F0EBE0", size: 6,  rect: false },
-  { left: "45%", delay: 2.1,  dur: 3.9, color: "#C9A24E", size: 10, rect: true  },
-  { left: "52%", delay: 0.5,  dur: 4.6, color: "#D4B97A", size: 7,  rect: true  },
-  { left: "59%", delay: 1.5,  dur: 3.3, color: "#1F4A40", size: 8,  rect: false },
-  { left: "66%", delay: 0.8,  dur: 4.9, color: "#C9A24E", size: 6,  rect: true  },
-  { left: "72%", delay: 2.4,  dur: 3.6, color: "#D4B97A", size: 9,  rect: false },
-  { left: "78%", delay: 1.1,  dur: 4.3, color: "#C9A24E", size: 7,  rect: true  },
-  { left: "84%", delay: 0.2,  dur: 3.9, color: "#1F4A40", size: 8,  rect: false },
-  { left: "90%", delay: 1.7,  dur: 4.6, color: "#D4B97A", size: 6,  rect: true  },
-  { left: "96%", delay: 0.7,  dur: 3.3, color: "#C9A24E", size: 10, rect: false },
-  { left: "7%",  delay: 2.8,  dur: 4.1, color: "#D4B97A", size: 7,  rect: true  },
-  { left: "43%", delay: 3.2,  dur: 3.7, color: "#1F4A40", size: 6,  rect: false },
-  { left: "70%", delay: 1.9,  dur: 4.4, color: "#C9A24E", size: 8,  rect: true  },
-];
 
 function BirthdayConfetti() {
   return (
