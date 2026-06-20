@@ -6,35 +6,16 @@ import {
 import { createClient as _createSupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./src/lib/supabase";
 import { COLORS, DEPT_COLORS, FONTS, SIDEBAR_BG } from "./src/constants/colors.js";
-import { INFINITY_PATH, ROTATING_WORDS, NAV_ITEMS, VAC_TOTAL, MOTIVATIONAL_MESSAGES, TIPOS_PERMISO, TIPOS_REPORTE, RECOGNITION_CATEGORIES, CONFETTI_PARTICLES } from "./src/constants/nav.js";
+import { INFINITY_PATH, ROTATING_WORDS, NAV_ITEMS, VAC_TOTAL, MOTIVATIONAL_MESSAGES, TIPOS_PERMISO, TIPOS_REPORTE, RECOGNITION_CATEGORIES, CONFETTI_PARTICLES, MONTH_NAMES, DAY_NAMES } from "./src/constants/nav.js";
 import { inputStyle, taStyle, btnCancelStyle, btnSubmitStyle, verTodosStyle } from "./src/styles/forms.js";
+import { translateError } from "./src/utils/errors.js";
+import { fmtFull, fmtSupaDate, fmtSupaShort, fmtDate, getFirstNames } from "./src/utils/format.js";
+import { calcWorkDays, getEffectiveDays, isBirthdayToday, getDailyMessage } from "./src/utils/dates.js";
+import { getDepartmentColor, getDepartmentTextColor } from "./src/utils/departments.js";
+import { buildAudienceFilter } from "./src/utils/audience.js";
+import { unlockAudio, playNotificationPing } from "./src/utils/audio.js";
+import { useIsMobile } from "./src/hooks/useIsMobile.js";
 
-function translateError(msg = "") {
-  const m = msg.toLowerCase();
-  if (m.includes("invalid login credentials") || m.includes("invalid credentials")) return "Correo o contraseña incorrectos.";
-  if (m.includes("email not confirmed")) return "El correo no ha sido confirmado. Revisa tu bandeja de entrada.";
-  if (m.includes("user already registered") || m.includes("already registered")) return "Este correo ya está registrado.";
-  if (m.includes("password should be at least")) return "La contraseña debe tener al menos 6 caracteres.";
-  if (m.includes("signups not allowed") || m.includes("signup is disabled")) return "El registro no está disponible en este momento.";
-  if (m.includes("too many requests") || m.includes("rate limit")) return "Demasiados intentos. Espera un momento e intenta de nuevo.";
-  if (m.includes("network") || m.includes("failed to fetch") || m.includes("fetch")) return "Error de conexión. Verifica tu internet.";
-  if (m.includes("jwt expired") || m.includes("session expired")) return "Tu sesión ha expirado. Vuelve a iniciar sesión.";
-  if (m.includes("row-level security") || m.includes("rls") || m.includes("policy")) return "No tienes permisos para realizar esta acción.";
-  if (m.includes("duplicate") || m.includes("unique")) return "Ya existe un registro con estos datos.";
-  if (m.includes("overlap") || m.includes("exclusion") || m.includes("conflicting")) return "Ya tienes una solicitud de vacaciones en ese rango de fechas.";
-  if (m.includes("not found") || m.includes("no rows")) return "No se encontró el registro solicitado.";
-  if (m.includes("storage") || m.includes("upload")) return "Error al subir el archivo. Intenta de nuevo.";
-  return msg || "Ocurrió un error inesperado. Intenta de nuevo.";
-}
-
-function getDepartmentColor(name) { return DEPT_COLORS[name] || "#C9A24E"; }
-function getDepartmentTextColor(name) {
-  const hex = getDepartmentColor(name).replace("#", "");
-  const r = parseInt(hex.slice(0,2),16)/255, g = parseInt(hex.slice(2,4),16)/255, b = parseInt(hex.slice(4,6),16)/255;
-  const lin = ch => ch <= 0.03928 ? ch/12.92 : ((ch+0.055)/1.055)**2.4;
-  const lum = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
-  return lum > 0.35 ? "#1F4A40" : "#FFFFFF";
-}
 function DeptTag({ dept }) {
   const bg = getDepartmentColor(dept), color = getDepartmentTextColor(dept);
   return (
@@ -45,15 +26,6 @@ function DeptTag({ dept }) {
 }
 
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
-  useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
-  return isMobile;
-}
 
 function PasswordInput({ value, onChange, placeholder, disabled, style, onFocus, onBlur, onKeyDown }) {
   const [show, setShow] = useState(false);
@@ -735,23 +707,6 @@ function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
 }
 
 
-function fmtFull(str, fallback = "—") {
-  if (!str) return fallback;
-  const d = new Date(str);
-  const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-  return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
-}
-function fmtSupaDate(str) {
-  if (!str) return "—";
-  const d = new Date(str + "T12:00:00");
-  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
-}
-function fmtSupaShort(str) {
-  if (!str) return "—";
-  const d = new Date(str + "T12:00:00");
-  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3).toLowerCase()}`;
-}
-
 function StatusBadge({ status }) {
   const styles = {
     pendiente:   { color: COLORS.gold,        background: "rgba(201,162,78,0.12)"  },
@@ -791,33 +746,6 @@ function SolicitudIcon({ kind, type, size = 18 }) {
 }
 
 /* ─────────────────────────── SOLICITUDES ─────────────────────────── */
-
-const MONTH_NAMES   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-const DAY_NAMES     = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
-
-function getDailyMessage() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now - start) / 86400000);
-  return MOTIVATIONAL_MESSAGES[dayOfYear % MOTIVATIONAL_MESSAGES.length];
-}
-
-/* ── Helpers ── */
-function calcWorkDays(start, end) {
-  if (!start || !end) return 0;
-  let n = 0; const d = new Date(start);
-  while (d <= end) { if (d.getDay() !== 0 && d.getDay() !== 6) n++; d.setDate(d.getDate()+1); }
-  return n;
-}
-function getEffectiveDays(r) {
-  if (r.days_requested) return r.days_requested;
-  if (!r.start_date) return 0;
-  return calcWorkDays(
-    new Date(r.start_date + 'T12:00:00'),
-    new Date((r.end_date || r.start_date) + 'T12:00:00')
-  );
-}
-function fmtDate(d) { return d ? `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}` : "—"; }
 
 /* ── Calendar widget (shared) ── */
 function CalendarWidget({ startDate, endDate, onChange, minDate }) {
@@ -2551,11 +2479,6 @@ function fmtAmt(amount, currency) {
 function toUSD(amount, currency, rate) {
   if (currency === "USD") return Number(amount);
   return rate ? Number(amount) / rate : 0;
-}
-function getFirstNames(name) {
-  if (!name) return "";
-  const parts = name.trim().split(/\s+/);
-  return parts.slice(0, 2).join(" ");
 }
 function toCRC(amount, currency, rate) {
   if (currency === "CRC") return Number(amount);
@@ -4822,13 +4745,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
   );
 }
 
-function isBirthdayToday(birthDate) {
-  if (!birthDate) return false;
-  const today = new Date();
-  const bd = new Date(birthDate + "T12:00:00");
-  return bd.getMonth() === today.getMonth() && bd.getDate() === today.getDate();
-}
-
 function BirthdayConfetti() {
   return (
     <div style={{ position: "fixed", top:0, right:0, bottom:0, left:0, pointerEvents: "none", zIndex: 9, overflow: "hidden" }}>
@@ -5548,42 +5464,6 @@ function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, onDelete
   );
 }
 
-function buildAudienceFilter(column, userDepartments) {
-  const depts = userDepartments || [];
-  const escaped = depts.map(d => `"${d}"`).join(",");
-  if (escaped) return `${column}.cs.{todos},${column}.ov.{${escaped}}`;
-  return `${column}.cs.{todos}`;
-}
-
-// Module-level AudioContext singleton — unlocked on first user click
-let _audioCtx = null;
-function _getAudioCtx() {
-  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return _audioCtx;
-}
-function _unlockAudio() {
-  try { const ctx = _getAudioCtx(); if (ctx.state === "suspended") ctx.resume(); } catch (_) {}
-}
-function playNotificationPing() {
-  try {
-    const ctx = _getAudioCtx();
-    const go = () => {
-      [[660, 0], [880, 0.18]].forEach(([freq, delay]) => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.type = "sine"; osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.16);
-        osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + 0.17);
-      });
-    };
-    ctx.state === "suspended" ? ctx.resume().then(go).catch(() => {}) : go();
-  } catch (_) {}
-}
-
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
   const [profile, setProfile] = useState(null);
@@ -5753,8 +5633,8 @@ export default function App() {
 
   // Unlock AudioContext on first user interaction so it's ready when Realtime fires
   useEffect(() => {
-    document.addEventListener("click", _unlockAudio, { once: true });
-    return () => document.removeEventListener("click", _unlockAudio);
+    document.addEventListener("click", unlockAudio, { once: true });
+    return () => document.removeEventListener("click", unlockAudio);
   }, []);
 
   // ── Realtime subscriptions ──

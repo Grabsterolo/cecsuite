@@ -52,6 +52,9 @@ export const RECOGNITION_CATEGORIES = [
   "Trabajo en equipo", "Excelencia en atención", "Iniciativa", "Compañerismo", "Profesionalismo",
 ];
 
+export const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+export const DAY_NAMES   = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
+
 export const CONFETTI_PARTICLES = [
   { left: "4%",  delay: 0,    dur: 3.8, color: "#C9A24E", size: 8,  rect: true  },
   { left: "10%", delay: 0.6,  dur: 4.5, color: "#1F4A40", size: 6,  rect: false },
