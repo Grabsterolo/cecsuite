@@ -12,7 +12,7 @@ export function VacationSection({ profile, vacationRequests, onNewRequest }) {
   const vacationBalance = profile?.vacation_balance ?? VAC_TOTAL;
   const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + getEffectiveDays(r), 0);
   const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + getEffectiveDays(r), 0);
-  const availableDays = Math.max(0, vacationBalance - approvedDays);
+  const availableDays = Math.max(0, vacationBalance);
   const [showModal, setShowModal] = useState(false);
 
   const statBox = (label, value, color) => (

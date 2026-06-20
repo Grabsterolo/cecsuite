@@ -85,7 +85,7 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
   const vacationBalance = profile?.vacation_balance ?? VAC_TOTAL;
   const approvedDays  = vacationRequests.filter(r => r.status === "aprobado").reduce((a, r) => a + getEffectiveDays(r), 0);
   const pendingDays   = vacationRequests.filter(r => r.status === "pendiente").reduce((a, r) => a + getEffectiveDays(r), 0);
-  const availableDays = Math.max(0, vacationBalance - approvedDays);
+  const availableDays = Math.max(0, vacationBalance);
   const vacData = { approvedDays, pendingDays, availableDays, vacationBalance };
 
   function getInitials(name) {

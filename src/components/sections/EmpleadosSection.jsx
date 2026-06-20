@@ -611,11 +611,12 @@ export function EmpleadosSection({ adminProfiles = [], adminRequests = [], depar
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           {filtered.map(emp => {
-            const total    = emp.vacation_balance ?? VAC_TOTAL;
+            const balance      = emp.vacation_balance ?? 0;
             const { approved, pending } = getVacStats(emp.id);
-            const available = Math.max(0, total - approved);
-            const usedPct   = Math.min(100, Math.round((approved / total) * 100));
-            const pendPct   = Math.min(100 - usedPct, Math.round((pending / total) * 100));
+            const available    = balance;
+            const entitlement  = balance + approved;
+            const usedPct   = entitlement > 0 ? Math.min(100, Math.round((approved / entitlement) * 100)) : 0;
+            const pendPct   = entitlement > 0 ? Math.min(100 - usedPct, Math.round((pending / entitlement) * 100)) : 0;
             const showRole  = emp.role === "admin";
             return (
               <Card key={emp.id}>
@@ -662,7 +663,7 @@ export function EmpleadosSection({ adminProfiles = [], adminRequests = [], depar
                           <span style={{ color:COLORS.green, fontWeight:700 }}>{available}</span> disponibles ·{" "}
                           <span style={{ color:COLORS.gold, fontWeight:700 }}>{approved}</span> tomados{" "}
                           {pending > 0 && <><span style={{ color:COLORS.goldSoft, fontWeight:700 }}>· {pending}</span> en solicitud</>}
-                          {" "}/ {total}
+                          {" "}/ {entitlement}
                         </span>
                       </div>
                       <div style={{ height:6, borderRadius:4, background:COLORS.panelAlt, overflow:"hidden", display:"flex" }}>
