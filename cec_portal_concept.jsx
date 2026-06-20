@@ -15,75 +15,17 @@ import { getDepartmentColor, getDepartmentTextColor } from "./src/utils/departme
 import { buildAudienceFilter } from "./src/utils/audience.js";
 import { unlockAudio, playNotificationPing } from "./src/utils/audio.js";
 import { useIsMobile } from "./src/hooks/useIsMobile.js";
-
-function DeptTag({ dept }) {
-  const bg = getDepartmentColor(dept), color = getDepartmentTextColor(dept);
-  return (
-    <span style={{ background:bg, color, borderRadius:4, fontSize:10, fontWeight:700,
-      letterSpacing:"0.04em", textTransform:"uppercase", padding:"2px 7px",
-      display:"inline-block", whiteSpace:"nowrap", width:"fit-content", alignSelf:"flex-start" }}>{dept}</span>
-  );
-}
-
-
-
-function PasswordInput({ value, onChange, placeholder, disabled, style, onFocus, onBlur, onKeyDown }) {
-  const [show, setShow] = useState(false);
-  const {
-    margin, marginTop, marginBottom, marginLeft, marginRight,
-    animation, transition: _transition, ...inputStyle
-  } = style || {};
-  const wrapperExtra = { margin, marginTop, marginBottom, marginLeft, marginRight, animation };
-  return (
-    <div style={{ position:"relative", display:"flex", alignItems:"stretch", ...wrapperExtra }}>
-      <input
-        type={show ? "text" : "password"}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onKeyDown={onKeyDown}
-        style={{ ...inputStyle, paddingRight:38, width:"100%", boxSizing:"border-box" }}
-      />
-      <button
-        type="button"
-        tabIndex={-1}
-        onMouseDown={e => e.preventDefault()}
-        onClick={() => setShow(s => !s)}
-        style={{
-          position:"absolute", right:10, top:0, bottom:0,
-          margin:"auto", height:"fit-content",
-          background:"none", border:"none", cursor:"pointer", padding:0,
-          color:COLORS.textMuted, display:"flex", alignItems:"center", lineHeight:1,
-        }}
-      >
-        {show ? <EyeOff size={16}/> : <Eye size={16}/>}
-      </button>
-    </div>
-  );
-}
-
-function Logo({ width = 200 }) {
-  const [imgError, setImgError] = useState(false);
-  if (!imgError) {
-    return (
-      <img
-        src="/logo-blanco.png"
-        alt="Centro Europeo de Cirugía"
-        style={{ width, height: "auto", display: "block", margin: "0 auto" }}
-        onError={() => setImgError(true)}
-      />
-    );
-  }
-  return (
-    <div style={{ textAlign: "center", lineHeight: 1.2 }}>
-      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 18, color: "#FFFFFF", letterSpacing: "0.08em" }}>Centro Europeo</div>
-      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 22, color: COLORS.goldSoft, letterSpacing: "0.16em" }}>DE CIRUGÍA</div>
-    </div>
-  );
-}
+import { Card, CardHeader } from "./src/components/ui/Card.jsx";
+import { StatusBadge, Tag, SolicitudIcon } from "./src/components/ui/StatusBadge.jsx";
+import { ModalShell } from "./src/components/ui/ModalShell.jsx";
+import { ToastNotification } from "./src/components/ui/ToastNotification.jsx";
+import { Logo } from "./src/components/ui/Logo.jsx";
+import { DeptTag } from "./src/components/ui/DeptTag.jsx";
+import { PasswordInput } from "./src/components/ui/PasswordInput.jsx";
+import { VacationDonut } from "./src/components/ui/VacationDonut.jsx";
+import { BirthdayConfetti } from "./src/components/ui/BirthdayConfetti.jsx";
+import { DocDownloadBtn } from "./src/components/ui/DocDownloadBtn.jsx";
+import { CalendarWidget } from "./src/components/ui/CalendarWidget.jsx";
 
 /* ─────────────────────────── LOGIN ─────────────────────────── */
 
@@ -641,213 +583,8 @@ function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 
   );
 }
 
-function Card({ children, style }) {
-  return (
-    <div style={{
-      background: COLORS.panel,
-      border: `1px solid ${COLORS.border}`,
-      borderRadius: 14,
-      padding: 24,
-      boxShadow: "0 1px 6px rgba(31,74,64,0.06)",
-      ...style,
-    }}>
-      {children}
-    </div>
-  );
-}
-
-function CardHeader({ title, action }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-      <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, fontWeight: 600, color: COLORS.green, margin: 0 }}>
-        {title}
-      </h3>
-      {action}
-    </div>
-  );
-}
-
-function VacationDonut({ used = 0, requested = 0, total = VAC_TOTAL }) {
-  const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const [pct, setPct] = useState(noAnim ? 1 : 0);
-
-  useEffect(() => {
-    if (noAnim) return;
-    const duration = 900;
-    const start = performance.now();
-    function tick(now) {
-      const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-      setPct(eased);
-      if (t < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }, [noAnim]);
-
-  const safeUsed = Math.min(used, total);
-  const safeReq  = Math.min(requested, total - safeUsed);
-  const available = total - safeUsed;
-  const usedDeg = (safeUsed / total) * 360 * pct;
-  const reqDeg  = (safeReq  / total) * 360 * pct;
-
-  const gradient = `conic-gradient(
-    ${COLORS.gold}     0deg ${usedDeg}deg,
-    ${COLORS.goldSoft} ${usedDeg}deg ${usedDeg + reqDeg}deg,
-    ${COLORS.panelAlt} ${usedDeg + reqDeg}deg 360deg
-  )`;
-
-  return (
-    <div style={{ width:160, height:160, borderRadius:"50%", background:gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-      <div style={{ width:116, height:116, borderRadius:"50%", background:COLORS.panel, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}>
-        <span style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:44, fontWeight:700, color:COLORS.green, lineHeight:1 }}>{available}</span>
-        <span style={{ fontSize:10, color:COLORS.textMuted, letterSpacing:"0.04em" }}>disponibles</span>
-      </div>
-    </div>
-  );
-}
-
-
-function StatusBadge({ status }) {
-  const styles = {
-    pendiente:   { color: COLORS.gold,        background: "rgba(201,162,78,0.12)"  },
-    aprobado:    { color: "#2C6356",           background: "rgba(44,99,86,0.1)"     },
-    rechazado:   { color: "#c0392b",           background: "rgba(192,57,43,0.1)"    },
-    atendido:    { color: "#2C6356",           background: "rgba(44,99,86,0.1)"     },
-    descartado:  { color: COLORS.textMuted,    background: COLORS.panelAlt          },
-  };
-  const labels = { pendiente:"Pendiente", aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" };
-  const s = styles[status] ?? { color: COLORS.textMuted, background: COLORS.panelAlt };
-  const label = labels[status] ?? (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
-  return (
-    <span style={{ fontSize:11, fontWeight:700, borderRadius:5, padding:"3px 9px", letterSpacing:"0.04em", whiteSpace:"nowrap", fontFamily:"'Manrope', sans-serif", ...s }}>
-      {label}
-    </span>
-  );
-}
-
-function Tag({ label }) {
-  return (
-    <span style={{
-      fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
-      textTransform: "uppercase", color: COLORS.gold,
-      background: "rgba(201,162,78,0.1)", borderRadius: 4, padding: "2px 7px",
-      fontFamily: "'Manrope', sans-serif",
-      display: "inline-block", width: "fit-content", alignSelf: "flex-start",
-    }}>
-      {label}
-    </span>
-  );
-}
-
-function SolicitudIcon({ kind, type, size = 18 }) {
-  if (kind === "report") return <AlertTriangle size={size} color={COLORS.gold} />;
-  if (type === "vacaciones") return <CalendarDays size={size} color={COLORS.gold} />;
-  return <ClipboardList size={size} color={COLORS.gold} />;
-}
 
 /* ─────────────────────────── SOLICITUDES ─────────────────────────── */
-
-/* ── Calendar widget (shared) ── */
-function CalendarWidget({ startDate, endDate, onChange, minDate }) {
-  const now = new Date();
-  const [yr, setYr] = useState(startDate ? startDate.getFullYear() : now.getFullYear());
-  const [mo, setMo] = useState(startDate ? startDate.getMonth() : now.getMonth());
-
-  // Build a fixed 42-cell grid (6 rows × 7 cols)
-  const firstWeekday = new Date(yr, mo, 1).getDay();
-  const daysInMonth  = new Date(yr, mo + 1, 0).getDate();
-  const prevMo = mo === 0 ? 11 : mo - 1;
-  const prevYr = mo === 0 ? yr - 1 : yr;
-  const daysInPrev = new Date(prevYr, prevMo + 1, 0).getDate();
-  const nextMo = mo === 11 ? 0 : mo + 1;
-  const nextYr = mo === 11 ? yr + 1 : yr;
-
-  const cells = [];
-  // trailing days from previous month
-  for (let i = firstWeekday - 1; i >= 0; i--) {
-    cells.push({ d: daysInPrev - i, m: prevMo, y: prevYr, overflow: true });
-  }
-  // current month
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ d, m: mo, y: yr, overflow: false });
-  }
-  // leading days from next month
-  while (cells.length < 42) {
-    cells.push({ d: cells.length - firstWeekday - daysInMonth + 1, m: nextMo, y: nextYr, overflow: true });
-  }
-
-  function click(cell) {
-    const d = new Date(cell.y, cell.m, cell.d);
-    if (minDate && d < minDate) return;
-    // navigate to that month if overflow cell
-    if (cell.overflow) { setYr(cell.y); setMo(cell.m); }
-    if (!startDate || endDate)                     { onChange(d, null); }
-    else if (d.getTime() === startDate.getTime())  { onChange(null, null); }
-    else if (d < startDate)                        { onChange(d, null); }
-    else                                           { onChange(startDate, d); }
-  }
-
-  function cellState(cell) {
-    const t = new Date(cell.y, cell.m, cell.d).getTime();
-    if (startDate && t === startDate.getTime()) return "s";
-    if (endDate   && t === endDate.getTime())   return "e";
-    if (startDate && endDate && t > startDate.getTime() && t < endDate.getTime()) return "r";
-    return "";
-  }
-
-  const navBtn = { border:"none", background:"rgba(31,74,64,0.07)", cursor:"pointer", color:COLORS.green, display:"flex", padding:"6px 8px", borderRadius:8 };
-
-  return (
-    <>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-        <button style={navBtn} onClick={() => mo===0?(setMo(11),setYr(y=>y-1)):setMo(m=>m-1)}><ChevronLeft size={16}/></button>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <button onClick={() => setYr(y=>y-1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, padding:"0 2px" }}>‹</button>
-          <span style={{ fontWeight:700, color:COLORS.green, fontSize:15, minWidth:154, textAlign:"center" }}>{MONTH_NAMES[mo]} {yr}</span>
-          <button onClick={() => setYr(y=>y+1)} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, fontSize:16, padding:"0 2px" }}>›</button>
-        </div>
-        <button style={navBtn} onClick={() => mo===11?(setMo(0),setYr(y=>y+1)):setMo(m=>m+1)}><ChevronRight size={16}/></button>
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:4 }}>
-        {DAY_NAMES.map(d => <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:COLORS.textMuted, padding:"3px 0" }}>{d}</div>)}
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
-        {cells.map((cell, i) => {
-          const s = cellState(cell);
-          const ep = s==="s" || s==="e";
-          const date = new Date(cell.y, cell.m, cell.d);
-          const isPast = minDate && date < minDate;
-          return (
-            <button key={i} onClick={() => click(cell)} disabled={isPast} style={{
-              height:36, border:"none", borderRadius:6, fontSize:13,
-              cursor: isPast ? "default" : "pointer",
-              background: isPast ? "transparent" : ep ? COLORS.gold : s==="r" ? "rgba(201,162,78,0.18)" : "transparent",
-              color: isPast ? "#b0bbb8" : cell.overflow ? COLORS.textMuted : ep ? "#FFF" : COLORS.text,
-              fontWeight: ep ? 700 : 400,
-              opacity: cell.overflow ? 0.45 : 1,
-              transition:"background 0.1s",
-            }}>{cell.d}</button>
-          );
-        })}
-      </div>
-    </>
-  );
-}
-
-/* ── Modal shell ── */
-function ModalShell({ onClose, title, children }) {
-  return (
-    <div style={{ position:"fixed", top:0, right:0, bottom:0, left:0, zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#FFF", borderRadius:16, padding:"28px 24px", width:"100%", maxWidth:420, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,0.25)", fontFamily:"'Manrope', sans-serif" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-          <h2 style={{ fontFamily:"'Cormorant Garamond', serif", fontSize:24, fontWeight:600, color:COLORS.green, margin:0 }}>{title}</h2>
-          <button onClick={onClose} style={{ border:"none", background:"transparent", cursor:"pointer", color:COLORS.textMuted, display:"flex", padding:4 }}><X size={20}/></button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 /* ── Formulario vacaciones ── */
 function VacationForm({ onClose, onSubmit, editData, onNewRequest, availableDays, existingRequests = [] }) {
@@ -1316,29 +1053,6 @@ function SolicitudItem({ s, style, hideStatus = false }) {
       {s.photo_url && <ReportPhoto path={s.photo_url} size={44} radius={6} />}
       {!hideStatus && <div style={{ flexShrink:0, marginTop:1 }}><StatusBadge status={s.status} /></div>}
     </div>
-  );
-}
-
-/* ── Signed-URL download button for private documents bucket ── */
-function DocDownloadBtn({ fileUrl, label, iconOnly = false }) {
-  const [loading, setLoading] = useState(false);
-  async function open() {
-    if (!fileUrl) return;
-    setLoading(true);
-    const { data, error } = await supabase.storage.from("documents").createSignedUrl(fileUrl, 3600);
-    setLoading(false);
-    if (error || !data?.signedUrl) { alert("No se pudo abrir el documento. Intenta de nuevo."); return; }
-    window.open(data.signedUrl, "_blank", "noreferrer");
-  }
-  if (iconOnly) return (
-    <button onClick={open} disabled={loading} title={loading ? "Abriendo..." : "Descargar"} style={{ background:"none", border:"none", cursor:loading?"wait":"pointer", padding:0, lineHeight:0 }}>
-      <Download size={14} color={loading ? COLORS.textMuted : COLORS.gold} />
-    </button>
-  );
-  return (
-    <button onClick={open} disabled={loading} style={{ display:"flex", alignItems:"center", gap:5, color:loading?COLORS.textMuted:COLORS.gold, fontSize:12, fontWeight:600, background:"none", border:"none", cursor:loading?"wait":"pointer", fontFamily:"'Manrope', sans-serif", padding:0, flexShrink:0, marginLeft:12 }}>
-      <Download size={14} />{loading ? "Abriendo..." : (label ?? "Descargar")}
-    </button>
   );
 }
 
@@ -2074,26 +1788,6 @@ function AnnouncementsSection({ announcements, profile, onDeleteAnnouncement }) 
           </Card>
         );
       })}
-    </div>
-  );
-}
-
-/* ── Toast de notificación (reconocimientos y futuras alertas) ── */
-function ToastNotification({ toast }) {
-  if (!toast) return null;
-  const { message, Icon = Award } = toast;
-  return (
-    <div style={{
-      position:"fixed", top:24, right:24, zIndex:9999,
-      background:"#FAFAF8", border:`1.5px solid ${COLORS.gold}`,
-      borderRadius:12, padding:"12px 18px",
-      boxShadow:"0 4px 24px rgba(201,162,78,0.22)",
-      display:"flex", alignItems:"center", gap:10, maxWidth:340,
-      fontFamily:"'Manrope', sans-serif",
-      animation:"sectionIn 0.2s ease-out both",
-    }}>
-      <Icon size={18} color={COLORS.gold} style={{ flexShrink:0 }} />
-      <span style={{ fontSize:13, color:COLORS.text, fontWeight:600, lineHeight:1.4 }}>{message}</span>
     </div>
   );
 }
@@ -4741,22 +4435,6 @@ function AprobacionesSection({ adminRequests = [], adminReports = [], onUpdateAd
           {filtered.map(renderItem)}
         </div>
       )}
-    </div>
-  );
-}
-
-function BirthdayConfetti() {
-  return (
-    <div style={{ position: "fixed", top:0, right:0, bottom:0, left:0, pointerEvents: "none", zIndex: 9, overflow: "hidden" }}>
-      {CONFETTI_PARTICLES.map((p, i) => (
-        <div key={i} style={{
-          position: "absolute", top: 0, left: p.left,
-          width: p.size, height: p.rect ? Math.round(p.size * 1.5) : p.size,
-          borderRadius: p.rect ? 2 : "50%",
-          background: p.color,
-          animation: `confettiFall ${p.dur}s ease-in ${p.delay}s infinite`,
-        }} />
-      ))}
     </div>
   );
 }
