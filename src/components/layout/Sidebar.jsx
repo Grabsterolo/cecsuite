@@ -157,7 +157,7 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
             <LogOut size={19} />Cerrar sesión
           </button>
           <div style={{ textAlign: "center", paddingBottom: 6, paddingTop: 2 }}>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Manrope', sans-serif", letterSpacing: "0.04em" }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Manrope', sans-serif", letterSpacing: "0.04em" }}>
               Powered by Aurevo
             </span>
           </div>
@@ -396,7 +396,7 @@ export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalC
           Cerrar sesión
         </button>
         <div style={{ textAlign: "center", paddingBottom: 8, paddingTop: 2 }}>
-          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Manrope', sans-serif", letterSpacing: "0.04em" }}>
+          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Manrope', sans-serif", letterSpacing: "0.04em" }}>
             Powered by Aurevo
           </span>
         </div>
