@@ -38,7 +38,7 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
           action={<button style={verTodosStyle} onClick={() => setActive("vacaciones")}>Ver detalle <ChevronRight size={14}/></button>}
         />
         <div style={{ display:"flex", alignItems:"center", gap:18 }}>
-          <VacationDonut used={approvedDays} requested={pendingDays} total={vacationBalance} />
+          <VacationDonut used={approvedDays} requested={pendingDays} total={vacationBalance + approvedDays} />
           <div style={{ flex:1, fontSize:15 }}>
             <p style={{ margin:"0 0 7px", color:COLORS.textMuted }}>
               <span style={{ color:COLORS.green, fontWeight:700 }}>{availableDays}</span> días disponibles
