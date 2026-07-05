@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { translateError } from "../../utils/errors.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
+import { DeptTag } from "../ui/DeptTag.jsx";
 
 function PollResultBars({ poll, pollResults = {}, myVoteIndex }) {
   const results = pollResults[poll.id] || {};
@@ -34,10 +35,12 @@ function PollResultBars({ poll, pollResults = {}, myVoteIndex }) {
   );
 }
 
-export function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, userId, profile, onPollCreated, onVoted, onPollClosed, onPollDeleted }) {
+export function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, userId, profile, departmentsList = [], onPollCreated, onVoted, onPollClosed, onPollDeleted }) {
   const isAdmin = profile?.role === "admin";
   const [question,     setQuestion]     = useState("");
   const [options,      setOptions]      = useState(["", ""]);
+  const [audienceTodos, setAudienceTodos] = useState(true);
+  const [audienceDepts, setAudienceDepts] = useState([]);
   const [creating,     setCreating]     = useState(false);
   const [createError,  setCreateError]  = useState(null);
   const [pendingVote,  setPendingVote]  = useState({});
@@ -52,13 +55,14 @@ export function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, u
     const opts = options.map(o => o.trim()).filter(Boolean);
     if (!q) { setCreateError("Escribe una pregunta."); return; }
     if (opts.length < 2) { setCreateError("Agrega al menos 2 opciones."); return; }
+    if (!audienceTodos && audienceDepts.length === 0) { setCreateError("Selecciona al menos una audiencia."); return; }
     setCreating(true); setCreateError(null);
     const { data, error } = await supabase.from("polls")
-      .insert({ question: q, options: opts, created_by: userId, status: "activa" })
+      .insert({ question: q, options: opts, created_by: userId, status: "activa", audience_list: audienceTodos ? ["todos"] : audienceDepts })
       .select("*").single();
     setCreating(false);
     if (error) { setCreateError(translateError(error.message)); return; }
-    setQuestion(""); setOptions(["", ""]);
+    setQuestion(""); setOptions(["", ""]); setAudienceTodos(true); setAudienceDepts([]);
     onPollCreated?.(data);
   }
 
@@ -125,6 +129,34 @@ export function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, u
                 </button>
               )}
             </div>
+            <div>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, marginBottom:6 }}>Audiencia</label>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {(() => {
+                  const chipBase = (sel) => ({
+                    display:"inline-flex", alignItems:"center", padding:"5px 12px", borderRadius:20,
+                    cursor:"pointer", fontSize:12, fontWeight:sel?600:400,
+                    border:`1.5px solid ${sel?COLORS.gold:COLORS.border}`,
+                    background:sel?"rgba(201,162,78,0.12)":COLORS.panel,
+                    color:sel?COLORS.green:COLORS.textMuted,
+                    transition:"all 0.15s", fontFamily:"'Manrope', sans-serif",
+                  });
+                  return (<>
+                    <button type="button" onClick={() => { setAudienceTodos(true); setAudienceDepts([]); }} style={chipBase(audienceTodos)}>
+                      Todos los departamentos
+                    </button>
+                    {departmentsList.map(dept => {
+                      const sel = audienceDepts.includes(dept.name);
+                      return (
+                        <button type="button" key={dept.id} onClick={() => { setAudienceTodos(false); setAudienceDepts(prev => sel ? prev.filter(d => d !== dept.name) : [...prev, dept.name]); }} style={chipBase(sel)}>
+                          {dept.name}
+                        </button>
+                      );
+                    })}
+                  </>);
+                })()}
+              </div>
+            </div>
             {createError && <p style={{ fontSize:12, color:"#c0392b", margin:0 }}>{createError}</p>}
             <button onClick={handleCreate} disabled={creating} style={{
               padding:"10px 0", borderRadius:9, border:"none",
@@ -161,6 +193,15 @@ export function EncuestasSection({ polls = [], myVotes = {}, pollResults = {}, u
                         <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", color:"#FFF", background:COLORS.textMuted, borderRadius:6, padding:"2px 8px", flexShrink:0 }}>Cerrada</span>
                       )}
                     </div>
+                    {isAdmin && (
+                      <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginTop:5 }}>
+                        <span style={{ fontSize:11, color:COLORS.textMuted }}>Audiencia:</span>
+                        {!Array.isArray(poll.audience_list) || poll.audience_list.includes("todos")
+                          ? <span style={{ fontSize:11, fontWeight:700, color:COLORS.textMuted }}>Todos los departamentos</span>
+                          : poll.audience_list.map((d, di) => <DeptTag key={di} dept={d} />)
+                        }
+                      </div>
+                    )}
                   </div>
                   {isAdmin && (
                     <div style={{ display:"flex", gap:6, flexShrink:0, alignItems:"center" }}>

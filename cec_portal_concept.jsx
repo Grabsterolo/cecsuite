@@ -127,7 +127,10 @@ export default function App() {
       .then(({ data }) => { if (data) setRecognitions(data); });
     supabase.rpc("get_team_directory")
       .then(({ data }) => { if (data) setTeamDirectory(data); });
-    supabase.from("polls").select("*").order("created_at", { ascending: false })
+    (profile.role === "admin"
+      ? supabase.from("polls").select("*").order("created_at", { ascending: false })
+      : supabase.from("polls").select("*").or(buildAudienceFilter("audience_list", profile.departments)).order("created_at", { ascending: false })
+    )
       .then(({ data }) => {
         if (!data) return;
         setPolls(data);
@@ -341,6 +344,7 @@ export default function App() {
 
     // ── polls ──
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "polls" }, ({ new: row }) => {
+      if (!isAdmin && !audienceMatch(row.audience_list)) return;
       setPolls(prev => prev.some(p => p.id === row.id) ? prev : [row, ...prev]);
       playNotificationPing();
       showToast({ message: `Nueva encuesta: ${row.question}`, Icon: BarChart3 });

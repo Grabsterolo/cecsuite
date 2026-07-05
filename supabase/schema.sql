@@ -129,12 +129,13 @@ CREATE TABLE IF NOT EXISTS public.recognitions (
 );
 
 CREATE TABLE IF NOT EXISTS public.polls (
-  id         uuid        DEFAULT gen_random_uuid() NOT NULL,
-  question   text        NOT NULL,
-  options    text[]      NOT NULL,
-  status     text        DEFAULT 'activa'::text,
-  created_by uuid,
-  created_at timestamptz DEFAULT now(),
+  id            uuid        DEFAULT gen_random_uuid() NOT NULL,
+  question      text        NOT NULL,
+  options       text[]      NOT NULL,
+  status        text        DEFAULT 'activa'::text,
+  created_by    uuid,
+  created_at    timestamptz DEFAULT now(),
+  audience_list text[]      DEFAULT ARRAY['todos'::text],
   CONSTRAINT polls_pkey PRIMARY KEY (id)
 );
 
@@ -420,9 +421,13 @@ CREATE POLICY "Admin elimina reconocimientos"
   USING (is_admin());
 
 -- polls
-CREATE POLICY "Ver encuestas"
+CREATE POLICY "Ver encuestas segun audiencia o admin"
   ON public.polls FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING (
+    is_admin() OR
+    'todos' = ANY (audience_list) OR
+    audience_list && get_my_departments()
+  );
 
 CREATE POLICY "Admin gestiona encuestas"
   ON public.polls FOR ALL
