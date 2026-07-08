@@ -12,14 +12,23 @@ import { DocDownloadBtn } from "../ui/DocDownloadBtn.jsx";
 import { SolicitudItem } from "../ui/SolicitudItem.jsx";
 import { CrearSolicitudModal } from "../forms/SolicitudForms.jsx";
 import { AnnouncementDetailModal } from "./AnnouncementsSection.jsx";
+import { PriorityTag } from "./TasksSection.jsx";
 
-export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [], recognitions = [], polls = [], myVotes = {}, pollResults = {}, userId, onVoted, myConfirmations = {} }) {
+export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [], recognitions = [], polls = [], myVotes = {}, pollResults = {}, userId, onVoted, myConfirmations = {}, myTasks = [], myTaskCompletions = {}, onTaskCompleted }) {
   const [modal, setModal] = useState(null);
   const [announcementModal, setAnnouncementModal] = useState(null);
   const [pollPending, setPollPending] = useState(null); // selected option_index for active poll widget
   const [pollVoting, setPollVoting] = useState(false);
+  const [completingId, setCompletingId] = useState(null);
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
   const activePoll = polls.find(p => p.status === "activa" && myVotes[p.id] === undefined);
+
+  async function handleCompleteFromHome(taskId) {
+    setCompletingId(taskId);
+    const { data, error } = await supabase.from("task_completions").insert({ task_id: taskId, user_id: userId }).select().single();
+    setCompletingId(null);
+    if (!error) onTaskCompleted?.(taskId, data.completed_at);
+  }
 
   return (
     <>
@@ -154,6 +163,50 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
             ))}
           </div>
         )}
+      </Card>
+
+      {/* Mis tareas */}
+      <Card>
+        <CardHeader title="Mis tareas"
+          action={<button style={verTodosStyle} onClick={() => setActive("tareas")}>Ver todas <ChevronRight size={14}/></button>}
+        />
+        {(() => {
+          const pending = myTasks
+            .filter(t => t.status !== "cancelada" && !myTaskCompletions[t.id])
+            .sort((a, b) => {
+              if (!a.due_date && !b.due_date) return 0;
+              if (!a.due_date) return 1;
+              if (!b.due_date) return -1;
+              return new Date(a.due_date) - new Date(b.due_date);
+            });
+          if (pending.length === 0) return <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No tienes pendientes por ahora.</p>;
+          return (
+            <div style={{ display:"flex", flexDirection:"column" }}>
+              {pending.slice(0, 4).map(task => {
+                const isActing = completingId === task.id;
+                return (
+                  <div key={task.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <span style={{ fontSize:13, color:COLORS.text, fontWeight:500, wordBreak:"break-word" }}>{task.title}</span>
+                        <PriorityTag priority={task.priority} />
+                      </div>
+                      {task.due_date && <span style={{ fontSize:11, color:COLORS.textMuted }}>Vence: {fmtSupaDate(task.due_date)}</span>}
+                    </div>
+                    <button onClick={() => handleCompleteFromHome(task.id)} disabled={isActing} style={{
+                      fontSize:11, fontWeight:700, color:"#FFF", whiteSpace:"nowrap", flexShrink:0,
+                      background: isActing ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                      border:"none", borderRadius:7, padding:"6px 12px", cursor:isActing?"not-allowed":"pointer",
+                      fontFamily:"'Manrope', sans-serif",
+                    }}>
+                      {isActing ? "..." : "Completar"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Encuesta activa */}
