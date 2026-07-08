@@ -74,7 +74,7 @@ export function TasksSection({ myTasks = [], myTaskCompletions = {}, profile, us
       assigned_departments: [],
       priority,
       due_date: dueDate || null,
-    }).select("*, creator:profiles!created_by(full_name)").single();
+    }).select("*, creator:profiles!created_by(full_name), assignee:profiles!assigned_to(full_name)").single();
     setCreating(false);
     if (error) { setCreateError(translateError(error.message)); return; }
     setTitle(""); setDescription(""); setPriority("media"); setDueDate("");

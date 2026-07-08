@@ -214,7 +214,7 @@ export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [],
                             : (task.assigned_departments || []).map((d, di) => <DeptTag key={di} dept={d} />)
                         }
                         {task.due_date && <span style={{ fontSize:11, color:COLORS.textMuted }}>· Vence: {fmtSupaDate(task.due_date)}</span>}
-                        <span style={{ fontSize:11, color:COLORS.textMuted }}>· {fmtSupaDate(task.created_at?.slice(0,10))}</span>
+                        <span style={{ fontSize:11, color:COLORS.textMuted }}>· Creada: {fmtSupaDate(task.created_at?.slice(0,10))}</span>
                       </div>
                       {isIndividual && (
                         <div style={{ marginTop:6, fontSize:12 }}>

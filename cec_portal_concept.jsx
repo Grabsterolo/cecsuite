@@ -300,13 +300,13 @@ export default function App() {
         .then(({ data }) => {
           if (!data) return;
           if (mineMatch) {
-            setMyTasks(prev => prev.some(t => t.id === data.id) ? prev : [data, ...prev]);
+            setMyTasks(prev => prev.some(t => t.id === data.id) ? prev.map(t => t.id === data.id ? data : t) : [data, ...prev]);
             if (row.created_by !== userId) {
               playNotificationPing();
               showToast({ message: `Nueva tarea asignada: ${row.title}`, Icon: ClipboardList });
             }
           }
-          if (isAdmin) setAdminTasks(prev => prev.some(t => t.id === data.id) ? prev : [data, ...prev]);
+          if (isAdmin) setAdminTasks(prev => prev.some(t => t.id === data.id) ? prev.map(t => t.id === data.id ? data : t) : [data, ...prev]);
         });
     });
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "tasks" }, ({ new: row }) => {
