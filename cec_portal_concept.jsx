@@ -68,12 +68,16 @@ export default function App() {
   const [allSales,           setAllSales]            = useState([]);
   const [myConfirmations,    setMyConfirmations]     = useState({}); // { [document_id]: confirmed_at }
   const [allConfirmations,   setAllConfirmations]    = useState([]); // admin only
+  const [myTasks,            setMyTasks]             = useState([]);
+  const [myTaskCompletions,  setMyTaskCompletions]   = useState({}); // { [task_id]: completed_at }
+  const [adminTasks,         setAdminTasks]          = useState([]);
+  const [allTaskCompletions, setAllTaskCompletions]  = useState([]); // admin only
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); setPolls([]); setMyVotes({}); setPollResults({}); setExchangeRate(null); setMySales([]); setAllSales([]); setMyConfirmations({}); setAllConfirmations([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); setPolls([]); setMyVotes({}); setPollResults({}); setExchangeRate(null); setMySales([]); setAllSales([]); setMyConfirmations({}); setAllConfirmations([]); setMyTasks([]); setMyTaskCompletions({}); setAdminTasks([]); setAllTaskCompletions([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -123,6 +127,22 @@ export default function App() {
         data.forEach(c => { map[c.document_id] = c.confirmed_at; });
         setMyConfirmations(map);
       });
+    (() => {
+      const deptFilter = buildAudienceFilter("assigned_departments", profile.departments);
+      const fullFilter = `assigned_to.eq.${profile.id},created_by.eq.${profile.id},${deptFilter}`;
+      supabase.from("tasks").select("*, creator:profiles!created_by(full_name)")
+        .eq("archived", false)
+        .or(fullFilter)
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .then(({ data }) => { if (data) setMyTasks(data); });
+    })();
+    supabase.from("task_completions").select("task_id, completed_at").eq("user_id", profile.id)
+      .then(({ data }) => {
+        if (!data) return;
+        const map = {}; data.forEach(c => { map[c.task_id] = c.completed_at; });
+        setMyTaskCompletions(map);
+      });
+
     supabase.rpc("get_recognitions_feed")
       .then(({ data }) => { if (data) setRecognitions(data); });
     supabase.rpc("get_team_directory")
@@ -202,6 +222,11 @@ export default function App() {
       });
     supabase.from("departments").select("*").order("name")
       .then(({ data }) => { if (data) setDepartmentsList(data); });
+    supabase.from("tasks").select("*, creator:profiles!created_by(full_name), assignee:profiles!assigned_to(full_name)")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setAdminTasks(data); });
+    supabase.from("task_completions").select("task_id, user_id, completed_at, profiles(full_name)")
+      .then(({ data }) => { if (data) setAllTaskCompletions(data); });
   }, [profile]);
 
   // Unlock AudioContext on first user interaction so it's ready when Realtime fires
@@ -265,6 +290,45 @@ export default function App() {
     ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "documents" }, ({ old: row }) => {
       setDocuments(prev => prev.filter(d => d.id !== row.id));
       if (isAdmin) setAdminDocuments(prev => prev.filter(d => d.id !== row.id));
+    });
+
+    // ── tasks ──
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "tasks" }, ({ new: row }) => {
+      const mineMatch = !row.archived && (row.assigned_to === userId || row.created_by === userId || deptsMatch(row.assigned_departments));
+      if (!mineMatch && !isAdmin) return;
+      supabase.from("tasks").select("*, creator:profiles!created_by(full_name), assignee:profiles!assigned_to(full_name)").eq("id", row.id).single()
+        .then(({ data }) => {
+          if (!data) return;
+          if (mineMatch) {
+            setMyTasks(prev => prev.some(t => t.id === data.id) ? prev : [data, ...prev]);
+            if (row.created_by !== userId) {
+              playNotificationPing();
+              showToast({ message: `Nueva tarea asignada: ${row.title}`, Icon: ClipboardList });
+            }
+          }
+          if (isAdmin) setAdminTasks(prev => prev.some(t => t.id === data.id) ? prev : [data, ...prev]);
+        });
+    });
+    ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "tasks" }, ({ new: row }) => {
+      setMyTasks(prev => prev.map(t => t.id === row.id ? { ...t, ...row } : t));
+      if (isAdmin) setAdminTasks(prev => prev.map(t => t.id === row.id ? { ...t, ...row } : t));
+    });
+    ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "tasks" }, ({ old: row }) => {
+      setMyTasks(prev => prev.filter(t => t.id !== row.id));
+      if (isAdmin) setAdminTasks(prev => prev.filter(t => t.id !== row.id));
+    });
+
+    // ── task_completions ──
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "task_completions" }, ({ new: row }) => {
+      if (row.user_id === userId) setMyTaskCompletions(prev => ({ ...prev, [row.task_id]: row.completed_at }));
+      if (isAdmin) {
+        supabase.from("task_completions").select("task_id, user_id, completed_at, profiles(full_name)").eq("task_id", row.task_id).eq("user_id", row.user_id).single()
+          .then(({ data }) => { if (data) setAllTaskCompletions(prev => prev.some(c => c.task_id === data.task_id && c.user_id === data.user_id) ? prev : [...prev, data]); });
+      }
+    });
+    ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "task_completions" }, ({ old: row }) => {
+      if (row.user_id === userId) setMyTaskCompletions(prev => { const n = { ...prev }; delete n[row.task_id]; return n; });
+      if (isAdmin) setAllTaskCompletions(prev => prev.filter(c => !(c.task_id === row.task_id && c.user_id === row.user_id)));
     });
 
     // ── employee's own requests/reports: status updates ──
@@ -508,6 +572,27 @@ export default function App() {
             allConfirmations={allConfirmations}
             onConfirmRead={(docId, confirmedAt) => setMyConfirmations(prev => ({ ...prev, [docId]: confirmedAt }))}
             onNewConfirmation={c => setAllConfirmations(prev => prev.some(x => x.document_id === c.document_id && x.user_id === c.user_id) ? prev : [...prev, c])}
+            myTasks={myTasks}
+            myTaskCompletions={myTaskCompletions}
+            adminTasks={adminTasks}
+            allTaskCompletions={allTaskCompletions}
+            onNewTask={t => {
+              const userDepts = Array.isArray(profile?.departments) ? profile.departments : [];
+              const matchesMe = t.assigned_to === profile?.id || t.created_by === profile?.id ||
+                (Array.isArray(t.assigned_departments) && (t.assigned_departments.includes("todos") || userDepts.some(d => t.assigned_departments.includes(d))));
+              if (matchesMe) setMyTasks(prev => prev.some(x => x.id === t.id) ? prev : [t, ...prev]);
+              if (profile?.role === "admin") setAdminTasks(prev => prev.some(x => x.id === t.id) ? prev : [t, ...prev]);
+            }}
+            onDeleteTask={id => { setMyTasks(prev => prev.filter(t => t.id !== id)); setAdminTasks(prev => prev.filter(t => t.id !== id)); }}
+            onUpdateTask={t => { setMyTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...t } : x)); setAdminTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...t } : x)); }}
+            onTaskCompleted={(taskId, completedAt) => {
+              setMyTaskCompletions(prev => ({ ...prev, [taskId]: completedAt }));
+              setAllTaskCompletions(prev => prev.some(c => c.task_id === taskId && c.user_id === profile?.id) ? prev : [...prev, { task_id: taskId, user_id: profile?.id, completed_at: completedAt, profiles: { full_name: profile?.full_name } }]);
+            }}
+            onTaskUncompleted={taskId => {
+              setMyTaskCompletions(prev => { const n = { ...prev }; delete n[taskId]; return n; });
+              setAllTaskCompletions(prev => prev.filter(c => !(c.task_id === taskId && c.user_id === profile?.id)));
+            }}
           />
         : <LoginScreen onLogin={() => {}} />
       }

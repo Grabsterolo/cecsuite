@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import {
-  LogOut, X, ClipboardCheck, Megaphone, FileUp, Users, UserPlus, DollarSign,
+  LogOut, X, ClipboardCheck, Megaphone, FileUp, Users, UserPlus, DollarSign, ClipboardList,
 } from "lucide-react";
 import { COLORS, SIDEBAR_BG } from "../../constants/colors.js";
 import { NAV_ITEMS } from "../../constants/nav.js";
 import { Logo } from "../ui/Logo.jsx";
 
-export function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0 }) {
+export function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, tasksPendingCount = 0 }) {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -62,6 +62,14 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
                     display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px",
                   }}>{solicitudesUnreadCount}</span>
                 )}
+                {item.key === "tareas" && tasksPendingCount > 0 && (
+                  <span style={{
+                    marginLeft:"auto", minWidth:20, height:20, borderRadius:10,
+                    background: isActive ? "rgba(255,255,255,0.3)" : COLORS.gold,
+                    color:"#FFF", fontSize:11, fontWeight:700,
+                    display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px",
+                  }}>{tasksPendingCount}</span>
+                )}
               </button>
             );
           })}
@@ -109,6 +117,17 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
                 transition:"background 0.15s, color 0.15s",
               }}>
                 <FileUp size={19} />Gestionar documentos
+              </button>
+              <button onClick={() => { setActive("tareas-admin"); onClose(); }} style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"12px 14px", borderRadius:10, border:"none",
+                cursor:"pointer", textAlign:"left", fontSize:15, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif",
+                color: active === "tareas-admin" ? "#FFF" : COLORS.sidebarMuted,
+                background: active === "tareas-admin" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition:"background 0.15s, color 0.15s",
+              }}>
+                <ClipboardList size={19} />Gestionar tareas
               </button>
               <button onClick={() => { setActive("comisiones"); onClose(); }} style={{
                 display:"flex", alignItems:"center", gap:14,
@@ -167,7 +186,7 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
   );
 }
 
-export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, recognitionsUnreadCount = 0, pollsUnvotedCount = 0 }) {
+export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, recognitionsUnreadCount = 0, pollsUnvotedCount = 0, tasksPendingCount = 0 }) {
   return (
     <div style={{
       width: 252,
@@ -233,6 +252,14 @@ export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalC
                   color:"#FFF", fontSize:10, fontWeight:700,
                   display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
                 }}>{pollsUnvotedCount}</span>
+              )}
+              {item.key === "tareas" && tasksPendingCount > 0 && (
+                <span style={{
+                  marginLeft:"auto", minWidth:18, height:18, borderRadius:9,
+                  background: isActive ? "rgba(255,255,255,0.3)" : COLORS.gold,
+                  color:"#FFF", fontSize:10, fontWeight:700,
+                  display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px",
+                }}>{tasksPendingCount}</span>
               )}
             </button>
           );
@@ -312,6 +339,28 @@ export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalC
                   onMouseLeave={e => { if (!isActive3) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
                 >
                   <FileUp size={16} />Gestionar documentos
+                </button>
+              );
+            })()}
+            {(() => {
+              const isActive4 = active === "tareas-admin";
+              return (
+                <button
+                  onClick={() => setActive("tareas-admin")}
+                  style={{
+                    display:"flex", alignItems:"center", gap:12,
+                    padding:"10px 14px", borderRadius:8, border:"none",
+                    cursor:"pointer", textAlign:"left",
+                    fontSize:14, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif",
+                    color: isActive4 ? "#FFFFFF" : COLORS.sidebarMuted,
+                    background: isActive4 ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                    transition:"background 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!isActive4) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
+                  onMouseLeave={e => { if (!isActive4) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
+                >
+                  <ClipboardList size={16} />Gestionar tareas
                 </button>
               );
             })()}

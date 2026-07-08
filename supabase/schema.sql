@@ -148,6 +148,34 @@ CREATE TABLE IF NOT EXISTS public.poll_votes (
   CONSTRAINT poll_votes_pkey PRIMARY KEY (id)
 );
 
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id                   uuid        DEFAULT gen_random_uuid() NOT NULL,
+  title                text        NOT NULL,
+  description          text,
+  created_by           uuid        NOT NULL,
+  assigned_to          uuid,
+  assigned_departments text[]      NOT NULL DEFAULT '{}',
+  due_date             date,
+  priority             text        DEFAULT 'media'::text CHECK (priority = ANY (ARRAY['baja'::text, 'media'::text, 'alta'::text])),
+  status               text        DEFAULT 'pendiente'::text CHECK (status = ANY (ARRAY['pendiente'::text, 'cancelada'::text])),
+  archived             bool        DEFAULT false,
+  created_at           timestamptz DEFAULT now(),
+  CONSTRAINT tasks_pkey PRIMARY KEY (id),
+  CONSTRAINT tasks_target_check CHECK (
+    (assigned_to IS NOT NULL AND cardinality(assigned_departments) = 0) OR
+    (assigned_to IS NULL AND cardinality(assigned_departments) > 0)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS public.task_completions (
+  id           uuid        DEFAULT gen_random_uuid() NOT NULL,
+  task_id      uuid        NOT NULL,
+  user_id      uuid        NOT NULL,
+  completed_at timestamptz DEFAULT now() NOT NULL,
+  CONSTRAINT task_completions_pkey PRIMARY KEY (id),
+  CONSTRAINT task_completions_task_id_user_id_key UNIQUE (task_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS public.commission_sales (
   id           uuid        DEFAULT gen_random_uuid() NOT NULL,
   user_id      uuid,
@@ -226,6 +254,18 @@ ALTER TABLE public.poll_votes
   ADD CONSTRAINT poll_votes_user_id_fkey
   FOREIGN KEY (user_id) REFERENCES public.profiles(id);
 
+ALTER TABLE public.tasks
+  ADD CONSTRAINT tasks_created_by_fkey
+  FOREIGN KEY (created_by) REFERENCES public.profiles(id),
+  ADD CONSTRAINT tasks_assigned_to_fkey
+  FOREIGN KEY (assigned_to) REFERENCES public.profiles(id);
+
+ALTER TABLE public.task_completions
+  ADD CONSTRAINT task_completions_task_id_fkey
+  FOREIGN KEY (task_id) REFERENCES public.tasks(id) ON DELETE CASCADE,
+  ADD CONSTRAINT task_completions_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES public.profiles(id);
+
 ALTER TABLE public.commission_sales
   ADD CONSTRAINT commission_sales_user_id_fkey
   FOREIGN KEY (user_id) REFERENCES public.profiles(id);
@@ -250,6 +290,8 @@ ALTER TABLE public.support_messages       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recognitions           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.polls                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.poll_votes             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tasks                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_completions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.commission_sales       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exchange_rate          ENABLE ROW LEVEL SECURITY;
 
@@ -445,6 +487,59 @@ CREATE POLICY "Votar"
 CREATE POLICY "Cambiar mi voto"
   ON public.poll_votes FOR UPDATE
   USING (auth.uid() = user_id);
+
+-- tasks
+CREATE POLICY "Ver tareas asignadas propias o admin"
+  ON public.tasks FOR SELECT
+  USING (
+    (select is_admin()) OR
+    assigned_to = (select auth.uid()) OR
+    created_by = (select auth.uid()) OR
+    'todos' = ANY (assigned_departments) OR
+    assigned_departments && (select get_my_departments())
+  );
+
+CREATE POLICY "Admin gestiona tareas"
+  ON public.tasks FOR ALL
+  USING ((select is_admin()));
+
+CREATE POLICY "Empleados crean pendientes propios"
+  ON public.tasks FOR INSERT
+  WITH CHECK (
+    created_by = (select auth.uid()) AND
+    assigned_to = (select auth.uid()) AND
+    cardinality(assigned_departments) = 0
+  );
+
+CREATE POLICY "Empleados editan sus pendientes propios"
+  ON public.tasks FOR UPDATE
+  USING (created_by = (select auth.uid()) AND assigned_to = (select auth.uid()))
+  WITH CHECK (
+    created_by = (select auth.uid()) AND
+    assigned_to = (select auth.uid()) AND
+    cardinality(assigned_departments) = 0
+  );
+
+CREATE POLICY "Empleados eliminan sus pendientes propios"
+  ON public.tasks FOR DELETE
+  USING (created_by = (select auth.uid()) AND assigned_to = (select auth.uid()));
+
+-- task_completions
+CREATE POLICY "Ver completaciones propias o admin"
+  ON public.task_completions FOR SELECT
+  USING (( (select auth.uid()) = user_id ) OR (select is_admin()));
+
+CREATE POLICY "Marcar tarea propia como completada"
+  ON public.task_completions FOR INSERT
+  WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Deshacer propia completacion"
+  ON public.task_completions FOR DELETE
+  USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Admin elimina completaciones"
+  ON public.task_completions FOR DELETE
+  USING ((select is_admin()));
 
 -- commission_sales
 CREATE POLICY "Ver ventas propias o admin ve todas"

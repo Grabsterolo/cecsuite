@@ -1,4 +1,4 @@
-import { Home, CalendarCheck, CalendarDays, CalendarRange, Bell, BarChart3, Award, DollarSign, FileText, User } from "lucide-react";
+import { Home, CalendarCheck, CalendarDays, CalendarRange, Bell, BarChart3, Award, DollarSign, FileText, User, ClipboardList } from "lucide-react";
 
 export const INFINITY_PATH = "M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70 C58 70 42 30 30 30";
 
@@ -8,6 +8,7 @@ export const NAV_ITEMS = [
   { key: "inicio",      label: "Inicio",      icon: Home },
   { key: "vacaciones",        label: "Vacaciones",           icon: CalendarCheck  },
   { key: "solicitudes",       label: "Solicitudes",          icon: CalendarDays   },
+  { key: "tareas",            label: "Tareas",                icon: ClipboardList },
   { key: "calendario-equipo", label: "Calendario de equipo", icon: CalendarRange  },
   { key: "comunicados",        label: "Comunicados",          icon: Bell           },
   { key: "encuestas",          label: "Encuestas",            icon: BarChart3      },
