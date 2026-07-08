@@ -13,6 +13,12 @@ export function fmtSupaDate(str) {
   return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
 }
 
+export function fmtTimestampShort(str) {
+  if (!str) return "—";
+  const d = new Date(str);
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+}
+
 export function fmtSupaShort(str) {
   if (!str) return "—";
   const d = new Date(str + "T12:00:00");

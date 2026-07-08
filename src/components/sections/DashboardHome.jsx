@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { VAC_TOTAL, MONTH_NAMES } from "../../constants/nav.js";
 import { verTodosStyle } from "../../styles/forms.js";
-import { fmtSupaDate } from "../../utils/format.js";
+import { fmtSupaDate, fmtTimestampShort } from "../../utils/format.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 import { Tag } from "../ui/StatusBadge.jsx";
 import { VacationDonut } from "../ui/VacationDonut.jsx";
@@ -260,7 +260,7 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
                     {r.from_name ?? "—"} → {r.to_name ?? "—"}
                   </span>
                   <span style={{ marginLeft:"auto", fontSize:10, color:COLORS.textMuted, flexShrink:0 }}>
-                    {fmtSupaDate((r.created_at ?? "").slice(0,10))}
+                    {fmtTimestampShort(r.created_at)}
                   </span>
                 </div>
                 <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.1)", borderRadius:4, padding:"1px 6px" }}>{r.category}</span>

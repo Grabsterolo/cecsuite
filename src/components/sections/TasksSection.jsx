@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { inputStyle, taStyle, btnSubmitStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
-import { fmtSupaDate } from "../../utils/format.js";
+import { fmtSupaDate, fmtTimestampShort } from "../../utils/format.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 
 export const PRIORITY_META = {
@@ -193,7 +193,7 @@ export function TasksSection({ myTasks = [], myTaskCompletions = {}, profile, us
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", fontSize:11, color:COLORS.textMuted }}>
                         {task.due_date && <span>Vence: {fmtSupaDate(task.due_date)}</span>}
                         {creatorName && task.created_by !== userId && <span>· Asignado por: <strong style={{ color:COLORS.text }}>{creatorName}</strong></span>}
-                        {isCompleted && myTaskCompletions[task.id] && <span>· Completada el {fmtSupaDate(myTaskCompletions[task.id].slice(0,10))}</span>}
+                        {isCompleted && myTaskCompletions[task.id] && <span>· Completada el {fmtTimestampShort(myTaskCompletions[task.id])}</span>}
                       </div>
                       {isExpanded && task.description && (
                         <p style={{ marginTop:8, fontSize:13, color:COLORS.text, lineHeight:1.6, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{task.description}</p>

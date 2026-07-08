@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { inputStyle, taStyle, btnSubmitStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
-import { fmtSupaDate } from "../../utils/format.js";
+import { fmtSupaDate, fmtTimestampShort } from "../../utils/format.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 import { DeptTag } from "../ui/DeptTag.jsx";
 import { PriorityTag, PrioritySelector } from "./TasksSection.jsx";
@@ -214,12 +214,12 @@ export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [],
                             : (task.assigned_departments || []).map((d, di) => <DeptTag key={di} dept={d} />)
                         }
                         {task.due_date && <span style={{ fontSize:11, color:COLORS.textMuted }}>· Vence: {fmtSupaDate(task.due_date)}</span>}
-                        <span style={{ fontSize:11, color:COLORS.textMuted }}>· Creada: {fmtSupaDate(task.created_at?.slice(0,10))}</span>
+                        <span style={{ fontSize:11, color:COLORS.textMuted }}>· Creada: {fmtTimestampShort(task.created_at)}</span>
                       </div>
                       {isIndividual && (
                         <div style={{ marginTop:6, fontSize:12 }}>
                           {individualCompletion
-                            ? <span style={{ color:COLORS.greenSoft, fontWeight:600 }}>✓ Completada el {fmtSupaDate(individualCompletion.completed_at?.slice(0,10))}</span>
+                            ? <span style={{ color:COLORS.greenSoft, fontWeight:600 }}>✓ Completada el {fmtTimestampShort(individualCompletion.completed_at)}</span>
                             : <span style={{ color:COLORS.textMuted }}>Pendiente</span>
                           }
                         </div>
