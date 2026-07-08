@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
-import { inputStyle, taStyle, btnSubmitStyle } from "../../styles/forms.js";
+import { taStyle, btnSubmitStyle, compactInputStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
 import { fmtSupaDate, fmtTimestampShort } from "../../utils/format.js";
+import { useIsMobile } from "../../hooks/useIsMobile.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 import { DeptTag } from "../ui/DeptTag.jsx";
 import { PriorityTag, PrioritySelector } from "./TasksSection.jsx";
 
 export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [], adminProfiles = [], departmentsList = [], onNewTask, onUpdateTask, onDeleteTask }) {
+  const isMobile = useIsMobile();
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [priority,    setPriority]    = useState("media");
@@ -91,7 +93,7 @@ export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [],
   }
 
   const fieldLabel = (text) => (
-    <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, marginBottom:6 }}>{text}</label>
+    <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>{text}</label>
   );
   const chipBase = (sel) => ({
     display:"inline-flex", alignItems:"center", padding:"5px 12px", borderRadius:20,
@@ -108,66 +110,64 @@ export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [],
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <Card>
         <CardHeader title="Nueva tarea" />
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {fieldLabel("Título")}
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título de la tarea" style={{ ...compactInputStyle, marginBottom:14, display:"block" }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        {fieldLabel("Descripción (opcional)")}
+        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Detalles adicionales..." rows={3} style={{ ...taStyle, marginBottom:14 }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
           <div>
-            {fieldLabel("Título")}
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título de la tarea" style={inputStyle} />
-          </div>
-          <div>
-            {fieldLabel("Descripción (opcional)")}
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Detalles adicionales..." rows={3} style={taStyle} />
-          </div>
-          <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
-            <div>
-              {fieldLabel("Prioridad")}
-              <PrioritySelector value={priority} onChange={setPriority} />
-            </div>
-            <div>
-              {fieldLabel("Fecha límite (opcional)")}
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ ...inputStyle, width:"auto" }} />
-            </div>
+            {fieldLabel("Prioridad")}
+            <PrioritySelector value={priority} onChange={setPriority} />
           </div>
           <div>
-            {fieldLabel("Asignar a")}
-            <div style={{ display:"flex", gap:4, marginBottom:10 }}>
-              {[["persona","Persona específica"],["departamento","Departamento(s)"]].map(([key,label]) => (
-                <button key={key} type="button" onClick={() => setAssignMode(key)} style={{
-                  border:"none", borderRadius:6, padding:"5px 12px", fontSize:12, fontWeight:600, cursor:"pointer",
-                  fontFamily:"'Manrope', sans-serif",
-                  background: assignMode === key ? COLORS.green : COLORS.panelAlt,
-                  color:      assignMode === key ? "#FFF" : COLORS.textMuted,
-                }}>{label}</button>
-              ))}
-            </div>
-            {assignMode === "persona" ? (
-              <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ ...inputStyle, width:"100%" }}>
-                <option value="" style={{ color:"#1F4A40" }}>Selecciona una persona...</option>
-                {activeProfiles.map(p => <option key={p.id} value={p.id} style={{ color:"#1F4A40" }}>{p.full_name}</option>)}
-              </select>
-            ) : (
-              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                <button type="button" onClick={() => { setDeptTodos(true); setSelectedDepts([]); }} style={chipBase(deptTodos)}>
-                  Todos los departamentos
-                </button>
-                {departmentsList.map(dept => {
-                  const sel = selectedDepts.includes(dept.name);
-                  return (
-                    <button type="button" key={dept.id} onClick={() => { setDeptTodos(false); setSelectedDepts(prev => sel ? prev.filter(d => d !== dept.name) : [...prev, dept.name]); }} style={chipBase(sel)}>
-                      {dept.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {fieldLabel("Fecha límite (opcional)")}
+            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
           </div>
-          {createError && <p style={{ fontSize:12, color:"#c0392b", margin:0 }}>{createError}</p>}
-          {success && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:0 }}>✓ Tarea creada correctamente.</p>}
-          <button onClick={handleCreate} disabled={creating} style={{
-            ...btnSubmitStyle, width:"100%", opacity: creating ? 0.75 : 1, cursor: creating ? "not-allowed" : "pointer",
-          }}>
-            {creating ? "Creando..." : "Crear tarea"}
-          </button>
         </div>
+        <div style={{ marginBottom:16 }}>
+          {fieldLabel("Asignar a")}
+          <div style={{ display:"flex", gap:4, marginBottom:10 }}>
+            {[["persona","Persona específica"],["departamento","Departamento(s)"]].map(([key,label]) => (
+              <button key={key} type="button" onClick={() => setAssignMode(key)} style={{
+                border:"none", borderRadius:6, padding:"5px 12px", fontSize:12, fontWeight:600, cursor:"pointer",
+                fontFamily:"'Manrope', sans-serif",
+                background: assignMode === key ? COLORS.green : COLORS.panelAlt,
+                color:      assignMode === key ? "#FFF" : COLORS.textMuted,
+              }}>{label}</button>
+            ))}
+          </div>
+          {assignMode === "persona" ? (
+            <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ ...compactInputStyle, width:"100%" }}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}>
+              <option value="" style={{ color:"#1F4A40" }}>Selecciona una persona...</option>
+              {activeProfiles.map(p => <option key={p.id} value={p.id} style={{ color:"#1F4A40" }}>{p.full_name}</option>)}
+            </select>
+          ) : (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              <button type="button" onClick={() => { setDeptTodos(true); setSelectedDepts([]); }} style={chipBase(deptTodos)}>
+                Todos los departamentos
+              </button>
+              {departmentsList.map(dept => {
+                const sel = selectedDepts.includes(dept.name);
+                return (
+                  <button type="button" key={dept.id} onClick={() => { setDeptTodos(false); setSelectedDepts(prev => sel ? prev.filter(d => d !== dept.name) : [...prev, dept.name]); }} style={chipBase(sel)}>
+                    {dept.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {createError && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{createError}</p>}
+        {success && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 12px" }}>✓ Tarea creada correctamente.</p>}
+        <button onClick={handleCreate} disabled={creating} style={{
+          ...btnSubmitStyle, width:"100%", opacity: creating ? 0.75 : 1, cursor: creating ? "not-allowed" : "pointer",
+        }}>
+          {creating ? "Creando..." : "Crear tarea"}
+        </button>
       </Card>
 
       <Card>

@@ -8,6 +8,8 @@ export const inputStyle = {
   fontFamily: "'Manrope', sans-serif", transition: "border-color 0.2s", display: "block",
 };
 
+export const compactInputStyle = { ...inputStyle, fontSize: 14, padding: "10px 14px" };
+
 export const taStyle = {
   width: "100%", background: COLORS.inputBg, border: `1.5px solid ${COLORS.border}`,
   borderRadius: 8, padding: "10px 14px", color: COLORS.text, fontSize: 14,

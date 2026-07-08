@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
-import { inputStyle, taStyle, btnSubmitStyle } from "../../styles/forms.js";
+import { taStyle, btnSubmitStyle, compactInputStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
 import { fmtSupaDate, fmtTimestampShort } from "../../utils/format.js";
+import { useIsMobile } from "../../hooks/useIsMobile.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 
 export const PRIORITY_META = {
@@ -49,6 +50,7 @@ export function PrioritySelector({ value, onChange }) {
 }
 
 export function TasksSection({ myTasks = [], myTaskCompletions = {}, profile, userId, departmentsList = [], onNewTask, onDeleteTask, onTaskCompleted, onTaskUncompleted }) {
+  const isMobile = useIsMobile();
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [priority,    setPriority]    = useState("media");
@@ -107,7 +109,7 @@ export function TasksSection({ myTasks = [], myTaskCompletions = {}, profile, us
   }
 
   const fieldLabel = (text) => (
-    <label style={{ display:"block", fontSize:12, fontWeight:600, color:COLORS.textMuted, marginBottom:6 }}>{text}</label>
+    <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>{text}</label>
   );
 
   const visibleTasks   = myTasks.filter(t => t.status !== "cancelada");
@@ -121,32 +123,29 @@ export function TasksSection({ myTasks = [], myTaskCompletions = {}, profile, us
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <Card>
         <CardHeader title="Nuevo pendiente" />
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {fieldLabel("Título")}
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="¿Qué necesitas hacer?" style={{ ...compactInputStyle, marginBottom:14, display:"block" }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        {fieldLabel("Descripción (opcional)")}
+        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Detalles adicionales..." rows={3} style={{ ...taStyle, marginBottom:14 }}
+          onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14 }}>
           <div>
-            {fieldLabel("Título")}
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="¿Qué necesitas hacer?" style={inputStyle} />
+            {fieldLabel("Prioridad")}
+            <PrioritySelector value={priority} onChange={setPriority} />
           </div>
           <div>
-            {fieldLabel("Descripción (opcional)")}
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Detalles adicionales..." rows={3} style={taStyle} />
+            {fieldLabel("Fecha límite (opcional)")}
+            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
           </div>
-          <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
-            <div>
-              {fieldLabel("Prioridad")}
-              <PrioritySelector value={priority} onChange={setPriority} />
-            </div>
-            <div>
-              {fieldLabel("Fecha límite (opcional)")}
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ ...inputStyle, width:"auto" }} />
-            </div>
-          </div>
-          {createError && <p style={{ fontSize:12, color:"#c0392b", margin:0 }}>{createError}</p>}
-          <button onClick={handleCreate} disabled={creating} style={{
-            ...btnSubmitStyle, width:"100%", opacity: creating ? 0.75 : 1, cursor: creating ? "not-allowed" : "pointer",
-          }}>
-            {creating ? "Creando..." : "Agregar pendiente"}
-          </button>
         </div>
+        {createError && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{createError}</p>}
+        <button onClick={handleCreate} disabled={creating} style={{
+          ...btnSubmitStyle, width:"100%", opacity: creating ? 0.75 : 1, cursor: creating ? "not-allowed" : "pointer",
+        }}>
+          {creating ? "Creando..." : "Agregar pendiente"}
+        </button>
       </Card>
 
       <Card>
@@ -180,7 +179,7 @@ export function TasksSection({ myTasks = [], myTaskCompletions = {}, profile, us
               const creatorName = task.creator?.full_name;
               const isConfirmingDel = confirmDel === task.id;
               return (
-                <div key={task.id} style={{ padding:"14px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                <div key={task.id} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
                   <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5, flexWrap:"wrap" }}>
