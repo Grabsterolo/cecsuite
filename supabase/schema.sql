@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS public.attendance_settings (
   id                int4    DEFAULT 1 NOT NULL,
   clinic_lat        numeric,
   clinic_lng        numeric,
-  radius_meters     numeric NOT NULL DEFAULT 150,
+  radius_meters     numeric NOT NULL DEFAULT 20000, -- geolocalizacion por IP (nivel ciudad), no GPS: el radio debe ser amplio
   shift_start       time    NOT NULL DEFAULT '07:00:00',
   shift_end         time    NOT NULL DEFAULT '17:00:00',
   tolerance_minutes int4    NOT NULL DEFAULT 10,
