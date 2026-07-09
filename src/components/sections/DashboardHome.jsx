@@ -25,6 +25,14 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
   const activePoll = polls.find(p => p.status === "activa" && myVotes[p.id] === undefined);
   const weekMinutes = sumWorkedMinutesInWeek(myAttendance, getThisWeekStartCR());
+  const pendingTasks = myTasks
+    .filter(t => t.status !== "cancelada" && !myTaskCompletions[t.id])
+    .sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(a.due_date) - new Date(b.due_date);
+    });
 
   async function handleCompleteFromHome(taskId) {
     setCompletingId(taskId);
@@ -32,6 +40,10 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
     setCompletingId(null);
     if (!error) onTaskCompleted?.(taskId, data.completed_at);
   }
+
+  // span2 = tarjeta "hero" de ancho doble en escritorio (grid de 4 columnas,
+  // dense para que el resto compacte sin dejar huecos)
+  const span2 = isMobile ? {} : { gridColumn: "span 2" };
 
   return (
     <>
@@ -41,24 +53,123 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
       )}
     <div style={isMobile
       ? { display: "flex", flexDirection: "column", gap: 14 }
-      : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }
+      : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gridAutoFlow: "dense", gap: 20 }
     }>
 
-      {/* Asistencia */}
-      <Card>
+      {/* 1. Asistencia — lo primero que se hace al entrar cada día */}
+      <Card style={span2}>
         <CardHeader title="Asistencia"
           action={<button style={verTodosStyle} onClick={() => setActive("asistencia")}>Ver todo <ChevronRight size={14}/></button>}
         />
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:14, flexWrap:"wrap" }}>
           <div>
             <p style={{ fontSize:12, color:COLORS.textMuted, margin:"0 0 4px" }}>Esta semana</p>
-            <p style={{ fontSize:22, fontWeight:800, color:COLORS.text, margin:0 }}>{fmtMinutes(weekMinutes)}</p>
+            <p style={{ fontSize:26, fontWeight:800, color:COLORS.text, margin:0 }}>{fmtMinutes(weekMinutes)}</p>
           </div>
           <ClockInOutButton myAttendance={myAttendance} userId={userId} onClockIn={onClockIn} onClockOut={onClockOut} compact />
         </div>
       </Card>
 
-      {/* Vacaciones — datos reales de Supabase */}
+      {/* 2. Mis tareas — lo más accionable del día a día */}
+      <Card style={span2}>
+        <CardHeader title="Mis tareas"
+          action={<button style={verTodosStyle} onClick={() => setActive("tareas")}>Ver todas <ChevronRight size={14}/></button>}
+        />
+        {pendingTasks.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No tienes pendientes por ahora.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {pendingTasks.slice(0, 4).map(task => {
+              const isActing = completingId === task.id;
+              return (
+                <div key={task.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:13, color:COLORS.text, fontWeight:500, wordBreak:"break-word" }}>{task.title}</span>
+                      <PriorityTag priority={task.priority} />
+                    </div>
+                    {task.due_date && <span style={{ fontSize:11, color:COLORS.textMuted }}>Vence: {fmtSupaDate(task.due_date)}</span>}
+                  </div>
+                  <button onClick={() => handleCompleteFromHome(task.id)} disabled={isActing} style={{
+                    fontSize:11, fontWeight:700, color:"#FFF", whiteSpace:"nowrap", flexShrink:0,
+                    background: isActing ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                    border:"none", borderRadius:7, padding:"6px 12px", cursor:isActing?"not-allowed":"pointer",
+                    fontFamily:"'Manrope', sans-serif",
+                  }}>
+                    {isActing ? "..." : "Completar"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* 3. Encuesta activa — llamado a la acción cuando existe */}
+      {activePoll && (
+        <Card style={{ ...span2, border:`1.5px solid ${COLORS.gold}` }}>
+          <CardHeader title="Encuesta activa"
+            action={<button style={verTodosStyle} onClick={() => setActive("encuestas")}>Ver encuestas <ChevronRight size={14}/></button>}
+          />
+          <p style={{ fontSize:14, fontWeight:700, color:COLORS.green, margin:"0 0 12px", lineHeight:1.4 }}>{activePoll.question}</p>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {activePoll.options.map((opt, idx) => (
+              <label key={idx} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", fontSize:13, color:COLORS.text, fontWeight: pollPending === idx ? 600 : 400 }}>
+                <input type="radio" name={`home-poll-${activePoll.id}`} checked={pollPending === idx}
+                  onChange={() => setPollPending(idx)}
+                  style={{ accentColor: COLORS.green, width:15, height:15, flexShrink:0 }}
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+          <button onClick={async () => {
+            if (pollPending === null || pollPending === undefined || pollVoting) return;
+            setPollVoting(true);
+            const { error } = await supabase.from("poll_votes").insert({ poll_id: activePoll.id, user_id: userId, option_index: pollPending });
+            setPollVoting(false);
+            if (!error) { onVoted?.(activePoll.id, pollPending); setPollPending(null); }
+          }} disabled={pollPending === null || pollPending === undefined || pollVoting} style={{
+            marginTop:14, padding:"8px 18px", borderRadius:8, border:"none",
+            background: (pollPending === null || pollPending === undefined || pollVoting) ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+            color:"#FFF", fontSize:13, fontWeight:700,
+            cursor: (pollPending === null || pollPending === undefined || pollVoting) ? "not-allowed" : "pointer",
+            fontFamily:"'Manrope', sans-serif", opacity: (pollPending === null || pollPending === undefined || pollVoting) ? 0.7 : 1, transition:"all 0.15s",
+          }}>{pollVoting ? "Enviando..." : "Votar"}</button>
+        </Card>
+      )}
+
+      {/* 4. Solicitudes — crear/dar seguimiento */}
+      <Card>
+        <CardHeader title="Solicitudes"
+          action={
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Ver todas <ChevronRight size={14} /></button>
+              <button onClick={() => setModal("new-sol")} title="Nueva solicitud" style={{
+                width:26, height:26, borderRadius:6, border:"none",
+                background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+                color:"#FFF", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                boxShadow:"0 2px 8px rgba(201,162,78,0.35)", flexShrink:0,
+              }}>
+                <Plus size={13}/>
+              </button>
+            </div>
+          }
+        />
+        {allSolicitudes.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>Sin solicitudes activas.{" "}
+            <button onClick={() => setModal("new-sol")} style={{ background:"none", border:"none", color:COLORS.gold, fontWeight:600, fontSize:13, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}>Crear una</button>
+          </p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {allSolicitudes.slice(0,3).map(s => (
+              <SolicitudItem key={`${s.kind}-${s.id}`} s={s} />
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* 5. Vacaciones — saldo, se consulta con menos frecuencia */}
       <Card>
         <CardHeader title="Vacaciones"
           action={<button style={verTodosStyle} onClick={() => setActive("vacaciones")}>Ver detalle <ChevronRight size={14}/></button>}
@@ -85,30 +196,8 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
         </div>
       </Card>
 
-      {/* Cumpleaños — sube aquí para completar la primera fila de 3 columnas */}
-      <Card>
-        <CardHeader title="Próximos cumpleaños" />
-        {upcomingBirthdays.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No hay cumpleaños próximos.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", fontSize: 13 }}>
-            {upcomingBirthdays.slice(0, 3).map((b) => (
-              <div key={b.full_name} style={{
-                display: "flex", alignItems: "center", gap: 10,
-                color: COLORS.text, padding: "9px 0",
-                borderBottom: `1px solid ${COLORS.border}`,
-              }}>
-                <Cake size={16} color={COLORS.gold} />
-                {b.full_name}
-                <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>{b.date}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Comunicados — 2 columnas en desktop */}
-      <Card style={isMobile ? {} : { gridColumn: "span 2" }}>
+      {/* 6. Comunicados — informativo, ancho doble para leerse mejor */}
+      <Card style={span2}>
         <CardHeader
           title="Comunicados recientes"
           action={<button style={verTodosStyle} onClick={() => setActive("comunicados")}>Ver todos <ChevronRight size={14} /></button>}
@@ -145,7 +234,7 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
         )}
       </Card>
 
-      {/* Documentos */}
+      {/* 7. Documentos */}
       <Card>
         <CardHeader title="Documentos"
           action={<button style={verTodosStyle} onClick={() => setActive("documentos")}>Ver todos <ChevronRight size={14} /></button>}
@@ -174,116 +263,8 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
         )}
       </Card>
 
-      {/* Solicitudes — 3 más recientes */}
-      <Card>
-        <CardHeader title="Solicitudes"
-          action={
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button style={verTodosStyle} onClick={() => setActive("solicitudes")}>Ver todas <ChevronRight size={14} /></button>
-              <button onClick={() => setModal("new-sol")} title="Nueva solicitud" style={{
-                width:26, height:26, borderRadius:6, border:"none",
-                background:`linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-                color:"#FFF", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
-                boxShadow:"0 2px 8px rgba(201,162,78,0.35)", flexShrink:0,
-              }}>
-                <Plus size={13}/>
-              </button>
-            </div>
-          }
-        />
-        {allSolicitudes.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>Sin solicitudes activas.{" "}
-            <button onClick={() => setModal("new-sol")} style={{ background:"none", border:"none", color:COLORS.gold, fontWeight:600, fontSize:13, cursor:"pointer", padding:0, fontFamily:"'Manrope', sans-serif" }}>Crear una</button>
-          </p>
-        ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {allSolicitudes.slice(0,3).map(s => (
-              <SolicitudItem key={`${s.kind}-${s.id}`} s={s} />
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Mis tareas */}
-      <Card>
-        <CardHeader title="Mis tareas"
-          action={<button style={verTodosStyle} onClick={() => setActive("tareas")}>Ver todas <ChevronRight size={14}/></button>}
-        />
-        {(() => {
-          const pending = myTasks
-            .filter(t => t.status !== "cancelada" && !myTaskCompletions[t.id])
-            .sort((a, b) => {
-              if (!a.due_date && !b.due_date) return 0;
-              if (!a.due_date) return 1;
-              if (!b.due_date) return -1;
-              return new Date(a.due_date) - new Date(b.due_date);
-            });
-          if (pending.length === 0) return <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No tienes pendientes por ahora.</p>;
-          return (
-            <div style={{ display:"flex", flexDirection:"column" }}>
-              {pending.slice(0, 4).map(task => {
-                const isActing = completingId === task.id;
-                return (
-                  <div key={task.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                        <span style={{ fontSize:13, color:COLORS.text, fontWeight:500, wordBreak:"break-word" }}>{task.title}</span>
-                        <PriorityTag priority={task.priority} />
-                      </div>
-                      {task.due_date && <span style={{ fontSize:11, color:COLORS.textMuted }}>Vence: {fmtSupaDate(task.due_date)}</span>}
-                    </div>
-                    <button onClick={() => handleCompleteFromHome(task.id)} disabled={isActing} style={{
-                      fontSize:11, fontWeight:700, color:"#FFF", whiteSpace:"nowrap", flexShrink:0,
-                      background: isActing ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-                      border:"none", borderRadius:7, padding:"6px 12px", cursor:isActing?"not-allowed":"pointer",
-                      fontFamily:"'Manrope', sans-serif",
-                    }}>
-                      {isActing ? "..." : "Completar"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-      </Card>
-
-      {/* Encuesta activa */}
-      {activePoll && (
-        <Card style={{ border:`1.5px solid ${COLORS.gold}` }}>
-          <CardHeader title="Encuesta activa"
-            action={<button style={verTodosStyle} onClick={() => setActive("encuestas")}>Ver encuestas <ChevronRight size={14}/></button>}
-          />
-          <p style={{ fontSize:14, fontWeight:700, color:COLORS.green, margin:"0 0 12px", lineHeight:1.4 }}>{activePoll.question}</p>
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {activePoll.options.map((opt, idx) => (
-              <label key={idx} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", fontSize:13, color:COLORS.text, fontWeight: pollPending === idx ? 600 : 400 }}>
-                <input type="radio" name={`home-poll-${activePoll.id}`} checked={pollPending === idx}
-                  onChange={() => setPollPending(idx)}
-                  style={{ accentColor: COLORS.green, width:15, height:15, flexShrink:0 }}
-                />
-                {opt}
-              </label>
-            ))}
-          </div>
-          <button onClick={async () => {
-            if (pollPending === null || pollPending === undefined || pollVoting) return;
-            setPollVoting(true);
-            const { error } = await supabase.from("poll_votes").insert({ poll_id: activePoll.id, user_id: userId, option_index: pollPending });
-            setPollVoting(false);
-            if (!error) { onVoted?.(activePoll.id, pollPending); setPollPending(null); }
-          }} disabled={pollPending === null || pollPending === undefined || pollVoting} style={{
-            marginTop:14, padding:"8px 18px", borderRadius:8, border:"none",
-            background: (pollPending === null || pollPending === undefined || pollVoting) ? COLORS.border : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-            color:"#FFF", fontSize:13, fontWeight:700,
-            cursor: (pollPending === null || pollPending === undefined || pollVoting) ? "not-allowed" : "pointer",
-            fontFamily:"'Manrope', sans-serif", opacity: (pollPending === null || pollPending === undefined || pollVoting) ? 0.7 : 1, transition:"all 0.15s",
-          }}>{pollVoting ? "Enviando..." : "Votar"}</button>
-        </Card>
-      )}
-
-      {/* Reconocimientos recientes */}
-      <Card>
+      {/* 8. Reconocimientos — social, ancho doble para leer el mensaje completo */}
+      <Card style={span2}>
         <CardHeader title="Reconocimientos"
           action={<button style={verTodosStyle} onClick={() => setActive("reconocimientos")}>Ver todos <ChevronRight size={14}/></button>}
         />
@@ -304,6 +285,28 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
                 </div>
                 <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.1)", borderRadius:4, padding:"1px 6px" }}>{r.category}</span>
                 <p style={{ fontSize:12, color:COLORS.textMuted, margin:"4px 0 0", lineHeight:1.5, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.message}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* 9. Cumpleaños — lo más social/liviano, al final */}
+      <Card>
+        <CardHeader title="Próximos cumpleaños" />
+        {upcomingBirthdays.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No hay cumpleaños próximos.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", fontSize: 13 }}>
+            {upcomingBirthdays.slice(0, 3).map((b) => (
+              <div key={b.full_name} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                color: COLORS.text, padding: "9px 0",
+                borderBottom: `1px solid ${COLORS.border}`,
+              }}>
+                <Cake size={16} color={COLORS.gold} />
+                {b.full_name}
+                <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>{b.date}</span>
               </div>
             ))}
           </div>
