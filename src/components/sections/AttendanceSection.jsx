@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { translateError } from "../../utils/errors.js";
 import { fmtMinutes, fmtClockTime, fmtTimestampDateCR } from "../../utils/attendance.js";
-import { useGeolocation } from "../../hooks/useGeolocation.js";
+import { useIpLocation } from "../../hooks/useIpLocation.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 
 function Badge({ label, color, background }) {
@@ -32,27 +32,28 @@ export function AttendanceBadges({ record }) {
 }
 
 export function AttendanceSection({ myAttendance = [], userId, onClockIn, onClockOut }) {
-  const { getPosition, loading: geoLoading } = useGeolocation();
+  const { getPosition, loading: geoLoading } = useIpLocation();
   const [acting, setActing] = useState(false);
   const [error,  setError]  = useState(null);
 
   const openRecord = myAttendance.find(r => r.status === "abierto");
   const isWorking = !!openRecord;
 
+  // La ubicación es best-effort: si no se puede determinar por IP, el marcaje
+  // se registra igual, solo que sin coordenadas (sin verificación de rango).
   async function handleClockIn() {
     setActing(true); setError(null);
+    const pos = await getPosition().catch(() => null);
     try {
-      const pos = await getPosition();
       const { data, error: insertError } = await supabase.from("attendance_records").insert({
         user_id: userId,
-        clock_in_lat: pos.lat,
-        clock_in_lng: pos.lng,
+        clock_in_lat: pos?.lat ?? null,
+        clock_in_lng: pos?.lng ?? null,
       }).select().single();
       if (insertError) throw insertError;
       onClockIn?.(data);
     } catch (err) {
-      setError(err.message?.startsWith("Permiso") || err.message?.startsWith("No se pudo obtener") || err.message?.startsWith("Tu navegador")
-        ? err.message : translateError(err.message));
+      setError(translateError(err.message));
     } finally {
       setActing(false);
     }
@@ -61,18 +62,17 @@ export function AttendanceSection({ myAttendance = [], userId, onClockIn, onCloc
   async function handleClockOut() {
     if (!openRecord) return;
     setActing(true); setError(null);
+    const pos = await getPosition().catch(() => null);
     try {
-      const pos = await getPosition();
       const { data, error: updateError } = await supabase.from("attendance_records").update({
         clock_out: new Date().toISOString(),
-        clock_out_lat: pos.lat,
-        clock_out_lng: pos.lng,
+        clock_out_lat: pos?.lat ?? null,
+        clock_out_lng: pos?.lng ?? null,
       }).eq("id", openRecord.id).select().single();
       if (updateError) throw updateError;
       onClockOut?.(data);
     } catch (err) {
-      setError(err.message?.startsWith("Permiso") || err.message?.startsWith("No se pudo obtener") || err.message?.startsWith("Tu navegador")
-        ? err.message : translateError(err.message));
+      setError(translateError(err.message));
     } finally {
       setActing(false);
     }

@@ -5,7 +5,7 @@ import { COLORS } from "../../constants/colors.js";
 import { taStyle, btnSubmitStyle, compactInputStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
 import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getTodayCR, dateCR, toDatetimeLocalCR, fromDatetimeLocalCR } from "../../utils/attendance.js";
-import { useGeolocation } from "../../hooks/useGeolocation.js";
+import { useIpLocation } from "../../hooks/useIpLocation.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 import { DeptTag } from "../ui/DeptTag.jsx";
 import { ModalShell } from "../ui/ModalShell.jsx";
@@ -63,7 +63,7 @@ function CorrectRecordModal({ record, userId, onClose, onSaved }) {
 }
 
 export function GestionAsistenciaSection({ adminAttendance = [], attendanceSettings = null, departmentsList = [], userId, onUpdateAttendanceRecord, onSettingsUpdated }) {
-  const { getPosition, loading: geoLoading, error: geoError } = useGeolocation();
+  const { getPosition, loading: geoLoading, error: geoError } = useIpLocation();
 
   // ── settings form ──
   const [clinicLat,         setClinicLat]         = useState("");
