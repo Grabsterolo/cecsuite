@@ -16,8 +16,6 @@ export function fmtMinutes(mins) {
   const m = Math.max(0, Math.round(mins));
   const h = Math.floor(m / 60);
   const rem = m % 60;
-  if (h === 0) return `${rem} min`;
-  if (rem === 0) return `${h} h`;
   return `${h} h ${rem} min`;
 }
 

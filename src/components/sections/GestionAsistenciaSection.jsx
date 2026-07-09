@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { MapPin, Edit2 } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
-import { taStyle, btnSubmitStyle, compactInputStyle } from "../../styles/forms.js";
+import { inputStyle, taStyle, btnSubmitStyle, compactInputStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
 import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getTodayCR, dateCR, toDatetimeLocalCR, fromDatetimeLocalCR, mondayOfWeek, fmtWeekRangeCR, sumWorkedMinutesInWeek } from "../../utils/attendance.js";
-import { useIpLocation } from "../../hooks/useIpLocation.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 import { DeptTag } from "../ui/DeptTag.jsx";
 import { ModalShell } from "../ui/ModalShell.jsx";
@@ -63,12 +62,7 @@ function CorrectRecordModal({ record, userId, onClose, onSaved }) {
 }
 
 export function GestionAsistenciaSection({ adminAttendance = [], attendanceSettings = null, departmentsList = [], adminProfiles = [], userId, onUpdateAttendanceRecord, onSettingsUpdated }) {
-  const { getPosition, loading: geoLoading, error: geoError } = useIpLocation();
-
   // ── settings form ──
-  const [clinicLat,         setClinicLat]         = useState("");
-  const [clinicLng,         setClinicLng]         = useState("");
-  const [radiusMeters,      setRadiusMeters]      = useState("");
   const [toleranceMinutes,  setToleranceMinutes]  = useState("");
   const [settingsLoading,   setSettingsLoading]   = useState(false);
   const [settingsError,     setSettingsError]     = useState(null);
@@ -76,37 +70,15 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
 
   useEffect(() => {
     if (!attendanceSettings) return;
-    setClinicLat(attendanceSettings.clinic_lat != null ? String(attendanceSettings.clinic_lat) : "");
-    setClinicLng(attendanceSettings.clinic_lng != null ? String(attendanceSettings.clinic_lng) : "");
-    setRadiusMeters(String(attendanceSettings.radius_meters ?? ""));
     setToleranceMinutes(String(attendanceSettings.tolerance_minutes ?? ""));
   }, [attendanceSettings]);
 
-  async function handleUseMyLocation() {
-    try {
-      const pos = await getPosition();
-      setClinicLat(String(pos.lat));
-      setClinicLng(String(pos.lng));
-    } catch (_) { /* geoError ya queda expuesto por el hook y se muestra debajo del botón */ }
-  }
-
   async function handleSaveSettings() {
     setSettingsError(null); setSettingsSuccess(false);
-    const radius = parseFloat(radiusMeters);
     const tolerance = parseInt(toleranceMinutes, 10);
-    if (isNaN(radius) || radius <= 0) { setSettingsError("El radio debe ser un número positivo."); return; }
     if (isNaN(tolerance) || tolerance < 0) { setSettingsError("La tolerancia debe ser un número igual o mayor a 0."); return; }
-    const lat = clinicLat.trim() ? parseFloat(clinicLat) : null;
-    const lng = clinicLng.trim() ? parseFloat(clinicLng) : null;
-    if ((clinicLat.trim() || clinicLng.trim()) && (lat === null || lng === null || isNaN(lat) || isNaN(lng))) {
-      setSettingsError("Las coordenadas no son válidas.");
-      return;
-    }
     setSettingsLoading(true);
     const { data, error } = await supabase.from("attendance_settings").update({
-      clinic_lat: lat,
-      clinic_lng: lng,
-      radius_meters: radius,
       tolerance_minutes: tolerance,
       updated_by: userId,
       updated_at: new Date().toISOString(),
@@ -119,21 +91,29 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
   }
 
   // ── team table ──
-  const [viewMode,   setViewMode]   = useState("dia"); // "dia" | "semana"
-  const [filterDate, setFilterDate] = useState(getTodayCR());
-  const [filterDept, setFilterDept] = useState("todos");
-  const [correcting, setCorrecting] = useState(null);
+  const [viewMode,     setViewMode]     = useState("dia"); // "dia" | "semana"
+  const [filterDate,   setFilterDate]   = useState(getTodayCR());
+  const [filterDept,   setFilterDept]   = useState("todos");
+  const [filterSearch, setFilterSearch] = useState("");
+  const [correcting,   setCorrecting]   = useState(null);
+
+  const search = filterSearch.trim().toLowerCase();
 
   const filteredRecords = adminAttendance.filter(r => {
     const matchDate = !filterDate || dateCR(r.clock_in) === filterDate;
     const depts = Array.isArray(r.profiles?.departments) ? r.profiles.departments : [];
     const matchDept = filterDept === "todos" || depts.includes(filterDept);
-    return matchDate && matchDept;
+    const matchSearch = !search || (r.profiles?.full_name ?? "").toLowerCase().includes(search);
+    return matchDate && matchDept && matchSearch;
   });
 
   const weekStart = mondayOfWeek(filterDate || getTodayCR());
   const weeklyRows = (() => {
-    const eligible = adminProfiles.filter(p => p.role !== "inactivo" && (filterDept === "todos" || (Array.isArray(p.departments) && p.departments.includes(filterDept))));
+    const eligible = adminProfiles.filter(p =>
+      p.role !== "inactivo" &&
+      (filterDept === "todos" || (Array.isArray(p.departments) && p.departments.includes(filterDept))) &&
+      (!search || (p.full_name ?? "").toLowerCase().includes(search))
+    );
     return eligible.map(p => {
       const recs = adminAttendance.filter(r => r.user_id === p.id);
       const worked = sumWorkedMinutesInWeek(recs, weekStart);
@@ -160,42 +140,10 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
 
       <Card>
         <CardHeader title="Configuración de asistencia" />
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-          <div>
-            {fieldLabel("Latitud de la clínica")}
-            <input value={clinicLat} onChange={e => setClinicLat(e.target.value)} placeholder="Ej. 9.9294953" style={{ ...compactInputStyle, display:"block" }}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
-          <div>
-            {fieldLabel("Longitud de la clínica")}
-            <input value={clinicLng} onChange={e => setClinicLng(e.target.value)} placeholder="Ej. -84.1039514" style={{ ...compactInputStyle, display:"block" }}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
-        </div>
-        <button type="button" onClick={handleUseMyLocation} disabled={geoLoading} style={{
-          display:"flex", alignItems:"center", gap:6, background:"none", border:`1px solid ${COLORS.border}`, borderRadius:8,
-          padding:"6px 12px", fontSize:12, fontWeight:600, color:COLORS.textMuted, cursor:geoLoading?"not-allowed":"pointer",
-          fontFamily:"'Manrope', sans-serif", marginBottom:16,
-        }}>
-          <MapPin size={13}/> {geoLoading ? "Obteniendo ubicación..." : "Usar mi ubicación actual"}
-        </button>
-        {geoError && <p style={{ fontSize:12, color:"#e07070", margin:"-10px 0 16px" }}>{geoError}</p>}
-        <p style={{ fontSize:12, color:COLORS.textMuted, margin:"0 0 14px", lineHeight:1.5 }}>
-          Cada empleado tiene su propio horario de entrada esperado y sus horas semanales esperadas —
-          se configuran individualmente en <strong>Empleados</strong>. Aquí solo se define el radio
-          permitido alrededor de la clínica y la tolerancia general para marcar atraso.
-        </p>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
-          <div>
-            {fieldLabel("Radio permitido (m)")}
-            <input type="number" min="0" value={radiusMeters} onChange={e => setRadiusMeters(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
-          <div>
-            {fieldLabel("Tolerancia (minutos)")}
-            <input type="number" min="0" value={toleranceMinutes} onChange={e => setToleranceMinutes(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
+        <div style={{ maxWidth:220 }}>
+          {fieldLabel("Tolerancia (minutos)")}
+          <input type="number" min="0" value={toleranceMinutes} onChange={e => setToleranceMinutes(e.target.value)} style={{ ...compactInputStyle, display:"block", marginBottom:16 }}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
         {settingsError && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{settingsError}</p>}
         {settingsSuccess && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 12px" }}>✓ Configuración guardada correctamente.</p>}
@@ -221,18 +169,20 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
               ))}
             </div>
           </div>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ ...compactInputStyle, width:"auto" }}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={{
-              background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8,
-              padding:"10px 14px", color:COLORS.text, fontSize:14, outline:"none",
-              fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto", flexShrink:0,
-            }}>
-              <option value="todos" style={{ color:"#1F4A40" }}>Todos los departamentos</option>
-              {departmentsList.map(d => <option key={d.id} value={d.name} style={{ color:"#1F4A40" }}>{d.name}</option>)}
-            </select>
-          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
+          <input type="text" value={filterSearch} onChange={e => setFilterSearch(e.target.value)} placeholder="Buscar por empleado..." style={{ ...inputStyle, flex:1, minWidth:180, fontSize:13, padding:"9px 12px" }}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ ...compactInputStyle, width:"auto" }}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={{
+            background:COLORS.inputBg, border:`1.5px solid ${COLORS.border}`, borderRadius:8,
+            padding:"10px 14px", color:COLORS.text, fontSize:14, outline:"none",
+            fontFamily:"'Manrope', sans-serif", cursor:"pointer", appearance:"auto", flexShrink:0,
+          }}>
+            <option value="todos" style={{ color:"#1F4A40" }}>Todos los departamentos</option>
+            {departmentsList.map(d => <option key={d.id} value={d.name} style={{ color:"#1F4A40" }}>{d.name}</option>)}
+          </select>
         </div>
         {viewMode === "semana" && (
           <p style={{ fontSize:12, color:COLORS.textMuted, margin:"-6px 0 14px" }}>Semana del {fmtWeekRangeCR(weekStart)}</p>

@@ -687,56 +687,23 @@ AS $$
   )::numeric;
 $$;
 
--- Trigger: calcula distancia/atraso al marcar entrada/salida, y recalcula al
--- corregir un registro (edicion manual de clock_in/clock_out por admin).
--- El atraso se mide contra la hora de entrada esperada de cada empleado
--- (profiles.expected_shift_start), no contra un horario unico de la clinica,
--- porque cada empleado tiene un horario distinto. Las horas extra ya NO se
--- calculan por registro individual (dependian de un horario fijo de salida);
--- se calculan semanalmente en el frontend sumando worked_minutes de la semana
--- contra profiles.expected_weekly_minutes.
--- Las horas se comparan en hora de Costa Rica (la base de datos corre en UTC).
+-- Trigger: calcula worked_minutes al marcar salida (o al corregir clock_in/clock_out
+-- de un registro ya cerrado), y cierra automaticamente el registro al marcar salida.
+-- Ya no calcula atraso (no hay hora de entrada esperada, solo horas semanales
+-- esperadas por empleado, comparadas en el frontend) ni distancia/fuera-de-rango
+-- (ya no se captura ubicacion al marcar).
 CREATE OR REPLACE FUNCTION public.process_attendance_record()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public', 'extensions'
 AS $$
-declare
-  s record;
-  v_expected_start time;
-  tz constant text := 'America/Costa_Rica';
 begin
-  select * into s from public.attendance_settings where id = 1;
-
-  -- clock-in derivados: se recalculan siempre que haya clock_in (insert o correccion que edite clock_in)
-  if new.clock_in is not null then
-    if new.clock_in_lat is not null and s.clinic_lat is not null then
-      new.clock_in_distance_m := public.haversine_meters(new.clock_in_lat, new.clock_in_lng, s.clinic_lat, s.clinic_lng);
-      new.out_of_range := new.clock_in_distance_m > s.radius_meters;
-    end if;
-
-    select expected_shift_start into v_expected_start from public.profiles where id = new.user_id;
-
-    if v_expected_start is not null and (new.clock_in AT TIME ZONE tz)::time > (v_expected_start + (s.tolerance_minutes || ' minutes')::interval) then
-      new.late_minutes := extract(epoch from ((new.clock_in AT TIME ZONE tz)::time - v_expected_start))::integer / 60;
-    else
-      new.late_minutes := 0;
-    end if;
-  end if;
-
-  -- clock-out derivados: se recalculan en el cierre original o en cualquier correccion
-  -- que toque clock_in/clock_out de un registro ya cerrado
   if new.clock_out is not null and (
        tg_op = 'INSERT'
        or new.clock_out is distinct from old.clock_out
        or new.clock_in  is distinct from old.clock_in
      ) then
-    if new.clock_out_lat is not null and s.clinic_lat is not null then
-      new.clock_out_distance_m := public.haversine_meters(new.clock_out_lat, new.clock_out_lng, s.clinic_lat, s.clinic_lng);
-      new.out_of_range := coalesce(new.out_of_range, false) or (new.clock_out_distance_m > s.radius_meters);
-    end if;
-
     new.worked_minutes := extract(epoch from (new.clock_out - new.clock_in))::integer / 60;
   end if;
 

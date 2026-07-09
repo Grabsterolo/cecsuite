@@ -13,8 +13,10 @@ import { SolicitudItem } from "../ui/SolicitudItem.jsx";
 import { CrearSolicitudModal } from "../forms/SolicitudForms.jsx";
 import { AnnouncementDetailModal } from "./AnnouncementsSection.jsx";
 import { PriorityTag } from "./TasksSection.jsx";
+import { ClockInOutButton } from "./AttendanceSection.jsx";
+import { fmtMinutes, getThisWeekStartCR, sumWorkedMinutesInWeek } from "../../utils/attendance.js";
 
-export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [], recognitions = [], polls = [], myVotes = {}, pollResults = {}, userId, onVoted, myConfirmations = {}, myTasks = [], myTaskCompletions = {}, onTaskCompleted }) {
+export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacData = {}, announcements = [], documents = [], upcomingBirthdays = [], onNewRequest, onNewReport, existingVacationRequests = [], recognitions = [], polls = [], myVotes = {}, pollResults = {}, userId, onVoted, myConfirmations = {}, myTasks = [], myTaskCompletions = {}, onTaskCompleted, myAttendance = [], onClockIn, onClockOut }) {
   const [modal, setModal] = useState(null);
   const [announcementModal, setAnnouncementModal] = useState(null);
   const [pollPending, setPollPending] = useState(null); // selected option_index for active poll widget
@@ -22,6 +24,7 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
   const [completingId, setCompletingId] = useState(null);
   const { approvedDays = 0, pendingDays = 0, availableDays = 0, vacationBalance = VAC_TOTAL } = vacData;
   const activePoll = polls.find(p => p.status === "activa" && myVotes[p.id] === undefined);
+  const weekMinutes = sumWorkedMinutesInWeek(myAttendance, getThisWeekStartCR());
 
   async function handleCompleteFromHome(taskId) {
     setCompletingId(taskId);
@@ -40,6 +43,20 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
       ? { display: "flex", flexDirection: "column", gap: 14 }
       : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }
     }>
+
+      {/* Asistencia */}
+      <Card>
+        <CardHeader title="Asistencia"
+          action={<button style={verTodosStyle} onClick={() => setActive("asistencia")}>Ver todo <ChevronRight size={14}/></button>}
+        />
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:14, flexWrap:"wrap" }}>
+          <div>
+            <p style={{ fontSize:12, color:COLORS.textMuted, margin:"0 0 4px" }}>Esta semana</p>
+            <p style={{ fontSize:22, fontWeight:800, color:COLORS.text, margin:0 }}>{fmtMinutes(weekMinutes)}</p>
+          </div>
+          <ClockInOutButton myAttendance={myAttendance} userId={userId} onClockIn={onClockIn} onClockOut={onClockOut} compact />
+        </div>
+      </Card>
 
       {/* Vacaciones — datos reales de Supabase */}
       <Card>

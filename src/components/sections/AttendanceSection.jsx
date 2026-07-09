@@ -3,7 +3,6 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { translateError } from "../../utils/errors.js";
 import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getThisWeekStartCR, fmtWeekRangeCR, sumWorkedMinutesInWeek } from "../../utils/attendance.js";
-import { useIpLocation } from "../../hooks/useIpLocation.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 
 function Badge({ label, color, background }) {
@@ -24,36 +23,23 @@ export function AttendanceBadges({ record }) {
     <>
       {record.status === "abierto" && <Badge label="En curso" color={COLORS.gold} background="rgba(201,162,78,0.12)" />}
       {record.status === "pendiente_correccion" && <Badge label="Corregido" color="#5a7ec7" background="rgba(100,140,220,0.12)" />}
-      {record.late_minutes > 0 && <Badge label={`Atraso ${fmtMinutes(record.late_minutes)}`} color="#c0392b" background="rgba(192,57,43,0.1)" />}
-      {record.out_of_range && <Badge label="Fuera de rango" color="#c0392b" background="rgba(192,57,43,0.1)" />}
     </>
   );
 }
 
-export function AttendanceSection({ myAttendance = [], userId, profile, onClockIn, onClockOut }) {
-  const { getPosition, loading: geoLoading } = useIpLocation();
+// Botón único de marcar entrada/salida. Reutilizable en la sección de
+// Asistencia y en el widget de Inicio.
+export function ClockInOutButton({ myAttendance = [], userId, onClockIn, onClockOut, compact = false }) {
   const [acting, setActing] = useState(false);
   const [error,  setError]  = useState(null);
 
   const openRecord = myAttendance.find(r => r.status === "abierto");
   const isWorking = !!openRecord;
 
-  const weekStart = getThisWeekStartCR();
-  const weekMinutes = sumWorkedMinutesInWeek(myAttendance, weekStart);
-  const expectedWeekly = profile?.expected_weekly_minutes ?? null;
-  const weekExtra = expectedWeekly ? Math.max(0, weekMinutes - expectedWeekly) : 0;
-
-  // La ubicación es best-effort: si no se puede determinar por IP, el marcaje
-  // se registra igual, solo que sin coordenadas (sin verificación de rango).
   async function handleClockIn() {
     setActing(true); setError(null);
-    const pos = await getPosition().catch(() => null);
     try {
-      const { data, error: insertError } = await supabase.from("attendance_records").insert({
-        user_id: userId,
-        clock_in_lat: pos?.lat ?? null,
-        clock_in_lng: pos?.lng ?? null,
-      }).select().single();
+      const { data, error: insertError } = await supabase.from("attendance_records").insert({ user_id: userId }).select().single();
       if (insertError) throw insertError;
       onClockIn?.(data);
     } catch (err) {
@@ -66,12 +52,9 @@ export function AttendanceSection({ myAttendance = [], userId, profile, onClockI
   async function handleClockOut() {
     if (!openRecord) return;
     setActing(true); setError(null);
-    const pos = await getPosition().catch(() => null);
     try {
       const { data, error: updateError } = await supabase.from("attendance_records").update({
         clock_out: new Date().toISOString(),
-        clock_out_lat: pos?.lat ?? null,
-        clock_out_lng: pos?.lng ?? null,
       }).eq("id", openRecord.id).select().single();
       if (updateError) throw updateError;
       onClockOut?.(data);
@@ -82,28 +65,37 @@ export function AttendanceSection({ myAttendance = [], userId, profile, onClockI
     }
   }
 
-  const busy = acting || geoLoading;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems: compact ? "flex-end" : "center", gap: compact ? 6 : 14 }}>
+      {!compact && isWorking && (
+        <p style={{ fontSize:13, color:COLORS.textMuted, margin:0 }}>
+          Entrada marcada a las <strong style={{ color:COLORS.text }}>{fmtClockTime(openRecord.clock_in)}</strong>
+        </p>
+      )}
+      <button onClick={isWorking ? handleClockOut : handleClockIn} disabled={acting} style={{
+        padding: compact ? "9px 20px" : "16px 44px", borderRadius: compact ? 9 : 14, border:"none",
+        background: acting ? COLORS.border : isWorking ? "linear-gradient(135deg, #d16b60, #c0392b)" : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
+        color:"#FFF", fontSize: compact ? 13 : 16, fontWeight:700, cursor: acting ? "not-allowed" : "pointer",
+        fontFamily:"'Manrope', sans-serif", opacity: acting ? 0.75 : 1, transition:"all 0.15s", whiteSpace:"nowrap",
+        boxShadow: isWorking ? "0 4px 14px rgba(192,57,43,0.3)" : "0 4px 14px rgba(201,162,78,0.35)",
+      }}>
+        {acting ? "..." : isWorking ? "Marcar salida" : "Marcar entrada"}
+      </button>
+      {error && <p style={{ fontSize:12, color:"#e07070", margin:0, textAlign: compact ? "right" : "center", maxWidth:280 }}>{error}</p>}
+    </div>
+  );
+}
+
+export function AttendanceSection({ myAttendance = [], userId, onClockIn, onClockOut }) {
+  const weekStart = getThisWeekStartCR();
+  const weekMinutes = sumWorkedMinutesInWeek(myAttendance, weekStart);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <Card>
         <CardHeader title="Marcar asistencia" />
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14, padding:"8px 0" }}>
-          {isWorking && (
-            <p style={{ fontSize:13, color:COLORS.textMuted, margin:0 }}>
-              Entrada marcada a las <strong style={{ color:COLORS.text }}>{fmtClockTime(openRecord.clock_in)}</strong>
-            </p>
-          )}
-          <button onClick={isWorking ? handleClockOut : handleClockIn} disabled={busy} style={{
-            padding:"16px 44px", borderRadius:14, border:"none",
-            background: busy ? COLORS.border : isWorking ? "linear-gradient(135deg, #d16b60, #c0392b)" : `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})`,
-            color:"#FFF", fontSize:16, fontWeight:700, cursor: busy ? "not-allowed" : "pointer",
-            fontFamily:"'Manrope', sans-serif", opacity: busy ? 0.75 : 1, transition:"all 0.15s",
-            boxShadow: isWorking ? "0 4px 14px rgba(192,57,43,0.3)" : "0 4px 14px rgba(201,162,78,0.35)",
-          }}>
-            {busy ? "Obteniendo ubicación..." : isWorking ? "Marcar salida" : "Marcar entrada"}
-          </button>
-          {error && <p style={{ fontSize:12, color:"#e07070", margin:0, textAlign:"center", maxWidth:320 }}>{error}</p>}
+        <div style={{ display:"flex", justifyContent:"center", padding:"8px 0" }}>
+          <ClockInOutButton myAttendance={myAttendance} userId={userId} onClockIn={onClockIn} onClockOut={onClockOut} />
         </div>
       </Card>
 
@@ -111,12 +103,8 @@ export function AttendanceSection({ myAttendance = [], userId, profile, onClockI
         <CardHeader title="Esta semana" />
         <div style={{ display:"flex", alignItems:"baseline", gap:8, flexWrap:"wrap" }}>
           <span style={{ fontSize:26, fontWeight:800, color:COLORS.text }}>{fmtMinutes(weekMinutes)}</span>
-          {expectedWeekly && <span style={{ fontSize:13, color:COLORS.textMuted }}>de {fmtMinutes(expectedWeekly)} esperadas</span>}
         </div>
         <p style={{ fontSize:12, color:COLORS.textMuted, margin:"4px 0 0" }}>{fmtWeekRangeCR(weekStart)}</p>
-        {weekExtra > 0 && (
-          <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"8px 0 0" }}>+{fmtMinutes(weekExtra)} extra esta semana</p>
-        )}
       </Card>
 
       <Card>
