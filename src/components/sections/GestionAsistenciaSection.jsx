@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { taStyle, btnSubmitStyle, compactInputStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
-import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getTodayCR, dateCR, toDatetimeLocalCR, fromDatetimeLocalCR } from "../../utils/attendance.js";
+import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getTodayCR, dateCR, toDatetimeLocalCR, fromDatetimeLocalCR, mondayOfWeek, fmtWeekRangeCR, sumWorkedMinutesInWeek } from "../../utils/attendance.js";
 import { useIpLocation } from "../../hooks/useIpLocation.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 import { DeptTag } from "../ui/DeptTag.jsx";
@@ -62,15 +62,13 @@ function CorrectRecordModal({ record, userId, onClose, onSaved }) {
   );
 }
 
-export function GestionAsistenciaSection({ adminAttendance = [], attendanceSettings = null, departmentsList = [], userId, onUpdateAttendanceRecord, onSettingsUpdated }) {
+export function GestionAsistenciaSection({ adminAttendance = [], attendanceSettings = null, departmentsList = [], adminProfiles = [], userId, onUpdateAttendanceRecord, onSettingsUpdated }) {
   const { getPosition, loading: geoLoading, error: geoError } = useIpLocation();
 
   // ── settings form ──
   const [clinicLat,         setClinicLat]         = useState("");
   const [clinicLng,         setClinicLng]         = useState("");
   const [radiusMeters,      setRadiusMeters]      = useState("");
-  const [shiftStart,        setShiftStart]        = useState("");
-  const [shiftEnd,          setShiftEnd]          = useState("");
   const [toleranceMinutes,  setToleranceMinutes]  = useState("");
   const [settingsLoading,   setSettingsLoading]   = useState(false);
   const [settingsError,     setSettingsError]     = useState(null);
@@ -81,8 +79,6 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
     setClinicLat(attendanceSettings.clinic_lat != null ? String(attendanceSettings.clinic_lat) : "");
     setClinicLng(attendanceSettings.clinic_lng != null ? String(attendanceSettings.clinic_lng) : "");
     setRadiusMeters(String(attendanceSettings.radius_meters ?? ""));
-    setShiftStart((attendanceSettings.shift_start || "").slice(0, 5));
-    setShiftEnd((attendanceSettings.shift_end || "").slice(0, 5));
     setToleranceMinutes(String(attendanceSettings.tolerance_minutes ?? ""));
   }, [attendanceSettings]);
 
@@ -96,7 +92,6 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
 
   async function handleSaveSettings() {
     setSettingsError(null); setSettingsSuccess(false);
-    if (!shiftStart || !shiftEnd) { setSettingsError("El horario de turno es obligatorio."); return; }
     const radius = parseFloat(radiusMeters);
     const tolerance = parseInt(toleranceMinutes, 10);
     if (isNaN(radius) || radius <= 0) { setSettingsError("El radio debe ser un número positivo."); return; }
@@ -112,8 +107,6 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
       clinic_lat: lat,
       clinic_lng: lng,
       radius_meters: radius,
-      shift_start: shiftStart,
-      shift_end: shiftEnd,
       tolerance_minutes: tolerance,
       updated_by: userId,
       updated_at: new Date().toISOString(),
@@ -126,6 +119,7 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
   }
 
   // ── team table ──
+  const [viewMode,   setViewMode]   = useState("dia"); // "dia" | "semana"
   const [filterDate, setFilterDate] = useState(getTodayCR());
   const [filterDept, setFilterDept] = useState("todos");
   const [correcting, setCorrecting] = useState(null);
@@ -136,6 +130,18 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
     const matchDept = filterDept === "todos" || depts.includes(filterDept);
     return matchDate && matchDept;
   });
+
+  const weekStart = mondayOfWeek(filterDate || getTodayCR());
+  const weeklyRows = (() => {
+    const eligible = adminProfiles.filter(p => p.role !== "inactivo" && (filterDept === "todos" || (Array.isArray(p.departments) && p.departments.includes(filterDept))));
+    return eligible.map(p => {
+      const recs = adminAttendance.filter(r => r.user_id === p.id);
+      const worked = sumWorkedMinutesInWeek(recs, weekStart);
+      const expected = p.expected_weekly_minutes ?? null;
+      const extra = expected ? Math.max(0, worked - expected) : 0;
+      return { profile: p, worked, expected, extra };
+    }).filter(row => row.worked > 0);
+  })();
 
   const fieldLabel = (text) => (
     <label style={{ fontSize:12, color:COLORS.textMuted, display:"block", marginBottom:6, fontWeight:600, letterSpacing:"0.02em" }}>{text}</label>
@@ -174,27 +180,22 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
           <MapPin size={13}/> {geoLoading ? "Obteniendo ubicación..." : "Usar mi ubicación actual"}
         </button>
         {geoError && <p style={{ fontSize:12, color:"#e07070", margin:"-10px 0 16px" }}>{geoError}</p>}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:16 }}>
-          <div>
-            {fieldLabel("Inicio de turno")}
-            <input type="time" value={shiftStart} onChange={e => setShiftStart(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
-          <div>
-            {fieldLabel("Fin de turno")}
-            <input type="time" value={shiftEnd} onChange={e => setShiftEnd(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
-              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
-          </div>
+        <p style={{ fontSize:12, color:COLORS.textMuted, margin:"0 0 14px", lineHeight:1.5 }}>
+          Cada empleado tiene su propio horario de entrada esperado y sus horas semanales esperadas —
+          se configuran individualmente en <strong>Empleados</strong>. Aquí solo se define el radio
+          permitido alrededor de la clínica y la tolerancia general para marcar atraso.
+        </p>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
           <div>
             {fieldLabel("Radio permitido (m)")}
             <input type="number" min="0" value={radiusMeters} onChange={e => setRadiusMeters(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
               onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
           </div>
-        </div>
-        <div style={{ maxWidth:220, marginBottom:16 }}>
-          {fieldLabel("Tolerancia (minutos)")}
-          <input type="number" min="0" value={toleranceMinutes} onChange={e => setToleranceMinutes(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
-            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          <div>
+            {fieldLabel("Tolerancia (minutos)")}
+            <input type="number" min="0" value={toleranceMinutes} onChange={e => setToleranceMinutes(e.target.value)} style={{ ...compactInputStyle, display:"block" }}
+              onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+          </div>
         </div>
         {settingsError && <p style={{ fontSize:12, color:"#e07070", margin:"0 0 12px" }}>{settingsError}</p>}
         {settingsSuccess && <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"0 0 12px" }}>✓ Configuración guardada correctamente.</p>}
@@ -207,7 +208,19 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
 
       <Card>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14, flexWrap:"wrap", gap:10 }}>
-          <span style={{ fontSize:14, fontWeight:700, color:COLORS.text }}>Asistencia del equipo</span>
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+            <span style={{ fontSize:14, fontWeight:700, color:COLORS.text }}>Asistencia del equipo</span>
+            <div style={{ display:"flex", gap:4 }}>
+              {[["dia","Día"],["semana","Semana"]].map(([key,label]) => (
+                <button key={key} onClick={() => setViewMode(key)} style={{
+                  border:"none", borderRadius:6, padding:"4px 12px", fontSize:12, fontWeight:600, cursor:"pointer",
+                  fontFamily:"'Manrope', sans-serif",
+                  background: viewMode === key ? COLORS.green : COLORS.panelAlt,
+                  color:      viewMode === key ? "#FFF" : COLORS.textMuted,
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ ...compactInputStyle, width:"auto" }}
               onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
@@ -221,7 +234,51 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
             </select>
           </div>
         </div>
-        {filteredRecords.length === 0 ? (
+        {viewMode === "semana" && (
+          <p style={{ fontSize:12, color:COLORS.textMuted, margin:"-6px 0 14px" }}>Semana del {fmtWeekRangeCR(weekStart)}</p>
+        )}
+        {viewMode === "semana" ? (
+          weeklyRows.length === 0 ? (
+            <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay horas registradas esta semana para este filtro.</p>
+          ) : (
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                <thead>
+                  <tr style={{ borderBottom:`1.5px solid ${COLORS.border}` }}>
+                    <th style={{ textAlign:"left", padding:"8px 10px", color:COLORS.textMuted, fontWeight:600 }}>Empleado</th>
+                    <th style={{ textAlign:"left", padding:"8px 10px", color:COLORS.textMuted, fontWeight:600 }}>Depto.</th>
+                    <th style={{ textAlign:"left", padding:"8px 10px", color:COLORS.textMuted, fontWeight:600 }}>Horas trabajadas</th>
+                    <th style={{ textAlign:"left", padding:"8px 10px", color:COLORS.textMuted, fontWeight:600 }}>Esperadas</th>
+                    <th style={{ textAlign:"left", padding:"8px 10px", color:COLORS.textMuted, fontWeight:600 }}>Extra</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeklyRows.map(row => {
+                    const depts = Array.isArray(row.profile.departments) ? row.profile.departments : [];
+                    return (
+                      <tr key={row.profile.id} style={{ borderBottom:`1px solid ${COLORS.border}` }}>
+                        <td style={{ padding:"9px 10px", fontWeight:600, color:COLORS.text, whiteSpace:"nowrap" }}>{row.profile.full_name}</td>
+                        <td style={{ padding:"9px 10px" }}>
+                          <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                            {depts.map((d, di) => <DeptTag key={di} dept={d} />)}
+                          </div>
+                        </td>
+                        <td style={{ padding:"9px 10px", color:COLORS.text, fontWeight:600, whiteSpace:"nowrap" }}>{fmtMinutes(row.worked)}</td>
+                        <td style={{ padding:"9px 10px", color:COLORS.textMuted, whiteSpace:"nowrap" }}>{row.expected ? fmtMinutes(row.expected) : "—"}</td>
+                        <td style={{ padding:"9px 10px", whiteSpace:"nowrap" }}>
+                          {row.extra > 0
+                            ? <span style={{ fontSize:11, fontWeight:700, color:COLORS.greenSoft, background:"rgba(44,99,86,0.1)", borderRadius:4, padding:"2px 7px" }}>+{fmtMinutes(row.extra)}</span>
+                            : <span style={{ color:COLORS.textMuted }}>—</span>
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : filteredRecords.length === 0 ? (
           <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>No hay marcajes para este filtro.</p>
         ) : (
           <div style={{ overflowX:"auto" }}>

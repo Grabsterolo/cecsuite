@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   commission_eligible   bool          DEFAULT false,
   vacation_last_accrual date          DEFAULT CURRENT_DATE,
   alias                 text,
+  expected_shift_start    time,
+  expected_weekly_minutes int4,
   CONSTRAINT profiles_pkey PRIMARY KEY (id)
 );
 
@@ -685,9 +687,15 @@ AS $$
   )::numeric;
 $$;
 
--- Trigger: calcula distancia/atraso/horas extra al marcar entrada/salida, y
--- recalcula al corregir un registro (edicion manual de clock_in/clock_out por admin).
--- Las horas de turno se comparan en hora de Costa Rica (la base de datos corre en UTC).
+-- Trigger: calcula distancia/atraso al marcar entrada/salida, y recalcula al
+-- corregir un registro (edicion manual de clock_in/clock_out por admin).
+-- El atraso se mide contra la hora de entrada esperada de cada empleado
+-- (profiles.expected_shift_start), no contra un horario unico de la clinica,
+-- porque cada empleado tiene un horario distinto. Las horas extra ya NO se
+-- calculan por registro individual (dependian de un horario fijo de salida);
+-- se calculan semanalmente en el frontend sumando worked_minutes de la semana
+-- contra profiles.expected_weekly_minutes.
+-- Las horas se comparan en hora de Costa Rica (la base de datos corre en UTC).
 CREATE OR REPLACE FUNCTION public.process_attendance_record()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -696,6 +704,7 @@ SET search_path TO 'public', 'extensions'
 AS $$
 declare
   s record;
+  v_expected_start time;
   tz constant text := 'America/Costa_Rica';
 begin
   select * into s from public.attendance_settings where id = 1;
@@ -707,8 +716,10 @@ begin
       new.out_of_range := new.clock_in_distance_m > s.radius_meters;
     end if;
 
-    if (new.clock_in AT TIME ZONE tz)::time > (s.shift_start + (s.tolerance_minutes || ' minutes')::interval) then
-      new.late_minutes := extract(epoch from ((new.clock_in AT TIME ZONE tz)::time - s.shift_start))::integer / 60;
+    select expected_shift_start into v_expected_start from public.profiles where id = new.user_id;
+
+    if v_expected_start is not null and (new.clock_in AT TIME ZONE tz)::time > (v_expected_start + (s.tolerance_minutes || ' minutes')::interval) then
+      new.late_minutes := extract(epoch from ((new.clock_in AT TIME ZONE tz)::time - v_expected_start))::integer / 60;
     else
       new.late_minutes := 0;
     end if;
@@ -727,12 +738,6 @@ begin
     end if;
 
     new.worked_minutes := extract(epoch from (new.clock_out - new.clock_in))::integer / 60;
-
-    if (new.clock_out AT TIME ZONE tz)::time > (s.shift_end + (s.tolerance_minutes || ' minutes')::interval) then
-      new.overtime_minutes := extract(epoch from ((new.clock_out AT TIME ZONE tz)::time - s.shift_end))::integer / 60;
-    else
-      new.overtime_minutes := 0;
-    end if;
   end if;
 
   if (tg_op = 'UPDATE') and old.clock_out is null and new.clock_out is not null and new.status = 'abierto' then

@@ -257,6 +257,8 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
   const [role,        setRole]        = useState(emp.role ?? "empleado");
   const [vacBalance,  setVacBalance]  = useState(emp.vacation_balance !== undefined && emp.vacation_balance !== null ? String(emp.vacation_balance) : "");
   const [alias,       setAlias]       = useState(emp.alias ?? "");
+  const [expectedShiftStart,  setExpectedShiftStart]  = useState(emp.expected_shift_start ? emp.expected_shift_start.slice(0, 5) : "");
+  const [expectedWeeklyHours, setExpectedWeeklyHours] = useState(emp.expected_weekly_minutes ? String(emp.expected_weekly_minutes / 60) : "");
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
   const [commissionEligible, setCommissionEligible] = useState(emp.commission_eligible ?? false);
@@ -271,6 +273,10 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
       setError("Nombre completo y al menos un departamento son obligatorios.");
       return;
     }
+    if (expectedWeeklyHours !== "" && (isNaN(parseFloat(expectedWeeklyHours)) || parseFloat(expectedWeeklyHours) < 0)) {
+      setError("Las horas semanales esperadas deben ser un número válido.");
+      return;
+    }
     setLoading(true);
     const updates = {
       full_name:              fullName.trim(),
@@ -282,6 +288,8 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
       role,
       vacation_balance:       vacBalance  !== "" ? Number(vacBalance)  : VAC_TOTAL,
       commission_eligible:    commissionEligible,
+      expected_shift_start:   expectedShiftStart || null,
+      expected_weekly_minutes: expectedWeeklyHours !== "" ? Math.round(parseFloat(expectedWeeklyHours) * 60) : null,
     };
     const { error: updateError } = await supabase.from("profiles").update(updates).eq("id", emp.id);
     setLoading(false);
@@ -361,6 +369,19 @@ function EditEmployeeModal({ emp, departmentsList, onClose, onSave }) {
         <div>
           {fl("Saldo vacaciones")}
           <input type="number" min="0" value={vacBalance} onChange={e => setVacBalance(e.target.value)} placeholder={String(VAC_TOTAL)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr", gap:12, marginBottom:14, alignItems:"end" }}>
+        <div>
+          {fl("Hora de entrada esperada", true)}
+          <input type="time" value={expectedShiftStart} onChange={e => setExpectedShiftStart(e.target.value)} style={inp}
+            onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
+        </div>
+        <div>
+          {fl("Horas semanales esperadas", true)}
+          <input type="number" min="0" step="0.5" value={expectedWeeklyHours} onChange={e => setExpectedWeeklyHours(e.target.value)} placeholder="Ej. 45" style={inp}
             onFocus={e => e.target.style.borderColor=COLORS.gold} onBlur={e => e.target.style.borderColor=COLORS.border}/>
         </div>
       </div>

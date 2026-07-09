@@ -57,3 +57,47 @@ export function toDatetimeLocalCR(iso) {
   const { year, month, day, hour, minute } = crDateParts(new Date(iso));
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
+
+// ── semana (lunes a domingo), para el resumen de horas extra semanales ──
+
+// "YYYY-MM-DD" (cualquier día) -> "YYYY-MM-DD" del lunes de esa semana
+export function mondayOfWeek(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const dow = d.getUTCDay(); // 0=domingo..6=sábado
+  const diff = dow === 0 ? -6 : 1 - dow;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+export function addDaysToDateStr(dateStr, days) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function getThisWeekStartCR() {
+  return mondayOfWeek(getTodayCR());
+}
+
+// "YYYY-MM-DD" del lunes -> "9 – 15 jul 2026"
+export function fmtWeekRangeCR(mondayStr) {
+  const sundayStr = addDaysToDateStr(mondayStr, 6);
+  const [my, mm, md] = mondayStr.split("-").map(Number);
+  const [, sm, sd] = sundayStr.split("-").map(Number);
+  const left = `${md} ${MONTHS_ES[mm - 1]}`;
+  const right = `${sd} ${MONTHS_ES[sm - 1]} ${my}`;
+  return `${left} – ${right}`;
+}
+
+// Suma worked_minutes de los registros cuya fecha (hora CR) cae dentro de la
+// semana [mondayStr, mondayStr+6]. Los registros sin worked_minutes (ej. aún
+// abiertos) no suman.
+export function sumWorkedMinutesInWeek(records, mondayStr) {
+  const sundayStr = addDaysToDateStr(mondayStr, 6);
+  return records.reduce((acc, r) => {
+    if (!r.worked_minutes) return acc;
+    const d = dateCR(r.clock_in);
+    if (d >= mondayStr && d <= sundayStr) return acc + r.worked_minutes;
+    return acc;
+  }, 0);
+}

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { translateError } from "../../utils/errors.js";
-import { fmtMinutes, fmtClockTime, fmtTimestampDateCR } from "../../utils/attendance.js";
+import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getThisWeekStartCR, fmtWeekRangeCR, sumWorkedMinutesInWeek } from "../../utils/attendance.js";
 import { useIpLocation } from "../../hooks/useIpLocation.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 
@@ -25,19 +25,23 @@ export function AttendanceBadges({ record }) {
       {record.status === "abierto" && <Badge label="En curso" color={COLORS.gold} background="rgba(201,162,78,0.12)" />}
       {record.status === "pendiente_correccion" && <Badge label="Corregido" color="#5a7ec7" background="rgba(100,140,220,0.12)" />}
       {record.late_minutes > 0 && <Badge label={`Atraso ${fmtMinutes(record.late_minutes)}`} color="#c0392b" background="rgba(192,57,43,0.1)" />}
-      {record.overtime_minutes > 0 && <Badge label={`Extra ${fmtMinutes(record.overtime_minutes)}`} color={COLORS.greenSoft} background="rgba(44,99,86,0.1)" />}
       {record.out_of_range && <Badge label="Fuera de rango" color="#c0392b" background="rgba(192,57,43,0.1)" />}
     </>
   );
 }
 
-export function AttendanceSection({ myAttendance = [], userId, onClockIn, onClockOut }) {
+export function AttendanceSection({ myAttendance = [], userId, profile, onClockIn, onClockOut }) {
   const { getPosition, loading: geoLoading } = useIpLocation();
   const [acting, setActing] = useState(false);
   const [error,  setError]  = useState(null);
 
   const openRecord = myAttendance.find(r => r.status === "abierto");
   const isWorking = !!openRecord;
+
+  const weekStart = getThisWeekStartCR();
+  const weekMinutes = sumWorkedMinutesInWeek(myAttendance, weekStart);
+  const expectedWeekly = profile?.expected_weekly_minutes ?? null;
+  const weekExtra = expectedWeekly ? Math.max(0, weekMinutes - expectedWeekly) : 0;
 
   // La ubicación es best-effort: si no se puede determinar por IP, el marcaje
   // se registra igual, solo que sin coordenadas (sin verificación de rango).
@@ -101,6 +105,18 @@ export function AttendanceSection({ myAttendance = [], userId, onClockIn, onCloc
           </button>
           {error && <p style={{ fontSize:12, color:"#e07070", margin:0, textAlign:"center", maxWidth:320 }}>{error}</p>}
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Esta semana" />
+        <div style={{ display:"flex", alignItems:"baseline", gap:8, flexWrap:"wrap" }}>
+          <span style={{ fontSize:26, fontWeight:800, color:COLORS.text }}>{fmtMinutes(weekMinutes)}</span>
+          {expectedWeekly && <span style={{ fontSize:13, color:COLORS.textMuted }}>de {fmtMinutes(expectedWeekly)} esperadas</span>}
+        </div>
+        <p style={{ fontSize:12, color:COLORS.textMuted, margin:"4px 0 0" }}>{fmtWeekRangeCR(weekStart)}</p>
+        {weekExtra > 0 && (
+          <p style={{ fontSize:12, color:COLORS.greenSoft, fontWeight:600, margin:"8px 0 0" }}>+{fmtMinutes(weekExtra)} extra esta semana</p>
+        )}
       </Card>
 
       <Card>
