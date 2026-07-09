@@ -72,12 +72,15 @@ export default function App() {
   const [myTaskCompletions,  setMyTaskCompletions]   = useState({}); // { [task_id]: completed_at }
   const [adminTasks,         setAdminTasks]          = useState([]);
   const [allTaskCompletions, setAllTaskCompletions]  = useState([]); // admin only
+  const [myAttendance,       setMyAttendance]        = useState([]);
+  const [adminAttendance,    setAdminAttendance]     = useState([]); // admin only
+  const [attendanceSettings, setAttendanceSettings]  = useState(null); // admin only
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null);
-      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); setPolls([]); setMyVotes({}); setPollResults({}); setExchangeRate(null); setMySales([]); setAllSales([]); setMyConfirmations({}); setAllConfirmations([]); setMyTasks([]); setMyTaskCompletions({}); setAdminTasks([]); setAllTaskCompletions([]); }
+      if (!s) { setProfile(null); setAllRequests([]); setAnnouncements([]); setDocuments([]); setUpcomingBirthdays([]); setReports([]); setAdminRequests([]); setAdminReports([]); setAdminAnnouncements([]); setAdminDocuments([]); setAdminProfiles([]); setDepartments([]); setDepartmentsList([]); setTeamVacations([]); setRecognitions([]); setToast(null); setTeamDirectory([]); setPolls([]); setMyVotes({}); setPollResults({}); setExchangeRate(null); setMySales([]); setAllSales([]); setMyConfirmations({}); setAllConfirmations([]); setMyTasks([]); setMyTaskCompletions({}); setAdminTasks([]); setAllTaskCompletions([]); setMyAttendance([]); setAdminAttendance([]); setAttendanceSettings(null); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -142,6 +145,10 @@ export default function App() {
         const map = {}; data.forEach(c => { map[c.task_id] = c.completed_at; });
         setMyTaskCompletions(map);
       });
+
+    supabase.from("attendance_records").select("*").eq("user_id", profile.id)
+      .order("clock_in", { ascending: false }).limit(30)
+      .then(({ data }) => { if (data) setMyAttendance(data); });
 
     supabase.rpc("get_recognitions_feed")
       .then(({ data }) => { if (data) setRecognitions(data); });
@@ -227,6 +234,15 @@ export default function App() {
       .then(({ data }) => { if (data) setAdminTasks(data); });
     supabase.from("task_completions").select("task_id, user_id, completed_at, profiles(full_name)")
       .then(({ data }) => { if (data) setAllTaskCompletions(data); });
+    (() => {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      supabase.from("attendance_records").select("*, profiles!attendance_records_user_id_fkey(full_name, departments)")
+        .gte("clock_in", since)
+        .order("clock_in", { ascending: false })
+        .then(({ data }) => { if (data) setAdminAttendance(data); });
+    })();
+    supabase.from("attendance_settings").select("*").eq("id", 1).single()
+      .then(({ data }) => { if (data) setAttendanceSettings(data); });
   }, [profile]);
 
   // Unlock AudioContext on first user interaction so it's ready when Realtime fires
@@ -593,6 +609,24 @@ export default function App() {
               setMyTaskCompletions(prev => { const n = { ...prev }; delete n[taskId]; return n; });
               setAllTaskCompletions(prev => prev.filter(c => !(c.task_id === taskId && c.user_id === profile?.id)));
             }}
+            myAttendance={myAttendance}
+            adminAttendance={adminAttendance}
+            attendanceSettings={attendanceSettings}
+            onClockIn={record => {
+              setMyAttendance(prev => [record, ...prev]);
+              if (profile?.role === "admin") {
+                setAdminAttendance(prev => [{ ...record, profiles: { full_name: profile?.full_name, departments: profile?.departments } }, ...prev]);
+              }
+            }}
+            onClockOut={record => {
+              setMyAttendance(prev => prev.map(r => r.id === record.id ? record : r));
+              setAdminAttendance(prev => prev.map(r => r.id === record.id ? { ...r, ...record } : r));
+            }}
+            onUpdateAttendanceRecord={record => {
+              setAdminAttendance(prev => prev.map(r => r.id === record.id ? record : r));
+              setMyAttendance(prev => prev.map(r => r.id === record.id ? record : r));
+            }}
+            onSettingsUpdated={settings => setAttendanceSettings(settings)}
           />
         : <LoginScreen onLogin={() => {}} />
       }

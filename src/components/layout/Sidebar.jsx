@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import {
-  LogOut, X, ClipboardCheck, Megaphone, FileUp, Users, UserPlus, DollarSign, ClipboardList,
+  LogOut, X, ClipboardCheck, Megaphone, FileUp, Users, UserPlus, DollarSign, ClipboardList, Clock,
 } from "lucide-react";
 import { COLORS, SIDEBAR_BG } from "../../constants/colors.js";
 import { NAV_ITEMS } from "../../constants/nav.js";
@@ -128,6 +128,17 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
                 transition:"background 0.15s, color 0.15s",
               }}>
                 <ClipboardList size={19} />Gestionar tareas
+              </button>
+              <button onClick={() => { setActive("asistencia-admin"); onClose(); }} style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"12px 14px", borderRadius:10, border:"none",
+                cursor:"pointer", textAlign:"left", fontSize:15, fontWeight:600,
+                fontFamily:"'Manrope', sans-serif",
+                color: active === "asistencia-admin" ? "#FFF" : COLORS.sidebarMuted,
+                background: active === "asistencia-admin" ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                transition:"background 0.15s, color 0.15s",
+              }}>
+                <Clock size={19} />Gestionar asistencia
               </button>
               <button onClick={() => { setActive("comisiones"); onClose(); }} style={{
                 display:"flex", alignItems:"center", gap:14,
@@ -361,6 +372,28 @@ export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalC
                   onMouseLeave={e => { if (!isActive4) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
                 >
                   <ClipboardList size={16} />Gestionar tareas
+                </button>
+              );
+            })()}
+            {(() => {
+              const isActive5 = active === "asistencia-admin";
+              return (
+                <button
+                  onClick={() => setActive("asistencia-admin")}
+                  style={{
+                    display:"flex", alignItems:"center", gap:12,
+                    padding:"10px 14px", borderRadius:8, border:"none",
+                    cursor:"pointer", textAlign:"left",
+                    fontSize:14, fontWeight:600,
+                    fontFamily:"'Manrope', sans-serif",
+                    color: isActive5 ? "#FFFFFF" : COLORS.sidebarMuted,
+                    background: isActive5 ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+                    transition:"background 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!isActive5) { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="#FFFFFF"; } }}
+                  onMouseLeave={e => { if (!isActive5) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color=COLORS.sidebarMuted; } }}
+                >
+                  <Clock size={16} />Gestionar asistencia
                 </button>
               );
             })()}

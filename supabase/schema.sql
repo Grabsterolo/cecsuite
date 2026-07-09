@@ -197,6 +197,43 @@ CREATE TABLE IF NOT EXISTS public.exchange_rate (
   CONSTRAINT exchange_rate_pkey PRIMARY KEY (id)
 );
 
+CREATE TABLE IF NOT EXISTS public.attendance_settings (
+  id                int4    DEFAULT 1 NOT NULL,
+  clinic_lat        numeric,
+  clinic_lng        numeric,
+  radius_meters     numeric NOT NULL DEFAULT 150,
+  shift_start       time    NOT NULL DEFAULT '07:00:00',
+  shift_end         time    NOT NULL DEFAULT '17:00:00',
+  tolerance_minutes int4    NOT NULL DEFAULT 10,
+  updated_by        uuid,
+  updated_at        timestamptz DEFAULT now(),
+  CONSTRAINT attendance_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT attendance_settings_singleton CHECK (id = 1)
+);
+
+CREATE TABLE IF NOT EXISTS public.attendance_records (
+  id                    uuid        DEFAULT gen_random_uuid() NOT NULL,
+  user_id               uuid        NOT NULL,
+  clock_in              timestamptz NOT NULL DEFAULT now(),
+  clock_out             timestamptz,
+  clock_in_lat          numeric,
+  clock_in_lng          numeric,
+  clock_in_distance_m   numeric,
+  clock_out_lat         numeric,
+  clock_out_lng         numeric,
+  clock_out_distance_m  numeric,
+  status                text        NOT NULL DEFAULT 'abierto' CHECK (status = ANY (ARRAY['abierto'::text, 'cerrado'::text, 'pendiente_correccion'::text])),
+  worked_minutes        int4,
+  late_minutes          int4        NOT NULL DEFAULT 0,
+  overtime_minutes      int4        NOT NULL DEFAULT 0,
+  out_of_range          bool        NOT NULL DEFAULT false,
+  notes                 text,
+  corrected_by          uuid,
+  corrected_at          timestamptz,
+  created_at            timestamptz DEFAULT now(),
+  CONSTRAINT attendance_records_pkey PRIMARY KEY (id)
+);
+
 
 -- ============================================================
 -- FOREIGN KEYS
@@ -274,6 +311,16 @@ ALTER TABLE public.exchange_rate
   ADD CONSTRAINT exchange_rate_updated_by_fkey
   FOREIGN KEY (updated_by) REFERENCES public.profiles(id);
 
+ALTER TABLE public.attendance_settings
+  ADD CONSTRAINT attendance_settings_updated_by_fkey
+  FOREIGN KEY (updated_by) REFERENCES public.profiles(id);
+
+ALTER TABLE public.attendance_records
+  ADD CONSTRAINT attendance_records_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  ADD CONSTRAINT attendance_records_corrected_by_fkey
+  FOREIGN KEY (corrected_by) REFERENCES public.profiles(id);
+
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -294,6 +341,8 @@ ALTER TABLE public.tasks                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_completions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.commission_sales       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exchange_rate          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_settings    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_records     ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -570,6 +619,33 @@ CREATE POLICY "Admin actualiza tipo de cambio"
   ON public.exchange_rate FOR UPDATE
   USING (is_admin());
 
+-- attendance_settings
+CREATE POLICY "Ver configuracion de asistencia"
+  ON public.attendance_settings FOR SELECT
+  USING ((select auth.uid()) IS NOT NULL);
+
+CREATE POLICY "Admin actualiza configuracion de asistencia"
+  ON public.attendance_settings FOR UPDATE
+  USING ((select is_admin()));
+
+-- attendance_records
+CREATE POLICY "Ver asistencia propia o admin ve todas"
+  ON public.attendance_records FOR SELECT
+  USING (((select auth.uid()) = user_id) OR (select is_admin()));
+
+CREATE POLICY "Marcar entrada propia"
+  ON public.attendance_records FOR INSERT
+  WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Marcar salida propia o admin corrige"
+  ON public.attendance_records FOR UPDATE
+  USING ((((select auth.uid()) = user_id AND status = 'abierto') OR (select is_admin())))
+  WITH CHECK ((((select auth.uid()) = user_id AND status = ANY (ARRAY['abierto'::text, 'cerrado'::text])) OR (select is_admin())));
+
+CREATE POLICY "Admin elimina registros de asistencia"
+  ON public.attendance_records FOR DELETE
+  USING ((select is_admin()));
+
 
 -- ============================================================
 -- FUNCIONES / RPCs
@@ -592,6 +668,84 @@ $$;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Distancia en metros entre dos coordenadas (formula haversine)
+CREATE OR REPLACE FUNCTION public.haversine_meters(lat1 numeric, lng1 numeric, lat2 numeric, lng2 numeric)
+RETURNS numeric
+LANGUAGE sql
+IMMUTABLE
+SET search_path TO 'public', 'extensions'
+AS $$
+  select 6371000 * 2 * asin(
+    sqrt(
+      power(sin(radians((lat2 - lat1) / 2)), 2) +
+      cos(radians(lat1)) * cos(radians(lat2)) *
+      power(sin(radians((lng2 - lng1) / 2)), 2)
+    )
+  )::numeric;
+$$;
+
+-- Trigger: calcula distancia/atraso/horas extra al marcar entrada/salida, y
+-- recalcula al corregir un registro (edicion manual de clock_in/clock_out por admin).
+-- Las horas de turno se comparan en hora de Costa Rica (la base de datos corre en UTC).
+CREATE OR REPLACE FUNCTION public.process_attendance_record()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'extensions'
+AS $$
+declare
+  s record;
+  tz constant text := 'America/Costa_Rica';
+begin
+  select * into s from public.attendance_settings where id = 1;
+
+  -- clock-in derivados: se recalculan siempre que haya clock_in (insert o correccion que edite clock_in)
+  if new.clock_in is not null then
+    if new.clock_in_lat is not null and s.clinic_lat is not null then
+      new.clock_in_distance_m := public.haversine_meters(new.clock_in_lat, new.clock_in_lng, s.clinic_lat, s.clinic_lng);
+      new.out_of_range := new.clock_in_distance_m > s.radius_meters;
+    end if;
+
+    if (new.clock_in AT TIME ZONE tz)::time > (s.shift_start + (s.tolerance_minutes || ' minutes')::interval) then
+      new.late_minutes := extract(epoch from ((new.clock_in AT TIME ZONE tz)::time - s.shift_start))::integer / 60;
+    else
+      new.late_minutes := 0;
+    end if;
+  end if;
+
+  -- clock-out derivados: se recalculan en el cierre original o en cualquier correccion
+  -- que toque clock_in/clock_out de un registro ya cerrado
+  if new.clock_out is not null and (
+       tg_op = 'INSERT'
+       or new.clock_out is distinct from old.clock_out
+       or new.clock_in  is distinct from old.clock_in
+     ) then
+    if new.clock_out_lat is not null and s.clinic_lat is not null then
+      new.clock_out_distance_m := public.haversine_meters(new.clock_out_lat, new.clock_out_lng, s.clinic_lat, s.clinic_lng);
+      new.out_of_range := coalesce(new.out_of_range, false) or (new.clock_out_distance_m > s.radius_meters);
+    end if;
+
+    new.worked_minutes := extract(epoch from (new.clock_out - new.clock_in))::integer / 60;
+
+    if (new.clock_out AT TIME ZONE tz)::time > (s.shift_end + (s.tolerance_minutes || ' minutes')::interval) then
+      new.overtime_minutes := extract(epoch from ((new.clock_out AT TIME ZONE tz)::time - s.shift_end))::integer / 60;
+    else
+      new.overtime_minutes := 0;
+    end if;
+  end if;
+
+  if (tg_op = 'UPDATE') and old.clock_out is null and new.clock_out is not null and new.status = 'abierto' then
+    new.status := 'cerrado';
+  end if;
+
+  return new;
+end;
+$$;
+
+CREATE OR REPLACE TRIGGER attendance_records_process
+  BEFORE INSERT OR UPDATE ON public.attendance_records
+  FOR EACH ROW EXECUTE FUNCTION public.process_attendance_record();
 
 -- Acumulación mensual de vacaciones (1 día por mes en fecha de aniversario)
 CREATE OR REPLACE FUNCTION public.accrue_monthly_vacations()
