@@ -150,6 +150,9 @@ export default function App() {
       .order("clock_in", { ascending: false }).limit(30)
       .then(({ data }) => { if (data) setMyAttendance(data); });
 
+    supabase.from("attendance_settings").select("*").eq("id", 1).single()
+      .then(({ data }) => { if (data) setAttendanceSettings(data); });
+
     supabase.rpc("get_recognitions_feed")
       .then(({ data }) => { if (data) setRecognitions(data); });
     supabase.rpc("get_team_directory")
@@ -236,13 +239,11 @@ export default function App() {
       .then(({ data }) => { if (data) setAllTaskCompletions(data); });
     (() => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      supabase.from("attendance_records").select("*, profiles!attendance_records_user_id_fkey(full_name, departments)")
+      supabase.from("attendance_records").select("*, profiles!attendance_records_user_id_fkey(full_name, departments, expected_shift_start)")
         .gte("clock_in", since)
         .order("clock_in", { ascending: false })
         .then(({ data }) => { if (data) setAdminAttendance(data); });
     })();
-    supabase.from("attendance_settings").select("*").eq("id", 1).single()
-      .then(({ data }) => { if (data) setAttendanceSettings(data); });
   }, [profile]);
 
   // Unlock AudioContext on first user interaction so it's ready when Realtime fires
@@ -615,7 +616,7 @@ export default function App() {
             onClockIn={record => {
               setMyAttendance(prev => [record, ...prev]);
               if (profile?.role === "admin") {
-                setAdminAttendance(prev => [{ ...record, profiles: { full_name: profile?.full_name, departments: profile?.departments } }, ...prev]);
+                setAdminAttendance(prev => [{ ...record, profiles: { full_name: profile?.full_name, departments: profile?.departments, expected_shift_start: profile?.expected_shift_start } }, ...prev]);
               }
             }}
             onClockOut={record => {

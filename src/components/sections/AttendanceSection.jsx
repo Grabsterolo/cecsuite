@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { translateError } from "../../utils/errors.js";
-import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getThisWeekStartCR, fmtWeekRangeCR, sumWorkedMinutesInWeek } from "../../utils/attendance.js";
+import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getThisWeekStartCR, fmtWeekRangeCR, sumWorkedMinutesInWeek, computeLateMinutes } from "../../utils/attendance.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 
 function Badge({ label, color, background }) {
@@ -17,23 +17,26 @@ function Badge({ label, color, background }) {
   );
 }
 
-export function AttendanceBadges({ record }) {
+export function AttendanceBadges({ record, lateMinutes = 0 }) {
   if (!record) return null;
   return (
     <>
-      {record.status === "abierto" && <Badge label="En curso" color={COLORS.gold} background="rgba(201,162,78,0.12)" />}
+      {record.clock_out == null && <Badge label="En curso" color={COLORS.gold} background="rgba(201,162,78,0.12)" />}
       {record.status === "pendiente_correccion" && <Badge label="Corregido" color="#5a7ec7" background="rgba(100,140,220,0.12)" />}
+      {lateMinutes > 0 && <Badge label={`Atraso ${fmtMinutes(lateMinutes)}`} color="#c0392b" background="rgba(192,57,43,0.1)" />}
     </>
   );
 }
 
 // Botón único de marcar entrada/salida. Reutilizable en la sección de
-// Asistencia y en el widget de Inicio.
+// Asistencia y en el widget de Inicio. "Trabajando" = tiene un registro sin
+// hora de salida (clock_out null), sin importar su status — así una
+// corrección que deja la salida en blanco sigue contando como abierta.
 export function ClockInOutButton({ myAttendance = [], userId, onClockIn, onClockOut, compact = false }) {
   const [acting, setActing] = useState(false);
   const [error,  setError]  = useState(null);
 
-  const openRecord = myAttendance.find(r => r.status === "abierto");
+  const openRecord = myAttendance.find(r => r.clock_out == null);
   const isWorking = !!openRecord;
 
   async function handleClockIn() {
@@ -86,9 +89,10 @@ export function ClockInOutButton({ myAttendance = [], userId, onClockIn, onClock
   );
 }
 
-export function AttendanceSection({ myAttendance = [], userId, onClockIn, onClockOut }) {
+export function AttendanceSection({ myAttendance = [], userId, profile, attendanceSettings, onClockIn, onClockOut }) {
   const weekStart = getThisWeekStartCR();
   const weekMinutes = sumWorkedMinutesInWeek(myAttendance, weekStart);
+  const toleranceMinutes = attendanceSettings?.tolerance_minutes ?? 0;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -113,22 +117,25 @@ export function AttendanceSection({ myAttendance = [], userId, onClockIn, onCloc
           <p style={{ color:COLORS.textMuted, fontSize:14, margin:0 }}>Aún no tienes marcajes registrados.</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column" }}>
-            {myAttendance.map(rec => (
-              <div key={rec.id} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:600, color:COLORS.text }}>{fmtTimestampDateCR(rec.clock_in)}</div>
-                    <div style={{ fontSize:12, color:COLORS.textMuted, marginTop:2 }}>
-                      {fmtClockTime(rec.clock_in)} — {rec.clock_out ? fmtClockTime(rec.clock_out) : "en curso"}
+            {myAttendance.map(rec => {
+              const lateMinutes = computeLateMinutes(rec.clock_in, profile?.expected_shift_start, toleranceMinutes);
+              return (
+                <div key={rec.id} style={{ padding:"12px 0", borderBottom:`1px solid ${COLORS.border}` }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:600, color:COLORS.text }}>{fmtTimestampDateCR(rec.clock_in)}</div>
+                      <div style={{ fontSize:12, color:COLORS.textMuted, marginTop:2 }}>
+                        {fmtClockTime(rec.clock_in)} — {rec.clock_out ? fmtClockTime(rec.clock_out) : "en curso"}
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                      <AttendanceBadges record={rec} lateMinutes={lateMinutes} />
+                      <span style={{ fontSize:13, fontWeight:700, color:COLORS.text, marginLeft:4 }}>{fmtMinutes(rec.worked_minutes)}</span>
                     </div>
                   </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
-                    <AttendanceBadges record={rec} />
-                    <span style={{ fontSize:13, fontWeight:700, color:COLORS.text, marginLeft:4 }}>{fmtMinutes(rec.worked_minutes)}</span>
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>

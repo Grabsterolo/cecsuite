@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase.js";
 import { COLORS } from "../../constants/colors.js";
 import { inputStyle, taStyle, btnSubmitStyle, compactInputStyle } from "../../styles/forms.js";
 import { translateError } from "../../utils/errors.js";
-import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getTodayCR, dateCR, toDatetimeLocalCR, fromDatetimeLocalCR, mondayOfWeek, fmtWeekRangeCR, sumWorkedMinutesInWeek } from "../../utils/attendance.js";
+import { fmtMinutes, fmtClockTime, fmtTimestampDateCR, getTodayCR, dateCR, toDatetimeLocalCR, fromDatetimeLocalCR, mondayOfWeek, fmtWeekRangeCR, sumWorkedMinutesInWeek, computeLateMinutes } from "../../utils/attendance.js";
 import { Card, CardHeader } from "../ui/Card.jsx";
 import { DeptTag } from "../ui/DeptTag.jsx";
 import { ModalShell } from "../ui/ModalShell.jsx";
@@ -27,7 +27,7 @@ function CorrectRecordModal({ record, userId, onClose, onSaved }) {
       notes: notes.trim() || null,
       corrected_by: userId,
       corrected_at: new Date().toISOString(),
-    }).eq("id", record.id).select("*, profiles!attendance_records_user_id_fkey(full_name, departments)").single();
+    }).eq("id", record.id).select("*, profiles!attendance_records_user_id_fkey(full_name, departments, expected_shift_start)").single();
     setLoading(false);
     if (updateError) { setError(translateError(updateError.message)); return; }
     onSaved(data);
@@ -98,6 +98,7 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
   const [correcting,   setCorrecting]   = useState(null);
 
   const search = filterSearch.trim().toLowerCase();
+  const savedTolerance = attendanceSettings?.tolerance_minutes ?? 0;
 
   const filteredRecords = adminAttendance.filter(r => {
     const matchDate = !filterDate || dateCR(r.clock_in) === filterDate;
@@ -247,6 +248,7 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
               <tbody>
                 {filteredRecords.map(rec => {
                   const depts = Array.isArray(rec.profiles?.departments) ? rec.profiles.departments : [];
+                  const lateMinutes = computeLateMinutes(rec.clock_in, rec.profiles?.expected_shift_start, savedTolerance);
                   return (
                     <tr key={rec.id} style={{ borderBottom:`1px solid ${COLORS.border}` }}>
                       <td style={{ padding:"9px 10px", fontWeight:600, color:COLORS.text, whiteSpace:"nowrap" }}>{rec.profiles?.full_name ?? "—"}</td>
@@ -260,7 +262,7 @@ export function GestionAsistenciaSection({ adminAttendance = [], attendanceSetti
                       <td style={{ padding:"9px 10px", color:COLORS.text, fontWeight:600, whiteSpace:"nowrap" }}>{fmtMinutes(rec.worked_minutes)}</td>
                       <td style={{ padding:"9px 10px" }}>
                         <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
-                          <AttendanceBadges record={rec} />
+                          <AttendanceBadges record={rec} lateMinutes={lateMinutes} />
                         </div>
                       </td>
                       <td style={{ padding:"9px 10px", textAlign:"right" }}>

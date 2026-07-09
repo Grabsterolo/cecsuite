@@ -25,6 +25,20 @@ export function fmtClockTime(iso) {
   return `${hour}:${minute}`;
 }
 
+// Minutos de atraso al marcar entrada, comparado contra la hora de entrada
+// esperada de ese empleado (profiles.expected_shift_start, "HH:MM:SS") más
+// la tolerancia global (minutos). Ambos lados se comparan en hora de Costa
+// Rica. Si el empleado no tiene hora esperada configurada, no hay atraso.
+export function computeLateMinutes(clockInISO, expectedShiftStart, toleranceMinutes = 0) {
+  if (!clockInISO || !expectedShiftStart) return 0;
+  const { hour, minute } = crDateParts(new Date(clockInISO));
+  const clockInMin = Number(hour) * 60 + Number(minute);
+  const [eh, em] = expectedShiftStart.split(":").map(Number);
+  const expectedMin = eh * 60 + (em || 0);
+  const diff = clockInMin - (expectedMin + (toleranceMinutes || 0));
+  return diff > 0 ? diff : 0;
+}
+
 export function fmtTimestampDateCR(iso) {
   if (!iso) return "—";
   const { year, month, day } = crDateParts(new Date(iso));
