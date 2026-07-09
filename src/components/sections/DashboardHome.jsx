@@ -85,6 +85,28 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
         </div>
       </Card>
 
+      {/* Cumpleaños — sube aquí para completar la primera fila de 3 columnas */}
+      <Card>
+        <CardHeader title="Próximos cumpleaños" />
+        {upcomingBirthdays.length === 0 ? (
+          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No hay cumpleaños próximos.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", fontSize: 13 }}>
+            {upcomingBirthdays.slice(0, 3).map((b) => (
+              <div key={b.full_name} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                color: COLORS.text, padding: "9px 0",
+                borderBottom: `1px solid ${COLORS.border}`,
+              }}>
+                <Cake size={16} color={COLORS.gold} />
+                {b.full_name}
+                <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>{b.date}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Comunicados — 2 columnas en desktop */}
       <Card style={isMobile ? {} : { gridColumn: "span 2" }}>
         <CardHeader
@@ -282,28 +304,6 @@ export function DashboardHome({ isMobile, setActive, allSolicitudes = [], vacDat
                 </div>
                 <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase", color:COLORS.gold, background:"rgba(201,162,78,0.1)", borderRadius:4, padding:"1px 6px" }}>{r.category}</span>
                 <p style={{ fontSize:12, color:COLORS.textMuted, margin:"4px 0 0", lineHeight:1.5, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.message}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Cumpleaños */}
-      <Card>
-        <CardHeader title="Próximos cumpleaños" />
-        {upcomingBirthdays.length === 0 ? (
-          <p style={{ color:COLORS.textMuted, fontSize:13, margin:0 }}>No hay cumpleaños próximos.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", fontSize: 13 }}>
-            {upcomingBirthdays.slice(0, 3).map((b) => (
-              <div key={b.full_name} style={{
-                display: "flex", alignItems: "center", gap: 10,
-                color: COLORS.text, padding: "9px 0",
-                borderBottom: `1px solid ${COLORS.border}`,
-              }}>
-                <Cake size={16} color={COLORS.gold} />
-                {b.full_name}
-                <span style={{ marginLeft: "auto", color: COLORS.textMuted, fontSize: 12 }}>{b.date}</span>
               </div>
             ))}
           </div>
