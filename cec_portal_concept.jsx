@@ -600,7 +600,12 @@ export default function App() {
               if (matchesMe) setMyTasks(prev => prev.some(x => x.id === t.id) ? prev : [t, ...prev]);
               if (profile?.role === "admin") setAdminTasks(prev => prev.some(x => x.id === t.id) ? prev : [t, ...prev]);
             }}
-            onDeleteTask={id => { setMyTasks(prev => prev.filter(t => t.id !== id)); setAdminTasks(prev => prev.filter(t => t.id !== id)); }}
+            onDeleteTask={id => {
+              setMyTasks(prev => prev.filter(t => t.id !== id));
+              setAdminTasks(prev => prev.filter(t => t.id !== id));
+              setAllTaskCompletions(prev => prev.filter(c => c.task_id !== id));
+              setMyTaskCompletions(prev => { const n = { ...prev }; delete n[id]; return n; });
+            }}
             onUpdateTask={t => { setMyTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...t } : x)); setAdminTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...t } : x)); }}
             onTaskCompleted={(taskId, completedAt) => {
               setMyTaskCompletions(prev => ({ ...prev, [taskId]: completedAt }));

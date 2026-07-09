@@ -78,12 +78,6 @@ export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [],
   }
 
   async function handlePermaDel(task) {
-    const compCount = allTaskCompletions.filter(c => c.task_id === task.id).length;
-    if (compCount > 0) {
-      setError(`No se puede eliminar — hay ${compCount} completación${compCount !== 1 ? "es" : ""} registrada${compCount !== 1 ? "s" : ""}. Cancela la tarea en su lugar.`);
-      setConfirmPermaDel(null);
-      return;
-    }
     setDeleting(prev => ({ ...prev, [task.id]: true }));
     const { error: delError } = await supabase.from("tasks").delete().eq("id", task.id);
     setDeleting(prev => ({ ...prev, [task.id]: false }));
@@ -262,9 +256,13 @@ export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [],
                       }}>Cancelar</button>
                     </div>
                   )}
-                  {isConfirmingPermaDel && (
+                  {isConfirmingPermaDel && (() => {
+                    const compCount = allTaskCompletions.filter(c => c.task_id === task.id).length;
+                    return (
                     <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, padding:"8px 10px", background:"rgba(192,57,43,0.06)", borderRadius:7 }}>
-                      <span style={{ fontSize:12, color:"#c0392b", flex:1 }}>¿Eliminar permanentemente? No se puede deshacer.</span>
+                      <span style={{ fontSize:12, color:"#c0392b", flex:1 }}>
+                        ¿Eliminar permanentemente?{compCount > 0 ? ` También se eliminarán ${compCount} completación${compCount !== 1 ? "es" : ""} registrada${compCount !== 1 ? "s" : ""}.` : ""} No se puede deshacer.
+                      </span>
                       <button onClick={() => handlePermaDel(task)} disabled={isDeleting} style={{
                         border:"none", background:"#c0392b", color:"#FFF", borderRadius:6,
                         padding:"5px 12px", fontSize:12, fontWeight:700, cursor:"pointer",
@@ -275,7 +273,8 @@ export function GestionTareasSection({ adminTasks = [], allTaskCompletions = [],
                         padding:"5px 12px", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"'Manrope', sans-serif",
                       }}>Cancelar</button>
                     </div>
-                  )}
+                    );
+                  })()}
                   {!isIndividual && (() => {
                     const taskCompletions = allTaskCompletions.filter(c => c.task_id === task.id);
                     const completedIds = new Set(taskCompletions.map(c => c.user_id));
