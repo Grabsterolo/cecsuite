@@ -27,7 +27,7 @@ function RotatingWord({ noAnim }) {
 
   return (
     <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", columnGap:4, fontSize:13, color:COLORS.textMuted, marginBottom:10, lineHeight:1.6 }}>
-      <span>Tu espacio para:</span>
+      <span>Lo extraordinario empieza con:</span>
       <span style={{ overflow:"hidden", display:"inline-block", height:"1.35em", verticalAlign:"text-bottom" }}>
         <span style={{ color:COLORS.gold, fontWeight:600, display:"block", ...wordAnim }}>
           {ROTATING_WORDS[noAnim ? 0 : idx]}
