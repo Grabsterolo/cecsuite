@@ -27,7 +27,7 @@ function RotatingWord({ noAnim }) {
 
   return (
     <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", columnGap:4, fontSize:13, color:COLORS.textMuted, marginBottom:10, lineHeight:1.6 }}>
-      <span>Accede a:</span>
+      <span>Tu espacio para:</span>
       <span style={{ overflow:"hidden", display:"inline-block", height:"1.35em", verticalAlign:"text-bottom" }}>
         <span style={{ color:COLORS.gold, fontWeight:600, display:"block", ...wordAnim }}>
           {ROTATING_WORDS[noAnim ? 0 : idx]}
@@ -123,8 +123,8 @@ export function LoginScreen({ onLogin }) {
         <div style={{ background: SIDEBAR_BG, padding: "28px 32px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
           <div style={anim(0)}><Logo width={200} /></div>
           <div style={{ width: 50, height: 1.5, background: COLORS.gold, opacity: 0.6, ...anim(80) }} />
-          <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", ...anim(140) }}>
-            Colaboradores · Pacientes
+          <div style={{ fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", textAlign: "center", ...anim(140) }}>
+            De lo ordinario a lo extraordinario
           </div>
         </div>
         <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
@@ -147,8 +147,8 @@ export function LoginScreen({ onLogin }) {
       }}>
         <div style={anim(0)}><Logo width={380} /></div>
         <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7, ...anim(100) }} />
-        <div style={{ fontSize: 14, letterSpacing: "0.35em", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", textAlign: "center", fontWeight: 500, ...anim(180) }}>
-          Colaboradores · Pacientes
+        <div style={{ fontSize: 14, letterSpacing: "0.2em", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", textAlign: "center", fontWeight: 500, ...anim(180) }}>
+          De lo ordinario a lo extraordinario
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF", position: "relative", overflow: "hidden" }}>

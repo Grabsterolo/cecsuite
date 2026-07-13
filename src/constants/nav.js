@@ -2,7 +2,7 @@ import { Home, CalendarCheck, CalendarDays, CalendarRange, Bell, BarChart3, Awar
 
 export const INFINITY_PATH = "M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70 C58 70 42 30 30 30";
 
-export const ROTATING_WORDS = ["comunicados", "vacaciones", "documentos", "permisos", "reportes", "tu equipo", "tus citas", "tu historial médico", "resultados"];
+export const ROTATING_WORDS = ["comunicados", "vacaciones", "documentos", "permisos", "reportes", "equipo", "citas", "historial médico", "resultados"];
 
 export const NAV_ITEMS_RRHH = [
   { key: "inicio",      label: "Inicio",      icon: Home },
