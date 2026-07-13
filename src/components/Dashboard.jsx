@@ -1,14 +1,17 @@
 import React, { useState, useCallback } from "react";
 import { Menu, Cake } from "lucide-react";
 import { COLORS, SIDEBAR_BG } from "../constants/colors.js";
-import { VAC_TOTAL, MONTH_NAMES } from "../constants/nav.js";
+import { VAC_TOTAL, MONTH_NAMES, NAV_ITEMS_RRHH, NAV_ITEMS_CLINICO } from "../constants/nav.js";
 import { fmtSupaShort, getFirstNames } from "../utils/format.js";
 import { getEffectiveDays, isBirthdayToday, getDailyMessage } from "../utils/dates.js";
 import { useIsMobile } from "../hooks/useIsMobile.js";
 import { Logo } from "./ui/Logo.jsx";
 import { BirthdayConfetti } from "./ui/BirthdayConfetti.jsx";
 import { Sidebar, MobileDrawer } from "./layout/Sidebar.jsx";
+import { ClinicalProvider, hasClinicalAccess } from "../context/ClinicalContext.jsx";
 import { DashboardHome } from "./sections/DashboardHome.jsx";
+import { DashboardClinicoHome } from "./sections/DashboardClinicoHome.jsx";
+import { PacientesSection } from "./sections/PacientesSection.jsx";
 import { PlaceholderSection } from "./sections/PlaceholderSection.jsx";
 import { ProfileSection } from "./sections/ProfileSection.jsx";
 import { SolicitudesSection } from "./sections/SolicitudesSection.jsx";
@@ -36,9 +39,24 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
+  // Módulo clínico: toggle RRHH/Clínico + Context propio (ver src/context/ClinicalContext.jsx).
+  // Vive aquí y no en cec_portal_concept.jsx para no seguir engordando el prop-drilling
+  // del componente raíz — el módulo clínico consume su propio Context en vez de props.
+  const [portalMode, setPortalMode] = useState("rrhh");
+  const clinicalAccess = hasClinicalAccess(profile);
+  const navItems = portalMode === "clinico" ? NAV_ITEMS_CLINICO : NAV_ITEMS_RRHH;
+
   const noAnim = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [displayActive, setDisplayActive] = useState("inicio");
   const [sectionPhase, setSectionPhase] = useState(null); // null = no anim on first mount
+  const handlePortalModeChange = useCallback((mode) => {
+    setPortalMode(prev => {
+      if (prev === mode) return prev;
+      setActive("inicio");
+      setDisplayActive("inicio");
+      return mode;
+    });
+  }, []);
   const navigate = useCallback((next) => {
     if (next === displayActive) return;
     if (next === "solicitudes") onClearSolicitudesUnread?.();
@@ -54,7 +72,9 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
   const [dashDone, setDashDone] = useState(false);
   const dashboardInAnim = (!dashDone && !noAnim) ? { animation: "dashboardIn 0.45s ease-out both" } : {};
 
-  const sectionTitle = { inicio: "Inicio", vacaciones: "Vacaciones", "calendario-equipo": "Calendario de equipo", comunicados: "Comunicados", encuestas: "Encuestas", reconocimientos: "Reconocimientos", comisiones: "Comisiones", documentos: "Documentos", solicitudes: "Solicitudes", tareas: "Tareas", asistencia: "Asistencia", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", "tareas-admin": "Gestionar tareas", "asistencia-admin": "Gestionar asistencia", empleados: "Empleados", "alta-empleado": "Gestión de empleados" }[displayActive];
+  const rrhhSectionTitles = { inicio: "Inicio", vacaciones: "Vacaciones", "calendario-equipo": "Calendario de equipo", comunicados: "Comunicados", encuestas: "Encuestas", reconocimientos: "Reconocimientos", comisiones: "Comisiones", documentos: "Documentos", solicitudes: "Solicitudes", tareas: "Tareas", asistencia: "Asistencia", perfil: "Mi perfil", aprobaciones: "Aprobaciones", "comunicados-admin": "Gestionar comunicados", "documentos-admin": "Gestionar documentos", "tareas-admin": "Gestionar tareas", "asistencia-admin": "Gestionar asistencia", empleados: "Empleados", "alta-empleado": "Gestión de empleados" };
+  const clinicoSectionTitles = { inicio: "Inicio", pacientes: "Pacientes", agenda: "Agenda", "solicitudes-cita": "Solicitudes de cita", "notas-clinicas": "Notas clínicas" };
+  const sectionTitle = (portalMode === "clinico" ? clinicoSectionTitles : rrhhSectionTitles)[displayActive];
 
   const pendingApprovalCount = (profile?.role === "admin")
     ? adminRequests.filter(r => r.status === "pendiente").length + adminReports.filter(r => r.status === "pendiente").length
@@ -112,8 +132,23 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
   const isBirthday = isBirthdayToday(profile?.birth_date);
   const dailyMessage = getDailyMessage();
 
+  // Secciones RRHH: misma cadena de siempre, solo extraída a función para no
+  // duplicarla entre el branch móvil y el de escritorio (idéntico output).
+  const renderRRHHSection = (isMobileFlag) => (
+    displayActive === "inicio" ? <DashboardHome isMobile={isMobileFlag} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} myConfirmations={myConfirmations} myTasks={myTasks} myTaskCompletions={myTaskCompletions} onTaskCompleted={onTaskCompleted} myAttendance={myAttendance} onClockIn={onClockIn} onClockOut={onClockOut} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} profile={profile} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} myConfirmations={myConfirmations} userId={userId} onConfirmRead={onConfirmRead} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "tareas" ? <TasksSection myTasks={myTasks} myTaskCompletions={myTaskCompletions} profile={profile} userId={userId} departmentsList={departmentsList} onNewTask={onNewTask} onDeleteTask={onDeleteTask} onTaskCompleted={onTaskCompleted} onTaskUncompleted={onTaskUncompleted} /> : displayActive === "asistencia" ? <AttendanceSection myAttendance={myAttendance} userId={userId} profile={profile} attendanceSettings={attendanceSettings} onClockIn={onClockIn} onClockOut={onClockOut} /> : displayActive === "perfil" ? <ProfileSection profile={profile} onAliasUpdated={onAliasUpdated} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} onDeleteAdminRequest={onDeleteAdminRequest} onVacationCancelled={onVacationCancelled} reviewerName={profile?.full_name} showToast={showToast} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} adminProfiles={adminProfiles} allConfirmations={allConfirmations} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} onUpdateAdminDocument={onUpdateAdminDocument} /> : displayActive === "tareas-admin" ? <GestionTareasSection adminTasks={adminTasks} allTaskCompletions={allTaskCompletions} adminProfiles={adminProfiles} departmentsList={departmentsList} onNewTask={onNewTask} onUpdateTask={onUpdateTask} onDeleteTask={onDeleteTask} /> : displayActive === "asistencia-admin" ? <GestionAsistenciaSection adminAttendance={adminAttendance} attendanceSettings={attendanceSettings} departmentsList={departmentsList} adminProfiles={adminProfiles} userId={userId} onUpdateAttendanceRecord={onUpdateAttendanceRecord} onSettingsUpdated={onSettingsUpdated} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} departmentsList={departmentsList} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} onSaleDeleted={onSaleDeleted} showToast={showToast} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />
+  );
+
+  // Secciones del módulo clínico: por ahora solo Inicio y Pacientes tienen
+  // función propia; Agenda / Solicitudes de cita / Notas clínicas van a
+  // PlaceholderSection hasta que se construyan en prompts siguientes.
+  const renderClinicoSection = () => (
+    displayActive === "inicio" ? <DashboardClinicoHome isMobile={isMobile} profile={profile} userId={userId} />
+    : displayActive === "pacientes" ? <PacientesSection />
+    : <PlaceholderSection title={sectionTitle} />
+  );
+
   if (isMobile) {
-    return (
+    const mobileTree = (
       <div style={{ background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif" }}>
         {/* Header fijo móvil */}
         <div style={{
@@ -136,7 +171,7 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
           </button>
         </div>
         {isBirthday && !noAnim && <BirthdayConfetti />}
-        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} tasksPendingCount={tasksPendingCount} />
+        <MobileDrawer open={drawerOpen} onClose={closeDrawer} active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} tasksPendingCount={tasksPendingCount} navItems={navItems} portalMode={portalMode} onPortalModeChange={handlePortalModeChange} showPortalToggle={clinicalAccess} />
         <div style={{ padding: "24px 16px 48px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.22em", color: COLORS.gold, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
             {todayStr}
@@ -157,18 +192,19 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
               {dailyMessage}
             </p>
           )}
-          {displayActive === "inicio" ? <DashboardHome isMobile={true} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} myConfirmations={myConfirmations} myTasks={myTasks} myTaskCompletions={myTaskCompletions} onTaskCompleted={onTaskCompleted} myAttendance={myAttendance} onClockIn={onClockIn} onClockOut={onClockOut} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} profile={profile} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} myConfirmations={myConfirmations} userId={userId} onConfirmRead={onConfirmRead} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "tareas" ? <TasksSection myTasks={myTasks} myTaskCompletions={myTaskCompletions} profile={profile} userId={userId} departmentsList={departmentsList} onNewTask={onNewTask} onDeleteTask={onDeleteTask} onTaskCompleted={onTaskCompleted} onTaskUncompleted={onTaskUncompleted} /> : displayActive === "asistencia" ? <AttendanceSection myAttendance={myAttendance} userId={userId} profile={profile} attendanceSettings={attendanceSettings} onClockIn={onClockIn} onClockOut={onClockOut} /> : displayActive === "perfil" ? <ProfileSection profile={profile} onAliasUpdated={onAliasUpdated} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} onDeleteAdminRequest={onDeleteAdminRequest} onVacationCancelled={onVacationCancelled} reviewerName={profile?.full_name} showToast={showToast} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} adminProfiles={adminProfiles} allConfirmations={allConfirmations} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} onUpdateAdminDocument={onUpdateAdminDocument} /> : displayActive === "tareas-admin" ? <GestionTareasSection adminTasks={adminTasks} allTaskCompletions={allTaskCompletions} adminProfiles={adminProfiles} departmentsList={departmentsList} onNewTask={onNewTask} onUpdateTask={onUpdateTask} onDeleteTask={onDeleteTask} /> : displayActive === "asistencia-admin" ? <GestionAsistenciaSection adminAttendance={adminAttendance} attendanceSettings={attendanceSettings} departmentsList={departmentsList} adminProfiles={adminProfiles} userId={userId} onUpdateAttendanceRecord={onUpdateAttendanceRecord} onSettingsUpdated={onSettingsUpdated} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} departmentsList={departmentsList} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} onSaleDeleted={onSaleDeleted} showToast={showToast} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {portalMode === "clinico" ? renderClinicoSection() : renderRRHHSection(true)}
         </div>
         {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
       </div>
     );
+    return clinicalAccess ? <ClinicalProvider userId={userId} profile={profile}>{mobileTree}</ClinicalProvider> : mobileTree;
   }
 
-  return (
+  const desktopTree = (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh", fontFamily: "'Manrope', sans-serif", ...dashboardInAnim }} onAnimationEnd={(e) => { if (e.animationName === "dashboardIn") setDashDone(true); }}>
       {isBirthday && !noAnim && <BirthdayConfetti />}
-      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} recognitionsUnreadCount={recognitionsUnread} pollsUnvotedCount={pollsUnvotedCount} tasksPendingCount={tasksPendingCount} />
+      <Sidebar active={active} setActive={navigate} onLogout={onLogout} profile={profile} pendingApprovalCount={pendingApprovalCount} solicitudesUnreadCount={solicitudesUnread} recognitionsUnreadCount={recognitionsUnread} pollsUnvotedCount={pollsUnvotedCount} tasksPendingCount={tasksPendingCount} navItems={navItems} portalMode={portalMode} onPortalModeChange={handlePortalModeChange} showPortalToggle={clinicalAccess} />
       <div style={{ flex: 1, padding: "36px 40px", minWidth: 0 }}>
         <div style={sectionAnim} onAnimationEnd={(e) => { if (e.animationName === "sectionIn") setSectionPhase(null); }}>
           <div style={{ marginBottom: 32 }}>
@@ -192,11 +228,12 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
               </p>
             )}
           </div>
-          {displayActive === "inicio" ? <DashboardHome isMobile={false} setActive={navigate} allSolicitudes={allSolicitudes} vacData={vacData} announcements={announcements} documents={documents} upcomingBirthdays={upcomingBirthdays} onNewRequest={onNewRequest} onNewReport={onNewReport} existingVacationRequests={vacationRequests} recognitions={recognitions} polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} onVoted={onVoted} myConfirmations={myConfirmations} myTasks={myTasks} myTaskCompletions={myTaskCompletions} onTaskCompleted={onTaskCompleted} myAttendance={myAttendance} onClockIn={onClockIn} onClockOut={onClockOut} /> : displayActive === "vacaciones" ? <VacationSection profile={profile} vacationRequests={vacationRequests} onNewRequest={onNewRequest} /> : displayActive === "calendario-equipo" ? <TeamCalendarSection teamVacations={teamVacations} /> : displayActive === "comunicados" ? <AnnouncementsSection announcements={announcements} profile={profile} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "reconocimientos" ? <RecognitionsSection recognitions={recognitions} onNewRecognition={onNewRecognition} onDeleteRecognition={onDeleteRecognition} userId={userId} profile={profile} teamDirectory={teamDirectory} onMarkRead={onMarkRecognitionsRead} unreadCount={recognitionsUnread} /> : displayActive === "documentos" ? <DocumentsSection documents={documents} myConfirmations={myConfirmations} userId={userId} onConfirmRead={onConfirmRead} /> : displayActive === "solicitudes" ? <SolicitudesSection allSolicitudes={allSolicitudes} onNewRequest={onNewRequest} onNewReport={onNewReport} availableDays={availableDays} existingVacationRequests={vacationRequests} onDeleteRequest={onDeleteRequest} onDeleteReport={onDeleteReport} /> : displayActive === "tareas" ? <TasksSection myTasks={myTasks} myTaskCompletions={myTaskCompletions} profile={profile} userId={userId} departmentsList={departmentsList} onNewTask={onNewTask} onDeleteTask={onDeleteTask} onTaskCompleted={onTaskCompleted} onTaskUncompleted={onTaskUncompleted} /> : displayActive === "asistencia" ? <AttendanceSection myAttendance={myAttendance} userId={userId} profile={profile} attendanceSettings={attendanceSettings} onClockIn={onClockIn} onClockOut={onClockOut} /> : displayActive === "perfil" ? <ProfileSection profile={profile} onAliasUpdated={onAliasUpdated} /> : displayActive === "aprobaciones" ? <AprobacionesSection adminRequests={adminRequests} adminReports={adminReports} onUpdateAdminRequest={onUpdateAdminRequest} onUpdateAdminReport={onUpdateAdminReport} onDeleteAdminRequest={onDeleteAdminRequest} onVacationCancelled={onVacationCancelled} reviewerName={profile?.full_name} showToast={showToast} /> : displayActive === "comunicados-admin" ? <GestionComunicadosSection adminAnnouncements={adminAnnouncements} departmentsList={departmentsList} onNewAnnouncement={onNewAnnouncement} onDeleteAnnouncement={onDeleteAnnouncement} /> : displayActive === "documentos-admin" ? <GestionDocumentosSection adminDocuments={adminDocuments} departmentsList={departmentsList} adminProfiles={adminProfiles} allConfirmations={allConfirmations} onNewDocument={onNewDocument} onDeleteDocument={onDeleteDocument} onUpdateAdminDocument={onUpdateAdminDocument} /> : displayActive === "tareas-admin" ? <GestionTareasSection adminTasks={adminTasks} allTaskCompletions={allTaskCompletions} adminProfiles={adminProfiles} departmentsList={departmentsList} onNewTask={onNewTask} onUpdateTask={onUpdateTask} onDeleteTask={onDeleteTask} /> : displayActive === "asistencia-admin" ? <GestionAsistenciaSection adminAttendance={adminAttendance} attendanceSettings={attendanceSettings} departmentsList={departmentsList} adminProfiles={adminProfiles} userId={userId} onUpdateAttendanceRecord={onUpdateAttendanceRecord} onSettingsUpdated={onSettingsUpdated} /> : displayActive === "empleados" ? <EmpleadosSection adminProfiles={adminProfiles} adminRequests={adminRequests} departmentsList={departmentsList} onUpdateProfile={onUpdateAdminProfile} /> : displayActive === "encuestas" ? <EncuestasSection polls={polls} myVotes={myVotes} pollResults={pollResults} userId={userId} profile={profile} departmentsList={departmentsList} onPollCreated={onPollCreated} onVoted={onVoted} onPollClosed={onPollClosed} onPollDeleted={onPollDeleted} /> : displayActive === "comisiones" ? <ComisionesSection profile={profile} userId={userId} exchangeRate={exchangeRate} mySales={mySales} allSales={allSales} onExchangeRateUpdated={onExchangeRateUpdated} onSaleDeleted={onSaleDeleted} showToast={showToast} /> : displayActive === "alta-empleado" ? <AltaEmpleadoSection departmentsList={departmentsList} /> : <PlaceholderSection title={sectionTitle} />}
+          {portalMode === "clinico" ? renderClinicoSection() : renderRRHHSection(false)}
         </div>
       </div>
       {profile && profile.role !== "admin" && profile.role !== "inactivo" && userId && <SupportChatWidget userId={userId}/>}
       {(profile?.role === "admin") && userId && <AdminSupportChatWidget adminId={userId}/>}
     </div>
   );
+  return clinicalAccess ? <ClinicalProvider userId={userId} profile={profile}>{desktopTree}</ClinicalProvider> : desktopTree;
 }

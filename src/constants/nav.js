@@ -1,10 +1,10 @@
-import { Home, CalendarCheck, CalendarDays, CalendarRange, Bell, BarChart3, Award, DollarSign, FileText, User, ClipboardList, Clock } from "lucide-react";
+import { Home, CalendarCheck, CalendarDays, CalendarRange, Bell, BarChart3, Award, DollarSign, FileText, User, ClipboardList, Clock, Users, CalendarClock, CalendarPlus, StickyNote } from "lucide-react";
 
 export const INFINITY_PATH = "M30 30 C18 30 18 70 30 70 C42 70 58 30 70 30 C82 30 82 70 70 70 C58 70 42 30 30 30";
 
 export const ROTATING_WORDS = ["comunicados", "vacaciones", "documentos", "permisos", "reportes", "tu equipo"];
 
-export const NAV_ITEMS = [
+export const NAV_ITEMS_RRHH = [
   { key: "inicio",      label: "Inicio",      icon: Home },
   { key: "asistencia",        label: "Asistencia",           icon: Clock          },
   { key: "vacaciones",        label: "Vacaciones",           icon: CalendarCheck  },
@@ -17,6 +17,19 @@ export const NAV_ITEMS = [
   { key: "comisiones",        label: "Comisiones",           icon: DollarSign,    condition: p => p?.commission_eligible && p?.role !== "admin" },
   { key: "documentos",        label: "Documentos",           icon: FileText       },
   { key: "perfil",      label: "Mi perfil",   icon: User },
+];
+
+// Alias para no romper importadores existentes de NAV_ITEMS (p. ej. cec_portal_concept.jsx).
+export const NAV_ITEMS = NAV_ITEMS_RRHH;
+
+// Agenda, Solicitudes de cita y Notas clínicas todavía no tienen sección propia:
+// quedan en el menú (apuntan a PlaceholderSection) para que se vea completo desde ya.
+export const NAV_ITEMS_CLINICO = [
+  { key: "inicio",            label: "Inicio",             icon: Home },
+  { key: "pacientes",         label: "Pacientes",          icon: Users },
+  { key: "agenda",            label: "Agenda",             icon: CalendarClock },
+  { key: "solicitudes-cita",  label: "Solicitudes de cita", icon: CalendarPlus },
+  { key: "notas-clinicas",    label: "Notas clínicas",      icon: StickyNote },
 ];
 
 export const VAC_TOTAL = 12;

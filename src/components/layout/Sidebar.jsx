@@ -3,10 +3,38 @@ import {
   LogOut, X, ClipboardCheck, Megaphone, FileUp, Users, UserPlus, DollarSign, ClipboardList, Clock,
 } from "lucide-react";
 import { COLORS, SIDEBAR_BG } from "../../constants/colors.js";
-import { NAV_ITEMS } from "../../constants/nav.js";
+import { NAV_ITEMS_RRHH } from "../../constants/nav.js";
 import { Logo } from "../ui/Logo.jsx";
 
-export function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, tasksPendingCount = 0 }) {
+// Switch "RRHH / Clínico" — solo se renderiza cuando showPortalToggle es true
+// (perfil con acceso clínico). Sin checkbox nativo, mismo lenguaje visual del sidebar.
+function PortalModeToggle({ portalMode, onChange, compact }) {
+  return (
+    <div style={{
+      display: "flex", background: "rgba(255,255,255,0.08)", borderRadius: 10,
+      padding: 3, marginBottom: 16, flexShrink: 0,
+    }}>
+      {[{ key: "rrhh", label: "RRHH" }, { key: "clinico", label: "Clínico" }].map(opt => {
+        const active = portalMode === opt.key;
+        return (
+          <button key={opt.key} onClick={() => onChange(opt.key)} style={{
+            flex: 1, border: "none", borderRadius: 8,
+            padding: compact ? "9px 10px" : "7px 10px",
+            fontSize: compact ? 13 : 12, fontWeight: 700,
+            fontFamily: "'Manrope', sans-serif", cursor: "pointer",
+            transition: "background 0.2s ease, color 0.2s ease",
+            background: active ? `linear-gradient(135deg, ${COLORS.goldSoft}, ${COLORS.gold})` : "transparent",
+            color: active ? "#FFF" : COLORS.sidebarMuted,
+          }}>
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function MobileDrawer({ open, onClose, active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, tasksPendingCount = 0, navItems = NAV_ITEMS_RRHH, portalMode = "rrhh", onPortalModeChange, showPortalToggle = false }) {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -39,8 +67,11 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
           </button>
         </div>
         <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 16, flexShrink: 0 }} />
+        {showPortalToggle && (
+          <PortalModeToggle portalMode={portalMode} onChange={mode => { onPortalModeChange?.(mode); onClose(); }} compact />
+        )}
         <nav className="sidebar-nav" style={{ display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", flex: 1, paddingBottom: 8 }}>
-          {NAV_ITEMS.filter(item => !item.condition || item.condition(profile)).map((item) => {
+          {navItems.filter(item => !item.condition || item.condition(profile)).map((item) => {
             const Icon = item.icon;
             const isActive = active === item.key;
             return (
@@ -73,7 +104,7 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
               </button>
             );
           })}
-          {(profile?.role === "admin") && (
+          {(profile?.role === "admin") && portalMode === "rrhh" && (
             <>
               <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"10px 4px 6px" }} />
               <div style={{ fontSize:10, letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", fontWeight:700, padding:"0 14px 4px" }}>Administración</div>
@@ -197,7 +228,7 @@ export function MobileDrawer({ open, onClose, active, setActive, onLogout, profi
   );
 }
 
-export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, recognitionsUnreadCount = 0, pollsUnvotedCount = 0, tasksPendingCount = 0 }) {
+export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalCount = 0, solicitudesUnreadCount = 0, recognitionsUnreadCount = 0, pollsUnvotedCount = 0, tasksPendingCount = 0, navItems = NAV_ITEMS_RRHH, portalMode = "rrhh", onPortalModeChange, showPortalToggle = false }) {
   return (
     <div style={{
       width: 252,
@@ -215,8 +246,14 @@ export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalC
         <Logo width={160} />
       </div>
 
+      {showPortalToggle && (
+        <div style={{ padding: "0 8px" }}>
+          <PortalModeToggle portalMode={portalMode} onChange={onPortalModeChange} />
+        </div>
+      )}
+
       <nav className="sidebar-nav" style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto", minHeight: 0 }}>
-        {NAV_ITEMS.filter(item => !item.condition || item.condition(profile)).map((item) => {
+        {navItems.filter(item => !item.condition || item.condition(profile)).map((item) => {
           const Icon = item.icon;
           const isActive = active === item.key;
           return (
@@ -275,7 +312,7 @@ export function Sidebar({ active, setActive, onLogout, profile, pendingApprovalC
             </button>
           );
         })}
-        {(profile?.role === "admin") && (
+        {(profile?.role === "admin") && portalMode === "rrhh" && (
           <>
             <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"10px 4px 6px" }} />
             <div style={{ fontSize:10, letterSpacing:"0.18em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", fontWeight:700, padding:"0 14px 4px" }}>Administración</div>

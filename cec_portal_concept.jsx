@@ -532,7 +532,12 @@ export default function App() {
     <div>
       <style>{FONTS}</style>
       {session
-        ? <Dashboard
+        ? // Decisión de arquitectura: el estado portalMode y el montaje de
+          // <ClinicalProvider> viven dentro de Dashboard.jsx, no aquí en App.
+          // Así el módulo clínico consume su propio Context (ver
+          // src/context/ClinicalContext.jsx) en vez de seguir engordando el
+          // prop-drilling de este componente raíz con más entidades de RRHH.
+          <Dashboard
             onLogout={() => supabase.auth.signOut()}
             profile={profile}
             allRequests={allRequests}
