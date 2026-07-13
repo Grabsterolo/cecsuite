@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['pwa-icon.jpg'],
       manifest: {
-        name: 'Portal CEC',
-        short_name: 'Portal CEC',
+        name: 'CEC Suite',
+        short_name: 'CEC Suite',
         description: 'Portal interno de colaboradores del Centro Europeo de Cirugía',
         theme_color: '#0B0E0D',
         background_color: '#0B0E0D',

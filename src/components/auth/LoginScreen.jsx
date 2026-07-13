@@ -48,7 +48,7 @@ function LoginForm({ onLogin }) {
 
   async function handleLogin() {
     setError(null);
-    if (!emailValue.trim()) { setError("Ingresa tu correo corporativo."); return; }
+    if (!emailValue.trim()) { setError("Ingresa tu correo electrónico."); return; }
     if (!passwordValue) { setError("Ingresa tu contraseña."); return; }
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithPassword({ email: emailValue.trim(), password: passwordValue });
@@ -65,15 +65,15 @@ function LoginForm({ onLogin }) {
         ...(noAnim ? {} : { animation: "goldLineGrow 0.65s ease-out both" }),
       }} />
       <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, marginBottom: 12, color: COLORS.green, lineHeight: 1.15, ...anim(80) }}>
-        Te damos la bienvenida<br />al Portal CEC
+        Te damos la bienvenida<br />a CEC Suite
       </h1>
       <div style={anim(160)}><RotatingWord noAnim={noAnim} /></div>
       <p style={{ color: COLORS.textMuted, fontSize: 13, marginBottom: 28, lineHeight: 1.6, ...anim(220) }}>
-        Ingresa con tu correo institucional para continuar.
+        Ingresa con tu correo para continuar.
       </p>
-      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(280) }}>Correo corporativo</label>
+      <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6, fontWeight: 600, letterSpacing: "0.02em", ...anim(280) }}>Correo electrónico</label>
       <input
-        type="email" placeholder="nombre@cec.co.cr" value={emailValue}
+        type="email" placeholder="nombre@correo.com" value={emailValue}
         onChange={e => setEmailValue(e.target.value)}
         style={{ ...inputStyle, marginBottom: 14, ...anim(320) }}
         onFocus={e => e.target.style.borderColor = COLORS.gold}
@@ -124,7 +124,7 @@ export function LoginScreen({ onLogin }) {
           <div style={anim(0)}><Logo width={200} /></div>
           <div style={{ width: 50, height: 1.5, background: COLORS.gold, opacity: 0.6, ...anim(80) }} />
           <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", ...anim(140) }}>
-            Portal de Colaboradores
+            Colaboradores · Pacientes
           </div>
         </div>
         <div style={{ flex: 1, padding: "28px 28px 48px", position: "relative", overflow: "hidden" }}>
@@ -148,7 +148,7 @@ export function LoginScreen({ onLogin }) {
         <div style={anim(0)}><Logo width={380} /></div>
         <div style={{ width: 80, height: 2, background: COLORS.gold, opacity: 0.7, ...anim(100) }} />
         <div style={{ fontSize: 14, letterSpacing: "0.35em", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", textAlign: "center", fontWeight: 500, ...anim(180) }}>
-          Portal de Colaboradores
+          Colaboradores · Pacientes
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 56px", background: "#FFF", position: "relative", overflow: "hidden" }}>
