@@ -1,7 +1,0 @@
-Coloca aquí los archivos del logo:
-
-  logo.png        → Logo a color (para fondos blancos/claros)
-  logo-blanco.png → Logo en blanco (para fondos oscuros: sidebar y panel verde del login)
-
-El portal los carga automáticamente al existir.
-Si no existen, muestra un SVG de respaldo.
