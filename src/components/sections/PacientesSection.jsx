@@ -81,7 +81,7 @@ function NuevoPacienteModal({ userId, onClose }) {
   const twoCol = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 14 };
 
   return (
-    <ModalShell onClose={onClose} title="Nuevo paciente">
+    <ModalShell onClose={onClose} title="Nuevo paciente" maxWidth={620}>
       <div style={{ marginBottom: 14 }}>
         {fl("Nombre completo")}
         <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Nombre y apellidos" style={inp} />

@@ -83,7 +83,7 @@ function NuevaCitaModal({ patients, doctors, userId, onClose }) {
   const selStyle = { ...inp, cursor: "pointer", appearance: "auto" };
 
   return (
-    <ModalShell onClose={onClose} title="Nueva cita">
+    <ModalShell onClose={onClose} title="Nueva cita" maxWidth={620}>
       <div style={{ marginBottom: 14 }}>
         {fl("Paciente")}
         <input
