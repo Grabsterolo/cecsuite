@@ -144,7 +144,7 @@ export function Dashboard({ onLogout, profile, allRequests = [], onNewRequest, o
   // hasta que se construyan en prompts siguientes.
   const renderClinicoSection = () => (
     displayActive === "inicio" ? <DashboardClinicoHome isMobile={isMobile} profile={profile} userId={userId} />
-    : displayActive === "pacientes" ? <PacientesSection userId={userId} />
+    : displayActive === "pacientes" ? <PacientesSection userId={userId} profile={profile} />
     : displayActive === "agenda" ? <AgendaSection profile={profile} userId={userId} />
     : <PlaceholderSection title={sectionTitle} />
   );
