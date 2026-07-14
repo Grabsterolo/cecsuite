@@ -9,8 +9,14 @@ export function StatusBadge({ status }) {
     rechazado:   { color: "#c0392b",           background: "rgba(192,57,43,0.1)"    },
     atendido:    { color: "#2C6356",           background: "rgba(44,99,86,0.1)"     },
     descartado:  { color: COLORS.textMuted,    background: COLORS.panelAlt          },
+    // Estados de citas (Agenda clínica)
+    programada:  { color: COLORS.gold,        background: "rgba(201,162,78,0.12)"  },
+    confirmada:  { color: "#2C6356",           background: "rgba(44,99,86,0.1)"     },
+    completada:  { color: COLORS.green,        background: "rgba(31,74,64,0.1)"     },
+    cancelada:   { color: "#c0392b",           background: "rgba(192,57,43,0.1)"    },
+    no_asistio:  { color: "#C98B6B",           background: "rgba(201,139,107,0.14)" },
   };
-  const labels = { pendiente:"Pendiente", aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado" };
+  const labels = { pendiente:"Pendiente", aprobado:"Aprobado", rechazado:"Rechazado", atendido:"Atendido", descartado:"Descartado", programada:"Programada", confirmada:"Confirmada", completada:"Completada", cancelada:"Cancelada", no_asistio:"No asistió" };
   const s = styles[status] ?? { color: COLORS.textMuted, background: COLORS.panelAlt };
   const label = labels[status] ?? (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
   return (

@@ -17,9 +17,14 @@ function startOfTodayISO() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 }
 
+// Reutilizado tanto en el fetch inicial como al re-consultar una cita puntual
+// tras un INSERT por realtime, para que siempre traiga los mismos datos anidados.
+const APPOINTMENT_SELECT = "*, patient:patients(full_name, phone, allergies), doctor:profiles!appointments_doctor_id_fkey(full_name)";
+
 export function ClinicalProvider({ userId, profile, children }) {
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]); // hoy + próximas
+  const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const canAccess = !!userId && hasClinicalAccess(profile);
@@ -31,11 +36,13 @@ export function ClinicalProvider({ userId, profile, children }) {
 
     Promise.all([
       supabase.from("patients").select("*").eq("active", true).order("full_name", { ascending: true }),
-      supabase.from("appointments").select("*").gte("scheduled_at", startOfTodayISO()).order("scheduled_at", { ascending: true }),
-    ]).then(([patientsRes, appointmentsRes]) => {
+      supabase.from("appointments").select(APPOINTMENT_SELECT).gte("scheduled_at", startOfTodayISO()).order("scheduled_at", { ascending: true }),
+      supabase.from("profiles").select("id, full_name").eq("role", "doctor").order("full_name", { ascending: true }),
+    ]).then(([patientsRes, appointmentsRes, doctorsRes]) => {
       if (cancelled) return;
       if (patientsRes.data) setPatients(patientsRes.data);
       if (appointmentsRes.data) setAppointments(appointmentsRes.data);
+      if (doctorsRes.data) setDoctors(doctorsRes.data);
       setLoading(false);
     });
 
@@ -58,9 +65,14 @@ export function ClinicalProvider({ userId, profile, children }) {
     });
 
     ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "appointments" }, ({ new: row }) => {
-      setAppointments(prev => prev.some(a => a.id === row.id)
-        ? prev
-        : [...prev, row].sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)));
+      // postgres_changes solo manda las columnas crudas; volvemos a pedir la fila
+      // con los joins para que patient/doctor no falten en la cita recién creada.
+      supabase.from("appointments").select(APPOINTMENT_SELECT).eq("id", row.id).single().then(({ data }) => {
+        const fullRow = data ?? row;
+        setAppointments(prev => prev.some(a => a.id === fullRow.id)
+          ? prev
+          : [...prev, fullRow].sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)));
+      });
     });
     ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "appointments" }, ({ new: row }) => {
       setAppointments(prev => prev.map(a => a.id === row.id ? { ...a, ...row } : a));
@@ -73,7 +85,7 @@ export function ClinicalProvider({ userId, profile, children }) {
     return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
   }, [canAccess, userId]);
 
-  const value = { patients, appointments, loading: canAccess ? loading : false };
+  const value = { patients, appointments, doctors, loading: canAccess ? loading : false };
   return <ClinicalContext.Provider value={value}>{children}</ClinicalContext.Provider>;
 }
 
