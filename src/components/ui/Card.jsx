@@ -1,9 +1,9 @@
 import React from "react";
 import { COLORS } from "../../constants/colors.js";
 
-export function Card({ children, style }) {
+export function Card({ children, style, onClick }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background: COLORS.panel,
       border: `1px solid ${COLORS.border}`,
       borderRadius: 14,
